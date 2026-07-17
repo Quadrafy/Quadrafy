@@ -868,6 +868,14 @@ export async function createApp(overrides = {}) {
         passwordHash: await hashPassword(input.password),
         profile: input.profile,
       });
+      await auditLog.record({
+        actorId: user.id,
+        action: "auth.registered",
+        resourceType: "auth",
+        resourceId: user.id,
+        after: { role: user.role },
+        requestId: request.requestId,
+      });
       sessions.revoke(parseCookies(request).quadrafy_session);
       const token = sessions.create(user.id);
       sendData(
@@ -902,6 +910,14 @@ export async function createApp(overrides = {}) {
         user?.passwordHash ?? dummyPasswordHash,
       );
       if (!user || !valid) {
+        await auditLog.record({
+          actorId: user?.id ?? null,
+          action: "auth.login_failed",
+          resourceType: "auth",
+          resourceId: user?.id ?? null,
+          after: { reason: "invalid_credentials" },
+          requestId: request.requestId,
+        });
         throw new ApiError(
           401,
           "invalid_credentials",
@@ -911,6 +927,14 @@ export async function createApp(overrides = {}) {
       loginAccountLimiter.clear(accountKey);
       sessions.revoke(parseCookies(request).quadrafy_session);
       const token = sessions.create(user.id);
+      await auditLog.record({
+        actorId: user.id,
+        action: "auth.logged_in",
+        resourceType: "auth",
+        resourceId: user.id,
+        after: { role: user.role },
+        requestId: request.requestId,
+      });
       sendData(
         response,
         200,
@@ -932,7 +956,17 @@ export async function createApp(overrides = {}) {
     if (request.method === "POST" && pathname === "/api/v1/auth/logout") {
       assertSameOrigin(request);
       const token = parseCookies(request).quadrafy_session;
+      const session = sessions.get(token);
       sessions.revoke(token);
+      if (session) {
+        await auditLog.record({
+          actorId: session.userId,
+          action: "auth.logged_out",
+          resourceType: "auth",
+          resourceId: session.userId,
+          requestId: request.requestId,
+        });
+      }
       response.writeHead(204, {
         "Set-Cookie": clearSessionCookie(config.isProduction),
         "Cache-Control": "no-store",

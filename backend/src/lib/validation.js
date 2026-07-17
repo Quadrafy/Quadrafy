@@ -46,11 +46,20 @@ function email(value) {
 
 function password(value) {
   const normalized = String(value ?? "");
-  if (normalized.length < 8 || normalized.length > 128) {
+  const hasUpper = /[A-Z]/.test(normalized);
+  const hasLower = /[a-z]/.test(normalized);
+  const hasDigit = /\d/.test(normalized);
+  if (
+    normalized.length < 10 ||
+    normalized.length > 128 ||
+    !hasUpper ||
+    !hasLower ||
+    !hasDigit
+  ) {
     throw new ApiError(
       422,
       "validation_failed",
-      "A senha deve ter entre 8 e 128 caracteres.",
+      "A senha deve ter entre 10 e 128 caracteres e incluir maiusculas, minusculas e numeros.",
       { field: "password" },
     );
   }
