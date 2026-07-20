@@ -39,6 +39,7 @@ import {
   validateSuper8,
   validateSuper8Courts,
   validateSuper8GameResult,
+  validateSuper8Pairs,
 } from "./lib/validation.js";
 import { computeFinanceAnalytics } from "./services/finance-analytics.js";
 import { AuditLogStore } from "./stores/audit-log-store.js";
@@ -1212,12 +1213,25 @@ export async function createApp(overrides = {}) {
         throw new ApiError(404, "player_not_found", "Jogador não encontrado.");
       }
       const viewer = currentUser(request);
+      let catalog = [];
+      if (viewer?.id === playerId) {
+        // TASK-73: progresso "atual/meta" calculado com as mesmas métricas
+        // usadas pelo motor de verificação, mesmo para conquistas bloqueadas.
+        const metrics = (await achievementsEngine.metricsFor(playerId)) ?? {};
+        catalog = publicAchievementCatalog().map((achievement) => ({
+          ...achievement,
+          progress: {
+            current: Number(metrics[achievement.criterion.metric]) || 0,
+            target: achievement.criterion.threshold,
+          },
+        }));
+      }
       sendData(response, 200, {
         achievements: achievements
           .listByPlayer(playerId)
           .map(toAchievementView)
           .filter(Boolean),
-        catalog: viewer?.id === playerId ? publicAchievementCatalog() : [],
+        catalog,
       });
       return true;
     }
@@ -3291,16 +3305,49 @@ export async function createApp(overrides = {}) {
     // (ex.: saldo de games) pode ser adicionada depois. Validar com produto
     // antes de mudar essa regra.
 
+    // TASK-77 — categoria técnica (das 7 oficiais) do nível atual do jogador.
+    function playerLevelCategory(user) {
+      return classificationFor(user?.profile?.level)?.technical ?? null;
+    }
+
+    function levelCategoriesLabel(levelCategories) {
+      return levelCategories?.length
+        ? levelCategories.join(" e ")
+        : "todas as categorias";
+    }
+
+    // TASK-76 — enriquece o jogador do quadro com foto/nível atuais (quando
+    // vinculado a uma conta), para a tela de detalhe completo.
+    function playerWithProfile(player) {
+      const linked = player.id ? users.findById(player.id) : null;
+      const level = Number.isFinite(Number(linked?.profile?.level))
+        ? Number(linked.profile.level)
+        : null;
+      return {
+        ...player,
+        photoUrl: linked?.profile?.photoUrl ?? null,
+        level,
+        levelCategory: classificationFor(level)?.technical ?? null,
+      };
+    }
+
     function super8View(tournament) {
       return {
         id: tournament.id,
         name: tournament.name,
         size: tournament.size,
         mode: tournament.mode,
-        players: tournament.players,
+        players: tournament.players.map(playerWithProfile),
         pairs: tournament.pairs,
         startTime: tournament.startTime ?? null,
+        // TASK-77
+        levelCategories: tournament.levelCategories ?? null,
         courtIds: tournament.courtIds,
+        // TASK-76 — nomes das quadras, prontos para exibição.
+        courts: (tournament.courtIds ?? [])
+          .map((courtId) => courts.findById(courtId))
+          .filter(Boolean)
+          .map((court) => ({ id: court.id, name: court.name })),
         games: tournament.games ?? [],
         gamesTotal: (tournament.games ?? []).length,
         gamesFinished: (tournament.games ?? []).filter(
@@ -3341,6 +3388,20 @@ export async function createApp(overrides = {}) {
             { field: "players" },
           );
         }
+        // TASK-77 — jogador precisa estar dentro das categorias permitidas
+        // (jogadores sem nível definido ainda não podem ser adicionados a um
+        // torneio com restrição de categoria).
+        if (input.levelCategories) {
+          const category = playerLevelCategory(linked);
+          if (!category || !input.levelCategories.includes(category)) {
+            throw new ApiError(
+              422,
+              "validation_failed",
+              `Este Super 8 é restrito às categorias ${levelCategoriesLabel(input.levelCategories)}.`,
+              { field: "players" },
+            );
+          }
+        }
         return { id: linked.id, name: displayName(linked) };
       });
       const tournament = await super8.create({
@@ -3351,6 +3412,7 @@ export async function createApp(overrides = {}) {
         players,
         pairs: input.pairs,
         startTime: input.startTime,
+        levelCategories: input.levelCategories,
       });
       await auditLog.record({
         actorId: user.id,
@@ -3392,6 +3454,48 @@ export async function createApp(overrides = {}) {
       return true;
     }
 
+    // TASK-74 — define (ou redefine) as duplas fixas depois que o quadro
+    // completa via inscrição espontânea/preenchimento manual (quando não
+    // vieram já definidas na criação).
+    const super8PairsRoute = pathname.match(
+      /^\/api\/v1\/club\/super8\/([^/]+)\/pairs$/,
+    );
+    if (super8PairsRoute && request.method === "PATCH") {
+      assertSameOrigin(request);
+      const user = requireUser(request, "club");
+      const club = await clubs.ensureForUser(user);
+      const tournamentId = decodeURIComponent(super8PairsRoute[1]);
+      const current = super8.requireOwned(tournamentId, club.id);
+      if (current.mode !== "duplas_fixas") {
+        throw new ApiError(
+          409,
+          "super8_pairs_unavailable",
+          "As duplas só se aplicam à modalidade duplas fixas.",
+        );
+      }
+      if (current.status !== "em_configuracao") {
+        throw new ApiError(
+          409,
+          "super8_pairs_unavailable",
+          "As duplas só podem ser definidas antes de gerar a tabela.",
+        );
+      }
+      if (current.players.length !== current.size) {
+        throw new ApiError(
+          409,
+          "super8_roster_incomplete",
+          `O torneio precisa de ${current.size} jogadores para definir as duplas (faltam ${current.size - current.players.length}).`,
+        );
+      }
+      const body = await readJson(request);
+      const pairs = validateSuper8Pairs(body?.pairs, current.size);
+      const tournament = await super8.update(tournamentId, club.id, {
+        pairs,
+      });
+      sendData(response, 200, { tournament: super8View(tournament) });
+      return true;
+    }
+
     // TASK-40 — gera as rodadas e marca o torneio como "gerado".
     const super8GenerateRoute = pathname.match(
       /^\/api\/v1\/club\/super8\/([^/]+)\/generate$/,
@@ -3421,6 +3525,15 @@ export async function createApp(overrides = {}) {
           409,
           "super8_roster_incomplete",
           `O torneio precisa de ${current.size} jogadores para gerar a tabela (faltam ${current.size - current.players.length}).`,
+        );
+      }
+      // TASK-74: quando o quadro completa por vagas em aberto, as duplas
+      // fixas precisam ser definidas (PATCH .../pairs) antes de gerar.
+      if (current.mode === "duplas_fixas" && !current.pairs) {
+        throw new ApiError(
+          409,
+          "super8_pairs_required",
+          "Defina as duplas antes de gerar a tabela.",
         );
       }
       const tournamentCourts = current.courtIds
@@ -3481,9 +3594,9 @@ export async function createApp(overrides = {}) {
       return true;
     }
 
-    // TASKS-12 / TASK-47 — clube abre inscrições para completar o quadro
-    // (disponível apenas na rotação individual; em duplas fixas o quadro é
-    // definido manualmente na criação).
+    // TASKS-12 / TASK-47 / TASK-74 — clube abre inscrições para completar o
+    // quadro em qualquer modalidade; em duplas fixas as duplas são definidas
+    // à parte (PATCH .../pairs) depois que o quadro completar.
     const super8OpenRegistrationsRoute = pathname.match(
       /^\/api\/v1\/club\/super8\/([^/]+)\/open-registrations$/,
     );
@@ -3493,13 +3606,6 @@ export async function createApp(overrides = {}) {
       const club = await clubs.ensureForUser(user);
       const tournamentId = decodeURIComponent(super8OpenRegistrationsRoute[1]);
       const current = super8.requireOwned(tournamentId, club.id);
-      if (current.mode !== "rotacao") {
-        throw new ApiError(
-          409,
-          "super8_registrations_unavailable",
-          "Inscrições abertas só estão disponíveis na modalidade 'cada um por si'.",
-        );
-      }
       if (current.status !== "em_configuracao") {
         throw new ApiError(
           409,
@@ -3695,6 +3801,18 @@ export async function createApp(overrides = {}) {
           "As vagas deste torneio já foram preenchidas.",
         );
       }
+      // TASK-77 — inscrição espontânea também respeita as categorias
+      // permitidas do torneio.
+      if (current.levelCategories) {
+        const category = playerLevelCategory(user);
+        if (!category || !current.levelCategories.includes(category)) {
+          throw new ApiError(
+            403,
+            "super8_category_restricted",
+            `Este Super 8 é restrito às categorias ${levelCategoriesLabel(current.levelCategories)}.`,
+          );
+        }
+      }
       const players = [
         ...current.players,
         { id: user.id, name: displayName(user) },
@@ -3721,30 +3839,47 @@ export async function createApp(overrides = {}) {
       return true;
     }
 
-    // TASKS-12 / TASK-47 — torneios com inscrições abertas (qualquer clube).
+    // TASKS-12 / TASK-47 / TASK-76 / TASK-77 — torneios com inscrições
+    // abertas (qualquer clube), já com os dados completos para a tela de
+    // detalhe e filtrados pela categoria de nível do próprio jogador.
     if (
       pathname === "/api/v1/players/super8/open" &&
       request.method === "GET"
     ) {
       const user = requireUser(request, "player");
+      const myCategory = playerLevelCategory(user);
       const tournaments = super8.tournaments
         .filter(
           (tournament) =>
             tournament.status === "inscricoes_abertas" &&
-            tournament.players.length < tournament.size,
+            tournament.players.length < tournament.size &&
+            // TASK-77 — esconde torneios fora da categoria do jogador.
+            (!tournament.levelCategories ||
+              (myCategory && tournament.levelCategories.includes(myCategory))),
         )
-        .map((tournament) => ({
-          id: tournament.id,
-          name: tournament.name,
-          size: tournament.size,
-          mode: tournament.mode,
-          clubName: clubs.findById(tournament.clubId)?.name ?? "Clube",
-          enrolled: tournament.players.length,
-          spotsLeft: tournament.size - tournament.players.length,
-          alreadyJoined: tournament.players.some(
-            (player) => player.id === user.id,
-          ),
-        }));
+        .map((tournament) => {
+          const club = clubs.findById(tournament.clubId);
+          return {
+            id: tournament.id,
+            name: tournament.name,
+            size: tournament.size,
+            mode: tournament.mode,
+            startTime: tournament.startTime ?? null,
+            levelCategories: tournament.levelCategories ?? null,
+            clubName: club?.name ?? "Clube",
+            clubAddress: club?.address ?? "",
+            players: tournament.players.map(playerWithProfile),
+            courts: (tournament.courtIds ?? [])
+              .map((courtId) => courts.findById(courtId))
+              .filter(Boolean)
+              .map((court) => ({ id: court.id, name: court.name })),
+            enrolled: tournament.players.length,
+            spotsLeft: tournament.size - tournament.players.length,
+            alreadyJoined: tournament.players.some(
+              (player) => player.id === user.id,
+            ),
+          };
+        });
       sendData(response, 200, { tournaments });
       return true;
     }
@@ -3782,12 +3917,14 @@ export async function createApp(overrides = {}) {
       request.method === "GET"
     ) {
       const user = requireUser(request, "player");
-      const tournaments = super8
-        .listPublishedByPlayer(user.id)
-        .map((tournament) => ({
+      const tournaments = super8.listPublishedByPlayer(user.id).map((tournament) => {
+        const club = clubs.findById(tournament.clubId);
+        return {
           ...super8View(tournament),
-          clubName: clubs.findById(tournament.clubId)?.name ?? "Clube",
-        }));
+          clubName: club?.name ?? "Clube",
+          clubAddress: club?.address ?? "",
+        };
+      });
       sendData(response, 200, { tournaments });
       return true;
     }

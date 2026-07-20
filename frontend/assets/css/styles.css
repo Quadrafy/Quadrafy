@@ -4121,6 +4121,10 @@ button.match-player-row:focus-visible strong {
     linear-gradient(118deg, rgba(246, 244, 239, 0.92), rgba(255, 255, 255, 0.48)),
     repeating-linear-gradient(135deg, rgba(27, 42, 74, 0.035) 0 1px, transparent 1px 7px);
 }
+.achievements-card-highlight {
+  box-shadow: 0 0 0 3px rgba(255, 107, 74, 0.55);
+  transition: box-shadow 200ms ease;
+}
 .achievements-card::after {
   position: absolute;
   top: -46px;
@@ -4155,7 +4159,7 @@ button.match-player-row:focus-visible strong {
 }
 .achievement-pin {
   display: flex;
-  min-height: 132px;
+  min-height: 148px;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
@@ -4221,6 +4225,31 @@ button.match-player-row:focus-visible strong {
   border-color: rgba(232, 184, 75, 0.65);
   background: linear-gradient(145deg, #fffdf7, rgba(232, 184, 75, 0.15));
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+}
+/* TASK-73 — progresso "atual/meta" nos pins de conquista */
+.achievement-progress {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 2px;
+}
+.achievement-progress-bar {
+  overflow: hidden;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(27, 42, 74, 0.12);
+}
+.achievement-progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--coral);
+}
+.achievement-progress-label {
+  color: var(--ink-soft);
+  font: 700 8px/1 var(--mono);
 }
 .public-achievements {
   margin-top: 22px;
@@ -5930,7 +5959,7 @@ button.match-player-row:focus-visible strong {
 }
 .super8-chip em {
   color: var(--ink-soft);
-  font-size: 10px;
+  font-size: 11px;
   font-style: normal;
   text-transform: uppercase;
 }
@@ -5956,6 +5985,41 @@ button.match-player-row:focus-visible strong {
 }
 .super8-pair-row select {
   width: 100%;
+}
+/* TASK-74 — ações de "definir duplas" na tela de detalhe */
+.super8-pairs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+/* TASK-77 — categorias de nível permitidas na criação do Super 8 */
+.super8-category-all {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.super8-categories-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.super8-categories-grid label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.super8-categories-grid label:has(input:checked) {
+  border-color: var(--coral);
+  background: rgba(255, 107, 74, 0.08);
 }
 .super8-courts {
   display: grid;
@@ -6241,6 +6305,32 @@ button.match-player-row:focus-visible strong {
   display: block;
   color: var(--ink-soft);
   font-size: 11px;
+}
+/* TASK-76 — na área de Super 8 a linha vira um botão (abre a tela de
+   detalhe); em Torneios ela continua sendo um <div> com botão próprio. */
+button.super8-open-row {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.super8-open-row:hover,
+button.super8-open-row:focus-visible {
+  border-color: var(--coral);
+  outline: 0;
+}
+/* TASK-75 — legibilidade: status, contagem de vagas/jogos e rótulos
+   secundários da área de Super 8 (e Torneios, que reaproveita os mesmos
+   componentes) estavam abaixo de 11px. */
+.super8-card .status-badge,
+.super8-open-row .status-badge,
+.super8-game-action .status-badge,
+.super8-game-score .status-badge {
+  font-size: 11px;
+}
+.super8-card .match-date {
+  font-size: 12px;
 }
 @media (max-width: 640px) {
   .super8-versus {

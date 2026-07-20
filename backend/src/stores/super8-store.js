@@ -71,7 +71,16 @@ export class Super8Store {
     return tournament;
   }
 
-  async create({ clubId, name, size, mode, players, pairs, startTime }) {
+  async create({
+    clubId,
+    name,
+    size,
+    mode,
+    players,
+    pairs,
+    startTime,
+    levelCategories,
+  }) {
     return this.enqueueWrite(async () => {
       const now = new Date().toISOString();
       const tournament = {
@@ -84,6 +93,8 @@ export class Super8Store {
         pairs: pairs ?? null,
         // TASK-59: horário de início do evento (convocação), "HH:MM" ou null
         startTime: startTime ?? null,
+        // TASK-77: categorias de nível permitidas ou null = todas
+        levelCategories: levelCategories ?? null,
         courtIds: [],
         // TASK-43: jogos são apenas confrontos, sem horário.
         games: [],

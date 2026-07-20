@@ -415,6 +415,7 @@
     form.reset();
     super8State.players = [];
     $("[data-super8-form-note]").textContent = "";
+    $("[data-super8-categories-grid]").classList.add("hidden");
     renderSuper8Players();
     renderSuper8Courts();
     openModal($("[data-super8-create-modal]"));
@@ -427,14 +428,10 @@
     note.textContent = "";
     const size = super8Size();
     const isFixed = super8Mode() === "duplas_fixas";
-    if (isFixed && super8State.players.length !== size) {
-      note.textContent = `Adicione exatamente ${size} jogadores (faltam ${size - super8State.players.length}).`;
-      return;
-    }
-    if (!isFixed && !super8State.players.length) {
-      note.textContent = "Adicione ao menos um jogador.";
-      return;
-    }
+    // TASK-74: o quadro é totalmente opcional na criação — pode ficar 100%
+    // em aberto, parcial (misturando manual + inscrição espontânea depois)
+    // ou completo, em qualquer modalidade.
+    const isFull = super8State.players.length === size;
     const courtIds = $$('[data-super8-courts] input:checked', form).map(
       (input) => input.value,
     );
@@ -443,7 +440,7 @@
       return;
     }
     let pairs = null;
-    if (super8Mode() === "duplas_fixas") {
+    if (isFixed && isFull) {
       try {
         pairs = readSuper8Pairs();
       } catch (error) {
@@ -465,6 +462,8 @@
           ...(pairs ? { pairs } : {}),
           // TASK-59: horário de início do EVENTO (convocação)
           startTime: form.elements.startTime.value || null,
+          // TASK-77: categorias de nível permitidas (null = todas)
+          levelCategories: readSuper8LevelCategories(form),
         },
       });
       await apiRequest(
@@ -472,7 +471,7 @@
         { method: "PATCH", body: { courtIds } },
       );
       let latest = tournament;
-      if (super8State.players.length === size) {
+      if (isFull) {
         const generated = await apiRequest(
           `/api/v1/club/super8/${encodeURIComponent(tournament.id)}/generate`,
           { method: "POST" },
@@ -491,7 +490,7 @@
       note.textContent = error.message;
     } finally {
       button.disabled = false;
-      button.textContent = "Criar torneio e gerar tabela";
+      button.textContent = "Criar torneio";
     }
   }
 
@@ -547,6 +546,15 @@
       ? Math.round((finished.length / games.length) * 100)
       : 0;
 
+    // TASK-74: quadro completo, duplas fixas ainda não definidas (vagas
+    // preenchidas via inscrição espontânea/manual depois da criação).
+    const needsPairs =
+      tournament.mode === "duplas_fixas" &&
+      tournament.status === "em_configuracao" &&
+      tournament.players.length === tournament.size &&
+      !tournament.pairs &&
+      !games.length;
+
     let primaryAction = "";
     if (tournament.status === "gerado") {
       primaryAction =
@@ -557,7 +565,6 @@
         : '<button class="button button-primary button-block shine" type="button" data-super8-finalize>Gerar tabela final</button>';
     } else if (
       tournament.status === "em_configuracao" &&
-      tournament.mode === "rotacao" &&
       tournament.players.length < tournament.size
     ) {
       primaryAction = `<button class="button button-primary button-block" type="button" data-super8-open-registrations>Abrir inscrições (${tournament.size - tournament.players.length} vagas)</button>`;
@@ -568,6 +575,7 @@
     } else if (
       tournament.status === "em_configuracao" &&
       tournament.players.length === tournament.size &&
+      !needsPairs &&
       !games.length
     ) {
       primaryAction =
@@ -582,11 +590,25 @@
             : '<p class="profile-data-note">Nenhum jogador ainda.</p>'
         }</div>`
       : "";
+    const pairsPanel = needsPairs
+      ? `<div class="super8-section"><p class="micro-label">Definir duplas</p><p class="profile-data-note">O quadro completou — defina as duplas fixas antes de gerar os confrontos.</p><div class="super8-pairs" data-super8-detail-pairs></div><div class="super8-pairs-actions"><button class="button button-outline" type="button" data-super8-detail-shuffle>Sortear duplas</button><button class="button button-primary shine" type="button" data-super8-detail-pairs-save>Salvar duplas e gerar confrontos</button></div><p class="auth-feedback hidden" role="alert" aria-live="polite" data-super8-detail-pairs-note></p></div>`
+      : "";
+
+    // TASK-77 — categorias permitidas (null = todas).
+    const categoriesLabel = tournament.levelCategories
+      ? tournament.levelCategories.join(", ")
+      : "Todas as categorias";
+    // TASK-76 — quadras do torneio, visíveis também para o clube conferir
+    // o que os jogadores estão vendo.
+    const courtsLabel = tournament.courts?.length
+      ? tournament.courts.map((court) => escapeHTML(court.name)).join(", ")
+      : "A definir";
 
     $("[data-super8-detail-content]").innerHTML = `
       ${tournament.startTime ? `<p class="super8-start-time">Início às <strong>${escapeHTML(tournament.startTime)}</strong></p>` : ""}
-      <div class="match-detail super8-meta"><div><small>Status</small><strong>${escapeHTML(statusLabel)}</strong></div><div><small>Formato</small><strong>Super ${tournament.size}</strong></div><div><small>Modalidade</small><strong>${escapeHTML(modeLabel)}</strong></div><div><small>Jogadores</small><strong>${tournament.players.length}/${tournament.size}</strong></div></div>
+      <div class="match-detail super8-meta"><div><small>Status</small><strong>${escapeHTML(statusLabel)}</strong></div><div><small>Formato</small><strong>Super ${tournament.size}</strong></div><div><small>Modalidade</small><strong>${escapeHTML(modeLabel)}</strong></div><div><small>Jogadores</small><strong>${tournament.players.length}/${tournament.size}</strong></div><div><small>Categorias permitidas</small><strong>${escapeHTML(categoriesLabel)}</strong></div><div><small>Quadras</small><strong>${courtsLabel}</strong></div></div>
       ${rosterPanel}
+      ${pairsPanel}
       ${games.length ? `<div class="super8-progress"><div class="super8-progress-head"><span>${finished.length} de ${games.length} jogos finalizados</span><strong>${progressPercent}%</strong></div><div class="confidence-bar" aria-hidden="true"><span style="width:${progressPercent}%"></span></div></div>` : ""}
       ${super8StandingsTable(tournament)}
       ${waiting.length ? `<div class="super8-section"><p class="micro-label">Aguardando resultado (${waiting.length})</p><div class="super8-games">${waiting.map((game) => super8GameCard(game, tournament)).join("")}</div></div>` : ""}
@@ -609,7 +631,75 @@
         openSuper8ResultForm(button.dataset.super8Result),
       ),
     );
+    if (needsPairs) setupDetailPairsForm(tournament);
     openModal($("[data-super8-detail-modal]"));
+  }
+
+  // TASK-74 — monta o formulário de duplas fixas dentro da tela de detalhe,
+  // usado quando o quadro completou depois da criação (vagas abertas).
+  function renderDetailPairsOptions(players, selected) {
+    return players
+      .map(
+        (player, index) =>
+          `<option value="${index}"${index === selected ? " selected" : ""}>${escapeHTML(player.name)}</option>`,
+      )
+      .join("");
+  }
+
+  function setupDetailPairsForm(tournament) {
+    const container = $("[data-super8-detail-pairs]");
+    const players = tournament.players;
+    const size = tournament.size;
+    const renderRows = () => {
+      container.innerHTML = Array.from({ length: size / 2 }, (_, pairIndex) => {
+        const a = pairIndex * 2;
+        const b = pairIndex * 2 + 1;
+        return `<div class="super8-pair-row"><span class="result-set-label">Dupla ${pairIndex + 1}</span><select data-super8-detail-pair-slot>${renderDetailPairsOptions(players, a)}</select><span class="super8-x" aria-hidden="true">+</span><select data-super8-detail-pair-slot>${renderDetailPairsOptions(players, b)}</select></div>`;
+      }).join("");
+    };
+    renderRows();
+    $("[data-super8-detail-shuffle]")?.addEventListener("click", () => {
+      const indexes = players.map((_, index) => index);
+      for (let i = indexes.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [indexes[i], indexes[j]] = [indexes[j], indexes[i]];
+      }
+      $$("[data-super8-detail-pair-slot]").forEach((select, position) => {
+        select.value = String(indexes[position]);
+      });
+    });
+    $("[data-super8-detail-pairs-save]")?.addEventListener("click", async () => {
+      const note = $("[data-super8-detail-pairs-note]");
+      note.classList.add("hidden");
+      note.textContent = "";
+      const values = $$("[data-super8-detail-pair-slot]").map((select) =>
+        Number(select.value),
+      );
+      if (new Set(values).size !== values.length) {
+        note.textContent =
+          "Cada jogador deve aparecer em exatamente uma dupla — revise as duplas.";
+        note.classList.remove("hidden");
+        return;
+      }
+      const pairs = [];
+      for (let index = 0; index < values.length; index += 2) {
+        pairs.push([values[index], values[index + 1]]);
+      }
+      const button = $("[data-super8-detail-pairs-save]");
+      button.disabled = true;
+      try {
+        await apiRequest(
+          `/api/v1/club/super8/${encodeURIComponent(tournament.id)}/pairs`,
+          { method: "PATCH", body: { pairs } },
+        );
+        await callSuper8Action("generate", "Duplas salvas e confrontos gerados.");
+      } catch (error) {
+        note.textContent = error.message;
+        note.classList.remove("hidden");
+      } finally {
+        button.disabled = false;
+      }
+    });
   }
 
   async function callSuper8Action(path, successMessage) {
@@ -760,6 +850,22 @@
       "submit",
       submitSuper8Result,
     );
+    // TASK-77 — mostra as categorias específicas só quando "todas" é
+    // desmarcada.
+    $("[data-super8-categories-all]")?.addEventListener("change", (event) => {
+      $("[data-super8-categories-grid]").classList.toggle(
+        "hidden",
+        event.currentTarget.checked,
+      );
+    });
+  }
+
+  function readSuper8LevelCategories(form) {
+    if ($("[data-super8-categories-all]", form).checked) return null;
+    const selected = $$('[name="levelCategories"]:checked', form).map(
+      (input) => input.value,
+    );
+    return selected.length ? selected : null;
   }
 
 

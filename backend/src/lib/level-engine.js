@@ -45,6 +45,10 @@ export const LEVEL_BANDS = [
   { min: 6.8, max: 7, technical: "Elite", category: "Categoria Open" },
 ];
 
+// TASK-77 — nomes técnicos das 7 categorias oficiais, para reaproveitar em
+// qualquer feature que precise restringir por categoria (ex.: Super 8).
+export const LEVEL_CATEGORY_NAMES = LEVEL_BANDS.map((band) => band.technical);
+
 export function clampDynamicLevel(value) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return null;

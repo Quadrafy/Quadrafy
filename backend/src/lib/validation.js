@@ -1,5 +1,6 @@
 import { ApiError } from "./http.js";
 import { normalizeEmail } from "./security.js";
+import { LEVEL_CATEGORY_NAMES } from "./level-engine.js";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const COURT_TYPES = new Set(["covered", "outdoor"]);
@@ -171,21 +172,14 @@ export function validateSuper8(body) {
     );
   }
   const rawPlayers = body?.players;
-  // TASKS-12: na rotação individual o clube pode criar com menos jogadores e
-  // completar via inscrições abertas; em duplas fixas o quadro completo (e as
-  // duplas) precisam existir já na criação.
-  const requireFull = mode === "duplas_fixas";
-  if (
-    !Array.isArray(rawPlayers) ||
-    rawPlayers.length > size ||
-    (requireFull ? rawPlayers.length !== size : rawPlayers.length < 1)
-  ) {
+  // TASKS-12 / TASK-74: em qualquer modalidade o clube pode publicar com o
+  // quadro parcial ou 100% em aberto — as vagas restantes são completadas
+  // via inscrição espontânea (ou preenchimento manual posterior).
+  if (!Array.isArray(rawPlayers) || rawPlayers.length > size) {
     throw new ApiError(
       422,
       "validation_failed",
-      requireFull
-        ? `Informe exatamente ${size} jogadores.`
-        : `Informe de 1 a ${size} jogadores (as vagas restantes podem ser abertas para inscrição).`,
+      `Informe no máximo ${size} jogadores (as vagas restantes podem ser abertas para inscrição).`,
       { field: "players" },
     );
   }
@@ -205,6 +199,35 @@ export function validateSuper8(body) {
       { field: "players" },
     );
   }
+  // TASK-77 — categorias de nível permitidas: null/vazio = todas (sem
+  // restrição); senão, uma lista de categorias da tabela oficial de 7.
+  const rawCategories = body?.levelCategories;
+  let levelCategories = null;
+  if (rawCategories !== undefined && rawCategories !== null) {
+    if (!Array.isArray(rawCategories)) {
+      throw new ApiError(
+        422,
+        "validation_failed",
+        "Categorias permitidas inválidas.",
+        { field: "levelCategories" },
+      );
+    }
+    const unique = [...new Set(rawCategories.map((value) => String(value)))];
+    if (
+      unique.some((category) => !LEVEL_CATEGORY_NAMES.includes(category))
+    ) {
+      throw new ApiError(
+        422,
+        "validation_failed",
+        "Uma das categorias selecionadas não é válida.",
+        { field: "levelCategories" },
+      );
+    }
+    // cobre todas as 7 → equivalente a "sem restrição"
+    if (unique.length && unique.length < LEVEL_CATEGORY_NAMES.length) {
+      levelCategories = unique;
+    }
+  }
   // TASKS-14 / TASK-59 — horário de início do EVENTO (convocação), em
   // intervalos de 30 minutos. Não gera horário por jogo (TASK-43 mantida).
   let startTime = null;
@@ -220,48 +243,58 @@ export function validateSuper8(body) {
     }
     startTime = raw;
   }
-  let pairs = null;
-  if (mode === "duplas_fixas") {
-    const rawPairs = body?.pairs;
-    if (!Array.isArray(rawPairs) || rawPairs.length !== size / 2) {
+  // TASK-74: as duplas só são exigidas já na criação quando o quadro
+  // completo (as `size` vagas) já está definido; com vagas em aberto, as
+  // duplas são definidas depois, quando o quadro completar (ver
+  // validateSuper8Pairs / PATCH .../pairs).
+  const pairs =
+    mode === "duplas_fixas" && players.length === size
+      ? validateSuper8Pairs(body?.pairs, size)
+      : null;
+  return { name, size, mode, players, pairs, startTime, levelCategories };
+}
+
+// TASK-74 — validação das duplas fixas, reutilizada tanto na criação (quando
+// o quadro já vem completo) quanto no novo passo de definir duplas depois
+// que o quadro completa via inscrição espontânea/preenchimento manual.
+export function validateSuper8Pairs(rawPairs, size) {
+  if (!Array.isArray(rawPairs) || rawPairs.length !== size / 2) {
+    throw new ApiError(
+      422,
+      "validation_failed",
+      `Organize os jogadores em ${size / 2} duplas.`,
+      { field: "pairs" },
+    );
+  }
+  const used = new Set();
+  return rawPairs.map((pair) => {
+    if (!Array.isArray(pair) || pair.length !== 2) {
       throw new ApiError(
         422,
         "validation_failed",
-        `Organize os jogadores em ${size / 2} duplas.`,
+        "Cada dupla deve ter exatamente 2 jogadores.",
         { field: "pairs" },
       );
     }
-    const used = new Set();
-    pairs = rawPairs.map((pair) => {
-      if (!Array.isArray(pair) || pair.length !== 2) {
+    return pair.map((value) => {
+      const index = Number(value);
+      if (
+        !Number.isInteger(index) ||
+        index < 0 ||
+        index >= size ||
+        used.has(index)
+      ) {
         throw new ApiError(
           422,
           "validation_failed",
-          "Cada dupla deve ter exatamente 2 jogadores.",
+          "As duplas devem cobrir todos os jogadores, sem repetição.",
           { field: "pairs" },
         );
       }
-      return pair.map((value) => {
-        const index = Number(value);
-        if (
-          !Number.isInteger(index) ||
-          index < 0 ||
-          index >= size ||
-          used.has(index)
-        ) {
-          throw new ApiError(
-            422,
-            "validation_failed",
-            "As duplas devem cobrir todos os jogadores, sem repetição.",
-            { field: "pairs" },
-          );
-        }
-        used.add(index);
-        return index;
-      });
+      used.add(index);
+      return index;
     });
-  }
-  return { name, size, mode, players, pairs, startTime };
+  });
 }
 
 // TASK-39 — quadras do torneio (TASK-43: sem horário).

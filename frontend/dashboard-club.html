@@ -1046,9 +1046,11 @@
             </div>
             <div class="super8-player-chips" data-super8-players></div>
             <p class="profile-data-note">
-              Na modalidade "cada um por si" você pode criar o torneio com
-              menos jogadores e abrir inscrições para os atletas completarem
-              o quadro sozinhos.
+              Você pode publicar o torneio com o quadro parcial ou 100% em
+              aberto — depois é só abrir as inscrições para os atletas
+              completarem as vagas sozinhos. Em duplas fixas, se o quadro não
+              vier completo aqui, você define as duplas assim que ele
+              completar.
             </p>
           </fieldset>
 
@@ -1071,6 +1073,72 @@
           </fieldset>
 
           <fieldset class="super8-fieldset">
+            <legend>Categorias permitidas</legend>
+            <label class="super8-category-all">
+              <input
+                type="checkbox"
+                data-super8-categories-all
+                checked
+              />
+              <span>Todas as categorias</span>
+            </label>
+            <div
+              class="super8-categories-grid hidden"
+              data-super8-categories-grid
+            >
+              <label
+                ><input
+                  type="checkbox"
+                  name="levelCategories"
+                  value="Iniciante"
+                /><span>Iniciante</span></label
+              >
+              <label
+                ><input
+                  type="checkbox"
+                  name="levelCategories"
+                  value="Iniciante Intermediário"
+                /><span>Iniciante Intermediário</span></label
+              >
+              <label
+                ><input
+                  type="checkbox"
+                  name="levelCategories"
+                  value="Intermediário"
+                /><span>Intermediário</span></label
+              >
+              <label
+                ><input
+                  type="checkbox"
+                  name="levelCategories"
+                  value="Intermediário Avançado"
+                /><span>Intermediário Avançado</span></label
+              >
+              <label
+                ><input
+                  type="checkbox"
+                  name="levelCategories"
+                  value="Avançado"
+                /><span>Avançado</span></label
+              >
+              <label
+                ><input
+                  type="checkbox"
+                  name="levelCategories"
+                  value="Avançado Elevado"
+                /><span>Avançado Elevado</span></label
+              >
+              <label
+                ><input
+                  type="checkbox"
+                  name="levelCategories"
+                  value="Elite"
+                /><span>Elite</span></label
+              >
+            </div>
+          </fieldset>
+
+          <fieldset class="super8-fieldset">
             <legend>Quadras do torneio</legend>
             <p class="profile-data-note">
               Quanto mais quadras, mais jogos simultâneos por rodada.
@@ -1088,7 +1156,7 @@
             type="submit"
             data-super8-submit
           >
-            Criar torneio e gerar tabela
+            Criar torneio
           </button>
         </form>
       </div>

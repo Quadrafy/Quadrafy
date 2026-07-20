@@ -52,6 +52,7 @@
     profilePreviewObjectUrl: null,
     achievements: [],
     achievementCatalog: [],
+    super8Open: [],
   };
 
   const emptyState = (title, text) =>
@@ -1410,34 +1411,90 @@
     } catch (error) {
       mineList.innerHTML = `<p class="profile-data-note">${escapeHTML(error.message)}</p>`;
     }
+    // TASK-76: o botão de inscrição só aparece dentro da tela de detalhe —
+    // a listagem é só um resumo clicável.
     try {
       const { tournaments } = await apiRequest("/api/v1/players/super8/open");
-      openList.innerHTML = tournaments?.length
-        ? tournaments
+      state.super8Open = tournaments || [];
+      openList.innerHTML = state.super8Open.length
+        ? state.super8Open
             .map(
               (tournament) =>
-                `<div class="super8-open-row"><div><strong>${escapeHTML(tournament.name)}</strong><small>${escapeHTML(tournament.clubName)} · Super ${tournament.size} · ${tournament.spotsLeft} ${tournament.spotsLeft === 1 ? "vaga" : "vagas"}</small></div>${tournament.alreadyJoined ? '<span class="status-badge">Inscrito</span>' : `<button class="button button-primary" type="button" data-super8-join="${escapeHTML(tournament.id)}">Inscrever-se</button>`}</div>`,
+                `<button class="super8-open-row" type="button" data-super8-open-row="${escapeHTML(tournament.id)}"><div><strong>${escapeHTML(tournament.name)}</strong><small>${escapeHTML(tournament.clubName)} · Super ${tournament.size} · ${tournament.spotsLeft} ${tournament.spotsLeft === 1 ? "vaga" : "vagas"}${tournament.levelCategories ? ` · ${escapeHTML(tournament.levelCategories.join(", "))}` : ""}</small></div>${tournament.alreadyJoined ? '<span class="status-badge">Inscrito</span>' : '<span class="super8-entry-arrow" aria-hidden="true">→</span>'}</button>`,
             )
             .join("")
         : '<p class="profile-data-note">Nenhum torneio com inscrições abertas no momento.</p>';
-      $$("[data-super8-join]", openList).forEach((button) =>
-        button.addEventListener("click", () => joinSuper8(button)),
+      $$("[data-super8-open-row]", openList).forEach((row) =>
+        row.addEventListener("click", () => {
+          const tournament = state.super8Open.find(
+            (item) => item.id === row.dataset.super8OpenRow,
+          );
+          if (tournament) openSuper8PlayerDetail(tournament);
+        }),
       );
     } catch (error) {
       openList.innerHTML = `<p class="profile-data-note">${escapeHTML(error.message)}</p>`;
     }
   }
 
-  async function joinSuper8(button) {
+  // TASK-76 — tela de detalhe completo do Super 8, mostrada antes de
+  // qualquer inscrição (clube/endereço, data/horário, vagas, modalidade,
+  // categorias, jogadores confirmados com foto/nível e quadras).
+  function super8RosterRow(player) {
+    const name = player.name || "Jogador";
+    const photoUrl = safePhotoUrl(player.photoUrl);
+    const avatar = photoUrl
+      ? `<span class="match-player-avatar"><img src="${escapeHTML(photoUrl)}" alt="" /></span>`
+      : `<span aria-hidden="true">${escapeHTML(initialsFor(name))}</span>`;
+    return `<div class="match-player-row">${avatar}<div><strong>${escapeHTML(name)}</strong><small>${escapeHTML(matchPlayerLevel(player))}</small></div></div>`;
+  }
+
+  function openSuper8PlayerDetail(tournament) {
+    const modal = $("[data-super8-player-detail-modal]");
+    $("[data-super8-player-detail-title]").textContent = tournament.name;
+    const modeLabel =
+      tournament.mode === "duplas_fixas"
+        ? "Duplas fixas"
+        : "Cada um por si (rotação)";
+    const categoriesLabel = tournament.levelCategories
+      ? tournament.levelCategories.join(", ")
+      : "Todas as categorias";
+    const courtsLabel = tournament.courts?.length
+      ? tournament.courts.map((court) => escapeHTML(court.name)).join(", ")
+      : "A definir";
+    $("[data-super8-player-detail-content]").innerHTML = `
+      <p class="super8-start-time">${escapeHTML(tournament.clubName)}${tournament.clubAddress ? ` · ${escapeHTML(tournament.clubAddress)}` : ""}</p>
+      <div class="match-detail super8-meta">
+        <div><small>Horário de início</small><strong>${tournament.startTime ? escapeHTML(tournament.startTime) : "A definir"}</strong></div>
+        <div><small>Vagas</small><strong>${tournament.enrolled}/${tournament.size}</strong></div>
+        <div><small>Modalidade</small><strong>${escapeHTML(modeLabel)}</strong></div>
+        <div><small>Categorias permitidas</small><strong>${escapeHTML(categoriesLabel)}</strong></div>
+        <div><small>Quadras</small><strong>${courtsLabel}</strong></div>
+      </div>
+      <div class="super8-section"><p class="micro-label">Jogadores confirmados (${tournament.players.length}/${tournament.size})</p>${
+        tournament.players.length
+          ? tournament.players.map(super8RosterRow).join("")
+          : '<p class="profile-data-note">Nenhum jogador confirmado ainda.</p>'
+      }</div>`;
+    const joinButton = $("[data-super8-player-detail-join]");
+    joinButton.classList.toggle("hidden", Boolean(tournament.alreadyJoined));
+    joinButton.disabled = false;
+    joinButton.textContent = "Inscrever-se";
+    joinButton.onclick = () => joinSuper8(joinButton, tournament.id);
+    openModal(modal);
+  }
+
+  async function joinSuper8(button, tournamentId) {
     setBusy(button, true, "Inscrevendo…");
     try {
       const { tournament } = await apiRequest(
-        `/api/v1/players/super8/${encodeURIComponent(button.dataset.super8Join)}/join`,
+        `/api/v1/players/super8/${encodeURIComponent(tournamentId)}/join`,
         { method: "POST" },
       );
       showToast(
         `Inscrição confirmada em ${tournament.name} (${tournament.players}/${tournament.size}).`,
       );
+      closeModal($("[data-super8-player-detail-modal]"));
       openSuper8Screen();
     } catch (error) {
       showToast(error.message);
@@ -2737,6 +2794,18 @@
     });
   }
 
+  // TASK-73: barra "atual/meta" para conquistas de progresso (não se aplica
+  // a títulos de campeão, que não têm meta numérica).
+  function achievementProgressMarkup(achievement) {
+    if (achievement.type !== "progress_tier" || !achievement.progress) return "";
+    const target = Number(achievement.progress.target) || 0;
+    if (!target) return "";
+    const current = Math.min(Number(achievement.progress.current) || 0, target);
+    const percent = Math.max(0, Math.min(100, (current / target) * 100));
+    const currentLabel = Number.isInteger(target) ? Math.round(current) : current;
+    return `<div class="achievement-progress"><div class="achievement-progress-bar"><span style="width:${percent}%"></span></div><small class="achievement-progress-label">${escapeHTML(String(currentLabel))} / ${escapeHTML(String(target))}</small></div>`;
+  }
+
   function renderAchievementsGrid(container, items, { owner }) {
     if (!container) return;
     if (!items.length) {
@@ -2748,7 +2817,7 @@
         const locked = Boolean(achievement.locked);
         const champion = achievement.type === "champion_title";
         const stateText = locked ? "Bloqueado" : champion ? "Título de campeão" : `Nível ${achievement.tier || "bronze"}`;
-        return `<button class="achievement-pin${locked ? " is-locked" : ""}${champion ? " is-champion" : ""}" type="button" data-achievement-index="${index}" aria-label="${escapeHTML(achievement.name)} — ${escapeHTML(stateText)}"><span class="achievement-pin-art"><img src="${escapeHTML(achievementAsset(achievement.asset))}" alt="" width="64" height="76" /></span><span class="achievement-pin-name">${escapeHTML(achievement.name)}</span><small>${escapeHTML(stateText)}</small></button>`;
+        return `<button class="achievement-pin${locked ? " is-locked" : ""}${champion ? " is-champion" : ""}" type="button" data-achievement-index="${index}" aria-label="${escapeHTML(achievement.name)} — ${escapeHTML(stateText)}"><span class="achievement-pin-art"><img src="${escapeHTML(achievementAsset(achievement.asset))}" alt="" width="64" height="76" /></span><span class="achievement-pin-name">${escapeHTML(achievement.name)}</span><small>${escapeHTML(stateText)}</small>${achievementProgressMarkup(achievement)}</button>`;
       })
       .join("");
     $$('[data-achievement-index]', container).forEach((button) =>
@@ -3279,6 +3348,16 @@
       "click",
       loadLevelExplanation,
     );
+    // TASK-73: atalho "Ver conquistas" leva direto à seção, sempre visível na rolagem do perfil.
+    $("[data-achievements-open]")?.addEventListener("click", () => {
+      const card = $(".achievements-card");
+      card?.scrollIntoView({ behavior: "smooth", block: "start" });
+      card?.classList.add("achievements-card-highlight");
+      setTimeout(
+        () => card?.classList.remove("achievements-card-highlight"),
+        1500,
+      );
+    });
 
     const levelModal = $("[data-level-test-modal]");
     levelModal?.addEventListener(
