@@ -134,6 +134,30 @@
     finalizado: "Finalizado",
   };
 
+  // TASK-95 — data + horário do torneio, formatados para exibição.
+  function super8DateTimeLabel(tournament) {
+    const parts = [];
+    if (tournament.date) {
+      parts.push(
+        formatDate(`${tournament.date}T12:00:00-03:00`, {
+          day: "2-digit",
+          month: "short",
+        }),
+      );
+    }
+    if (tournament.startTime) parts.push(tournament.startTime);
+    return parts.length ? parts.join(" · ") : "Data a definir";
+  }
+
+  function super8CourtsSummary(tournament) {
+    const count = tournament.courts?.length || 0;
+    if (!count) return "Quadra a definir";
+    return count === 1 ? tournament.courts[0].name : `${count} quadras`;
+  }
+
+  // TASK-94 — hierarquia visual clara: contador de jogadores em destaque no
+  // canto superior direito, corpo com nome/modalidade/categorias, rodapé
+  // com data/horário e quadras (mesmo padrão de qualidade do .match-card).
   function super8Card(tournament) {
     const modeLabel =
       tournament.mode === "duplas_fixas"
@@ -141,16 +165,17 @@
         : "Cada um por si (rotação)";
     const statusLabel =
       SUPER8_STATUS_LABELS[tournament.status] || tournament.status;
-    const progress = tournament.gamesTotal
-      ? `${tournament.gamesFinished}/${tournament.gamesTotal} jogos`
-      : `${tournament.players.length}/${tournament.size} jogadores`;
-    const startTimeLabel = tournament.startTime
-      ? ` · Início às ${tournament.startTime}`
-      : "";
+    const categoriesLabel = tournament.levelCategories
+      ? tournament.levelCategories.join(", ")
+      : "Todas as categorias";
     return `<article class="super8-card card-hover" data-super8-open="${escapeHTML(tournament.id)}" tabindex="0" role="button" aria-label="Abrir torneio ${escapeHTML(tournament.name)}">
-      <div class="match-top"><span class="status-badge super8-status-${escapeHTML(tournament.status)}">${escapeHTML(statusLabel)}</span><span class="match-date">${escapeHTML(progress + startTimeLabel)}</span></div>
+      <div class="super8-card-top">
+        <div><span class="status-badge super8-status-${escapeHTML(tournament.status)}">${escapeHTML(statusLabel)}</span><span class="super8-card-mode">${escapeHTML(modeLabel)}</span></div>
+        <span class="super8-players-badge">${tournament.players.length}/${tournament.size}</span>
+      </div>
       <h3>${escapeHTML(tournament.name)}</h3>
-      <div class="match-detail"><div><small>Formato</small><strong>Super ${tournament.size}</strong></div><div><small>Modalidade</small><strong>${escapeHTML(modeLabel)}</strong></div><div><small>Jogos</small><strong>${tournament.gamesTotal || "—"}</strong></div></div>
+      <p class="super8-card-categories">${escapeHTML(categoriesLabel)}</p>
+      <div class="super8-card-footer"><span>${escapeHTML(super8DateTimeLabel(tournament))}</span><span>${escapeHTML(super8CourtsSummary(tournament))}</span></div>
     </article>`;
   }
 
@@ -457,6 +482,8 @@
           mode: super8Mode(),
           players: super8State.players,
           ...(pairs ? { pairs } : {}),
+          // TASK-95: data do evento (dia dos jogos)
+          date: form.elements.date.value || null,
           // TASK-59: horário de início do EVENTO (convocação)
           startTime: form.elements.startTime.value || null,
           // TASK-77: categorias de nível permitidas (null = todas)
@@ -602,7 +629,7 @@
       : "A definir";
 
     $("[data-super8-detail-content]").innerHTML = `
-      ${tournament.startTime ? `<p class="super8-start-time">Início às <strong>${escapeHTML(tournament.startTime)}</strong></p>` : ""}
+      <div class="super8-datetime-highlight"><div><small>Data</small><strong>${tournament.date ? escapeHTML(formatDate(`${tournament.date}T12:00:00-03:00`, { weekday: "short", day: "2-digit", month: "short" })) : "A definir"}</strong></div><div><small>Horário de início</small><strong>${tournament.startTime ? escapeHTML(tournament.startTime) : "A definir"}</strong></div></div>
       <div class="match-detail super8-meta"><div><small>Status</small><strong>${escapeHTML(statusLabel)}</strong></div><div><small>Formato</small><strong>Super ${tournament.size}</strong></div><div><small>Modalidade</small><strong>${escapeHTML(modeLabel)}</strong></div><div><small>Jogadores</small><strong>${tournament.players.length}/${tournament.size}</strong></div><div><small>Categorias permitidas</small><strong>${escapeHTML(categoriesLabel)}</strong></div><div><small>Quadras</small><strong>${courtsLabel}</strong></div></div>
       ${rosterPanel}
       ${pairsPanel}
@@ -903,12 +930,113 @@
     });
   }
 
+  // TASK-93 — jogadores adicionados aqui entram direto no torneio (uma
+  // chamada por adição); remoção continua fora do escopo (regra da TASK-90).
+  function renderSuper8EditPlayers() {
+    const tournament = super8State.current;
+    if (!tournament) return;
+    $("[data-super8-edit-player-count]").textContent =
+      `${tournament.players.length}/${tournament.size}`;
+    const container = $("[data-super8-edit-players]");
+    container.innerHTML = tournament.players.length
+      ? tournament.players
+          .map(
+            (player) =>
+              `<span class="super8-chip">${escapeHTML(player.name)}${player.id ? "" : ' <em title="Convidado sem conta">convidado</em>'}</span>`,
+          )
+          .join("")
+      : '<p class="profile-data-note">Nenhum jogador adicionado ainda.</p>';
+  }
+
+  async function addSuper8EditPlayer(player) {
+    const tournament = super8State.current;
+    if (!tournament) return;
+    if (tournament.players.length >= tournament.size) {
+      showToast(`O torneio comporta ${tournament.size} jogadores.`);
+      return;
+    }
+    try {
+      const { tournament: updated } = await apiRequest(
+        `/api/v1/club/super8/${encodeURIComponent(tournament.id)}/players`,
+        { method: "POST", body: { players: [player] } },
+      );
+      super8State.current = updated;
+      const index = super8State.tournaments.findIndex(
+        (item) => item.id === updated.id,
+      );
+      if (index >= 0) super8State.tournaments[index] = updated;
+      renderSuper8EditPlayers();
+      showToast("Jogador adicionado.");
+    } catch (error) {
+      showToast(error.message);
+    }
+  }
+
+  function renderSuper8EditSearchResults(players) {
+    const box = $("[data-super8-edit-search-results]");
+    if (!players.length) {
+      box.classList.add("hidden");
+      box.innerHTML = "";
+      return;
+    }
+    box.classList.remove("hidden");
+    box.innerHTML = players
+      .map(
+        (player) =>
+          `<button type="button" data-super8-edit-pick="${escapeHTML(player.id)}" data-player-name="${escapeHTML(player.displayName)}"><strong>${escapeHTML(player.displayName)}</strong><small>${player.level !== null ? `Nível ${Number(player.level).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "Sem nível"}${player.city ? ` · ${escapeHTML(player.city)}` : ""}</small></button>`,
+      )
+      .join("");
+    $$("[data-super8-edit-pick]", box).forEach((button) =>
+      button.addEventListener("click", () => {
+        addSuper8EditPlayer({
+          id: button.dataset.super8EditPick,
+          name: button.dataset.playerName,
+        });
+        $("[data-super8-edit-search]").value = "";
+        box.classList.add("hidden");
+      }),
+    );
+  }
+
+  function setupSuper8EditSearch() {
+    const input = $("[data-super8-edit-search]");
+    input?.addEventListener("input", () => {
+      clearTimeout(super8State.editSearchTimer);
+      const query = input.value.trim();
+      if (query.length < 2) {
+        renderSuper8EditSearchResults([]);
+        return;
+      }
+      super8State.editSearchTimer = setTimeout(async () => {
+        try {
+          const data = await apiRequest(
+            `/api/v1/players/search?q=${encodeURIComponent(query)}`,
+          );
+          renderSuper8EditSearchResults(data.players || []);
+        } catch {
+          renderSuper8EditSearchResults([]);
+        }
+      }, 250);
+    });
+    $("[data-super8-edit-add-guest]")?.addEventListener("click", () => {
+      const input = $("[data-super8-edit-guest-name]");
+      const name = input.value.trim();
+      if (name.length < 2) {
+        showToast("Digite o nome do convidado.");
+        return;
+      }
+      addSuper8EditPlayer({ id: null, name });
+      input.value = "";
+    });
+  }
+
   function openSuper8EditModal() {
     const tournament = super8State.current;
     if (!tournament) return;
     const form = $("[data-super8-edit-form]");
     form.reset();
     form.elements.name.value = tournament.name;
+    $("[data-super8-edit-date]").value = tournament.date || "";
     $("[data-super8-edit-start-time]").value = tournament.startTime || "";
     setSuper8EditLevelCategories(tournament.levelCategories);
     showFormFeedback("[data-super8-edit-feedback]", "");
@@ -922,6 +1050,11 @@
       "hidden",
       locked,
     );
+    $("[data-super8-edit-players-field]").classList.toggle("hidden", locked);
+    renderSuper8EditSearchResults([]);
+    $("[data-super8-edit-search]").value = "";
+    $("[data-super8-edit-guest-name]").value = "";
+    renderSuper8EditPlayers();
     openModal($("[data-super8-edit-modal]"));
   }
 
@@ -933,6 +1066,7 @@
     const locked = SUPER8_LOCKED_STATUSES.includes(tournament.status);
     const body = {
       name: form.elements.name.value.trim(),
+      date: $("[data-super8-edit-date]").value || null,
       startTime: $("[data-super8-edit-start-time]").value || null,
     };
     if (!locked) {
@@ -976,6 +1110,7 @@
 
   function setupSuper8EditModal() {
     populateSuper8EditTimeOptions();
+    setupSuper8EditSearch();
     $("[data-super8-edit-open]")?.addEventListener("click", openSuper8EditModal);
     $("[data-super8-edit-categories-all]")?.addEventListener(
       "change",
@@ -1281,10 +1416,16 @@
       // TASK-51: vazio = arena principal
       arenaId: values.arenaId || "",
     };
-    if (
-      timeToMinutes(body.closeTime) - timeToMinutes(body.openTime) <
-      body.slotDuration
-    ) {
+    // TASK-96: funcionamento pode atravessar a meia-noite (ex.: abre 06:00,
+    // fecha 01:00 do dia seguinte) — nesse caso o fechamento é numericamente
+    // menor/igual à abertura e pertence ao dia seguinte.
+    const opensAtMinutes = timeToMinutes(body.openTime);
+    const closesAtMinutes = timeToMinutes(body.closeTime);
+    const closesAtMinutesNextDay =
+      closesAtMinutes <= opensAtMinutes
+        ? closesAtMinutes + 24 * 60
+        : closesAtMinutes;
+    if (closesAtMinutesNextDay - opensAtMinutes < body.slotDuration) {
       showFormFeedback(
         "[data-court-feedback]",
         "O horário de fechamento deve permitir ao menos um horário completo.",
@@ -1703,13 +1844,21 @@
       );
       return;
     }
-    const times = [
-      ...new Set(
-        courts.flatMap((court) =>
-          (court.slots || []).map(slotTime).filter(Boolean),
-        ),
-      ),
-    ].sort((left, right) => timeToMinutes(left) - timeToMinutes(right));
+    // TASK-96: horários que cruzam a meia-noite (ex.: 23:30, 00:00, 00:30)
+    // não podem ser ordenados pelo valor numérico do horário em si — isso
+    // colocaria "00:00" antes de "06:00" mesmo quando ele vem depois no
+    // funcionamento real da quadra. Ordenamos pelo `startAt` real do slot.
+    const timeOrder = new Map();
+    courts.forEach((court) => {
+      (court.slots || []).forEach((slot) => {
+        const time = slotTime(slot);
+        if (!time || timeOrder.has(time) || !slot.startAt) return;
+        timeOrder.set(time, new Date(slot.startAt).getTime());
+      });
+    });
+    const times = [...timeOrder.keys()].sort(
+      (left, right) => timeOrder.get(left) - timeOrder.get(right),
+    );
     if (!times.length) {
       $("[data-owner-schedule]").innerHTML = emptyState(
         "Nenhum horário neste dia.",

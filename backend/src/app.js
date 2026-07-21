@@ -35,6 +35,7 @@ import {
   validateArena,
   validateRegistration,
   validateSuper8,
+  validateSuper8AddPlayers,
   validateSuper8Courts,
   validateSuper8GameResult,
   validateSuper8Pairs,
@@ -618,38 +619,65 @@ export async function createApp(overrides = {}) {
     };
   }
 
+  // TASK-96 — quando o fechamento cruza a meia-noite (ex.: abre 06:00,
+  // fecha 01:00), o horário de fechamento pertence ao dia seguinte: os
+  // slots que "passam" da meia-noite recebem dayOffset 1, para que quem
+  // consome a lista saiba montar o `startAt` no dia calendário correto.
   function slotTimesFor(court) {
     const slots = [];
     const openTime = court.openTime ?? court.opensAt;
     const closeTime = court.closeTime ?? court.closesAt;
     const slotDuration = court.slotDuration ?? court.slotDurationMinutes;
     const opensAt = minutesFromTime(openTime);
-    const closesAt = minutesFromTime(closeTime);
+    const closesAtRaw = minutesFromTime(closeTime);
+    const closesAt = closesAtRaw <= opensAt ? closesAtRaw + 24 * 60 : closesAtRaw;
     for (
       let minute = opensAt;
       minute + slotDuration <= closesAt;
       minute += slotDuration
     ) {
-      slots.push(timeFromMinutes(minute));
+      const dayOffset = minute >= 24 * 60 ? 1 : 0;
+      slots.push({ time: timeFromMinutes(minute % (24 * 60)), dayOffset });
     }
     return slots;
   }
 
+  // TASK-96 — um horário perto da virada do dia (ex.: 00:30) pode pertencer
+  // à grade do dia anterior (quadra com fechamento cruzando a meia-noite,
+  // dayOffset 1) em vez da grade do próprio dia calendário do `startAt`;
+  // por isso procuramos nos dois dias antes de considerar inválido.
+  function findSlotForCourt(club, court, startAt) {
+    const date = brazilDateKey(startAt);
+    const previousDate = shiftDateKey(date, -1);
+    for (const candidateDate of [date, previousDate]) {
+      const availability = availabilityFor(club, candidateDate).find(
+        (item) => item.courtId === court.id,
+      );
+      const slot = availability?.slots.find((item) => item.startAt === startAt);
+      if (slot) return slot;
+    }
+    return null;
+  }
+
   function availabilityFor(club, date) {
     const activeCourts = courts.listActiveByClub(club.id);
+    const nextDate = shiftDateKey(date, 1);
     const reservedStarts = new Set(
       bookings
         .listByClub(club.id)
         .filter(
           (booking) =>
             booking.status === "confirmed" &&
-            brazilDateKey(booking.startAt) === date,
+            (brazilDateKey(booking.startAt) === date ||
+              brazilDateKey(booking.startAt) === nextDate),
         )
         .map((booking) => `${booking.courtId}:${booking.startAt}`),
     );
     return activeCourts.map((court) => {
-      const slots = slotTimesFor(court).map((time) => {
-        const startAt = new Date(`${date}T${time}:00-03:00`).toISOString();
+      const slots = slotTimesFor(court).map(({ time, dayOffset }) => {
+        const startAt = new Date(
+          `${shiftDateKey(date, dayOffset)}T${time}:00-03:00`,
+        ).toISOString();
         return {
           startAt,
           time,
@@ -666,19 +694,23 @@ export async function createApp(overrides = {}) {
   }
 
   function scheduleFor(club, date) {
+    const nextDate = shiftDateKey(date, 1);
     const dateBookings = bookings
       .listByClub(club.id)
       .filter(
         (booking) =>
           booking.status === "confirmed" &&
-          brazilDateKey(booking.startAt) === date,
+          (brazilDateKey(booking.startAt) === date ||
+            brazilDateKey(booking.startAt) === nextDate),
       );
     return {
       date,
       courts: courts.listByClub(club.id).map((court) => {
         const active = court.active === true;
-        const slots = slotTimesFor(court).map((time) => {
-          const startAt = new Date(`${date}T${time}:00-03:00`).toISOString();
+        const slots = slotTimesFor(court).map(({ time, dayOffset }) => {
+          const startAt = new Date(
+            `${shiftDateKey(date, dayOffset)}T${time}:00-03:00`,
+          ).toISOString();
           const booking = dateBookings.find(
             (entry) => entry.courtId === court.id && entry.startAt === startAt,
           );
@@ -1655,13 +1687,7 @@ export async function createApp(overrides = {}) {
         throw new ApiError(404, "court_not_found", "Quadra não encontrada.");
       }
       const booking = await withAgendaLock(async () => {
-        const selectedAvailability = availabilityFor(
-          club,
-          brazilDateKey(input.startAt),
-        ).find((item) => item.courtId === court.id);
-        const selectedSlot = selectedAvailability?.slots.find(
-          (slot) => slot.startAt === input.startAt,
-        );
+        const selectedSlot = findSlotForCourt(club, court, input.startAt);
         if (!selectedSlot) {
           throw new ApiError(
             422,
@@ -2490,6 +2516,8 @@ export async function createApp(overrides = {}) {
         mode: tournament.mode,
         players: tournament.players.map(playerWithProfile),
         pairs: tournament.pairs,
+        // TASK-95
+        date: tournament.date ?? null,
         startTime: tournament.startTime ?? null,
         // TASK-77
         levelCategories: tournament.levelCategories ?? null,
@@ -2562,6 +2590,7 @@ export async function createApp(overrides = {}) {
         mode: input.mode,
         players,
         pairs: input.pairs,
+        date: input.date,
         startTime: input.startTime,
         levelCategories: input.levelCategories,
       });
@@ -2709,6 +2738,85 @@ export async function createApp(overrides = {}) {
         requestId: request.requestId,
       });
       sendData(response, 200, { tournament: super8View(tournament) });
+      return true;
+    }
+
+    // TASK-93 — adicionar jogadores direto na tela de edição do Super 8
+    // (mesma validação de vínculo/categoria da criação). Só disponível antes
+    // dos jogos serem gerados; depois disso, o quadro fica travado.
+    const super8AddPlayersRoute = pathname.match(
+      /^\/api\/v1\/club\/super8\/([^/]+)\/players$/,
+    );
+    if (super8AddPlayersRoute && request.method === "POST") {
+      assertSameOrigin(request);
+      const user = requireUser(request, "club");
+      const club = await clubs.ensureForUser(user);
+      const tournamentId = decodeURIComponent(super8AddPlayersRoute[1]);
+      const current = super8.requireOwned(tournamentId, club.id);
+      if (["gerado", "em_andamento", "finalizado"].includes(current.status)) {
+        throw new ApiError(
+          409,
+          "super8_locked_after_generation",
+          "Os confrontos já foram gerados — não é possível adicionar jogadores a partir daqui.",
+        );
+      }
+      const input = validateSuper8AddPlayers(await readJson(request));
+      const existingIds = new Set(
+        current.players.filter((player) => player.id).map((player) => player.id),
+      );
+      const newPlayers = input.players.map((player) => {
+        if (!player.id) return player;
+        if (existingIds.has(player.id)) {
+          throw new ApiError(
+            422,
+            "validation_failed",
+            "Um dos jogadores selecionados já está inscrito neste Super 8.",
+            { field: "players" },
+          );
+        }
+        const linked = users.findById(player.id);
+        if (!linked || linked.role !== "player") {
+          throw new ApiError(
+            422,
+            "validation_failed",
+            "Um dos jogadores selecionados não foi encontrado.",
+            { field: "players" },
+          );
+        }
+        if (current.levelCategories) {
+          const category = playerLevelCategory(linked);
+          if (!category || !current.levelCategories.includes(category)) {
+            throw new ApiError(
+              422,
+              "validation_failed",
+              `Este Super 8 é restrito às categorias ${levelCategoriesLabel(current.levelCategories)}.`,
+              { field: "players" },
+            );
+          }
+        }
+        return { id: linked.id, name: displayName(linked) };
+      });
+      if (current.players.length + newPlayers.length > current.size) {
+        throw new ApiError(
+          409,
+          "super8_full",
+          `O torneio comporta no máximo ${current.size} jogadores (já há ${current.players.length} inscritos).`,
+        );
+      }
+      const players = [...current.players, ...newPlayers];
+      const tournament = await super8.update(tournamentId, club.id, {
+        players,
+      });
+      await auditLog.record({
+        actorId: user.id,
+        action: "super8.players_added",
+        resourceType: "super8",
+        resourceId: tournamentId,
+        before: { players: current.players.length },
+        after: { players: tournament.players.length },
+        requestId: request.requestId,
+      });
+      sendData(response, 201, { tournament: super8View(tournament) });
       return true;
     }
 
@@ -3122,6 +3230,7 @@ export async function createApp(overrides = {}) {
             name: tournament.name,
             size: tournament.size,
             mode: tournament.mode,
+            date: tournament.date ?? null,
             startTime: tournament.startTime ?? null,
             levelCategories: tournament.levelCategories ?? null,
             clubName: club?.name ?? "Clube",
