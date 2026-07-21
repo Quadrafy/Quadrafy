@@ -7,6 +7,23 @@ function throwDatabaseError(operation, error) {
   throw wrapped;
 }
 
+function waits(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function requestWithClockSkewRetry(request) {
+  let response;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    response = await request();
+    const isFutureJwt =
+      response.error?.code === "PGRST303" &&
+      /JWT issued at future/i.test(response.error.message);
+    if (!isFutureJwt || attempt === 2) return response;
+    await waits(1_000);
+  }
+  return response;
+}
+
 function toAppUser(row) {
   return {
     id: row.id,
@@ -43,9 +60,11 @@ export class SupabaseAuthenticationRepository {
   }
 
   async loadUsers() {
-    const { data, error } = await this.client
-      .from("app_users")
-      .select("id, role, email, password_hash, profile, created_at, updated_at");
+    const { data, error } = await requestWithClockSkewRetry(() =>
+      this.client
+        .from("app_users")
+        .select("id, role, email, password_hash, profile, created_at, updated_at"),
+    );
     throwDatabaseError("load users", error);
     return (data ?? []).map(toAppUser);
   }
@@ -72,10 +91,12 @@ export class SupabaseAuthenticationRepository {
   }
 
   async loadActiveSessions(now) {
-    const { data, error } = await this.client
-      .from("app_sessions")
-      .select("token_hash, user_id, expires_at")
-      .gt("expires_at", now.toISOString());
+    const { data, error } = await requestWithClockSkewRetry(() =>
+      this.client
+        .from("app_sessions")
+        .select("token_hash, user_id, expires_at")
+        .gt("expires_at", now.toISOString()),
+    );
     throwDatabaseError("load sessions", error);
     return (data ?? []).map((session) => ({
       tokenHash: session.token_hash,
