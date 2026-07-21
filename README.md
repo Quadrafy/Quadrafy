@@ -47,7 +47,7 @@ npm start
 
 - Cadastro e login reais para jogadores e gestores de clube.
 - Perfil do jogador com foto persistida, nivelamento e perfil público seguro.
-- Descoberta de clubes, quadras, horários de 60 ou 90 minutos e reservas.
+- Descoberta de clubes, quadras.
 - Partidas abertas com faixa numérica de nível, dois times, posições específicas,
   reorganização pelo organizador e chat persistido.
 - Perfil da arena com capa, dados públicos e gestão completa das quadras.
