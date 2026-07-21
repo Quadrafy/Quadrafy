@@ -182,7 +182,6 @@ test("club, court, booking, open match and finance form one persisted flow", asy
     const court = (await courtCreation.json()).data.court;
     assert.equal(court.clubId, club.id);
     assert.equal(court.name, "Quadra Central");
-    assert.equal(court.type, "covered");
     assert.equal(court.price, 180);
 
     const ownerCourts = await api("/api/v1/club/courts", {

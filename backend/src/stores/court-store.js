@@ -22,8 +22,10 @@ export class CourtStore {
         const closeTime = court.closeTime ?? court.closesAt;
         const slotDuration =
           court.slotDuration ?? court.slotDurationMinutes ?? 90;
+        // TASK-99 — quadras não distinguem mais coberta/descoberta.
+        const { type, ...rest } = court;
         return {
-          ...court,
+          ...rest,
           openTime,
           closeTime,
           slotDuration,
@@ -56,7 +58,6 @@ export class CourtStore {
     clubId,
     name,
     price,
-    type,
     active = true,
     openTime,
     closeTime,
@@ -71,7 +72,6 @@ export class CourtStore {
         clubId,
         name,
         price,
-        type,
         active,
         openTime,
         closeTime,

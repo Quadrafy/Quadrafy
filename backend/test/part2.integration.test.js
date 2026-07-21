@@ -174,7 +174,6 @@ test("player edits the persisted profile and receives a deterministic level fall
         city: "Campinas",
         preferredSide: "drive",
         dominantHand: "right",
-        availability: "Noites e fins de semana",
         playStyle: "competitivo",
       },
     });
@@ -188,7 +187,6 @@ test("player edits the persisted profile and receives a deterministic level fall
         city: updatedUser.profile.city,
         preferredSide: updatedUser.profile.preferredSide,
         dominantHand: updatedUser.profile.dominantHand,
-        availability: updatedUser.profile.availability,
         playStyle: updatedUser.profile.playStyle,
       },
       {
@@ -197,7 +195,6 @@ test("player edits the persisted profile and receives a deterministic level fall
         city: "Campinas",
         preferredSide: "drive",
         dominantHand: "right",
-        availability: "Noites e fins de semana",
         playStyle: "competitivo",
       },
     );

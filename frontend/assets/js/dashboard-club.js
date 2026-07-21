@@ -1224,7 +1224,7 @@
     const artwork = photoUrl
       ? `<img class="management-court-photo" src="${escapeHTML(photoUrl)}" alt="${escapeHTML(court.name)}" />`
       : '<div class="club-cover-art"></div>';
-    return `<article class="management-court card-hover" role="button" tabindex="0" data-edit-court="${escapeHTML(court.id)}" aria-label="Editar ${escapeHTML(court.name)}"><div class="management-court-art">${artwork}<span class="court-state">${court.active ? "Ativa" : "Inativa"}</span></div><div class="management-court-body"><h3>${escapeHTML(court.name)}</h3><p>${court.type === "covered" ? "Coberta" : "Descoberta"} · ${escapeHTML(courtOpenTime(court))}–${escapeHTML(courtCloseTime(court))}</p><div class="court-meta"><span><small>Preço por horário</small><strong>${escapeHTML(formatCurrency(court.price))}</strong></span><span><small>Duração</small><strong>${courtSlotDuration(court)} min</strong></span><span class="court-edit-hint">Editar</span></div></div></article>`;
+    return `<article class="management-court card-hover" role="button" tabindex="0" data-edit-court="${escapeHTML(court.id)}" aria-label="Editar ${escapeHTML(court.name)}"><div class="management-court-art">${artwork}<span class="court-state">${court.active ? "Ativa" : "Inativa"}</span></div><div class="management-court-body"><h3>${escapeHTML(court.name)}</h3><p>${escapeHTML(courtOpenTime(court))}–${escapeHTML(courtCloseTime(court))}</p><div class="court-meta"><span><small>Preço por horário</small><strong>${escapeHTML(formatCurrency(court.price))}</strong></span><span><small>Duração</small><strong>${courtSlotDuration(court)} min</strong></span><span class="court-edit-hint">Editar</span></div></div></article>`;
   }
 
   function renderCourts() {
@@ -1300,7 +1300,6 @@
     form.reset();
     form.elements.name.value = court?.name || "";
     form.elements.price.value = court?.price ?? "";
-    form.elements.type.value = court?.type || "";
     form.elements.openTime.value = court ? courtOpenTime(court) : "06:00";
     form.elements.closeTime.value = court ? courtCloseTime(court) : "23:00";
     form.elements.slotDuration.value = String(
@@ -1409,7 +1408,6 @@
     const body = {
       name: values.name.trim(),
       price: Number(values.price),
-      type: values.type,
       openTime: values.openTime,
       closeTime: values.closeTime,
       slotDuration: Number(values.slotDuration),

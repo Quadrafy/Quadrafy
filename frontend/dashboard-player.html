@@ -116,9 +116,6 @@
             >
               Todos
             </button>
-            <button class="filter-button" type="button" data-filter="indoor">
-              Coberta
-            </button>
             <button class="filter-button" type="button" data-filter="open">
               Aberta agora
             </button>
@@ -430,29 +427,6 @@
               </div>
             </section>
             <section
-              class="info-card achievements-card"
-              aria-labelledby="profile-achievements-title"
-            >
-              <div class="panel-heading">
-                <div>
-                  <p class="micro-label">Sua coleção</p>
-                  <h2 id="profile-achievements-title">Conquistas</h2>
-                </div>
-                <span class="achievements-count" data-achievements-count>0 desbloqueados</span>
-              </div>
-              <p class="profile-data-note">
-                Seus pins mostram marcos, evolução e títulos conquistados. Os
-                bloqueados indicam o próximo objetivo.
-              </p>
-              <div
-                class="achievements-grid"
-                data-achievements-grid
-                aria-live="polite"
-              >
-                <p class="profile-data-note">Carregando conquistas…</p>
-              </div>
-            </section>
-            <section
               class="info-card stats-card"
               aria-labelledby="profile-stats-title"
             >
@@ -510,10 +484,6 @@
                 <div>
                   <dt>Mão dominante</dt>
                   <dd data-profile-dominant-hand>—</dd>
-                </div>
-                <div>
-                  <dt>Disponibilidade</dt>
-                  <dd data-profile-availability>—</dd>
                 </div>
                 <div>
                   <dt>Estilo</dt>
@@ -872,6 +842,44 @@
       </div>
     </div>
 
+    <div class="modal-backdrop" data-achievements-modal aria-hidden="true">
+      <div
+        class="modal-card achievements-modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="achievements-modal-title"
+      >
+        <button
+          class="modal-close"
+          type="button"
+          data-modal-close
+          aria-label="Fechar conquistas"
+        >
+          ×
+        </button>
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow dark">Sua coleção</p>
+            <h2 id="achievements-modal-title">Conquistas</h2>
+          </div>
+          <span class="achievements-count" data-achievements-modal-count
+            >0 desbloqueados</span
+          >
+        </div>
+        <p class="profile-data-note">
+          Seus pins mostram marcos, evolução e títulos conquistados. Os
+          bloqueados indicam o próximo objetivo.
+        </p>
+        <div
+          class="achievements-grid"
+          data-achievements-modal-grid
+          aria-live="polite"
+        >
+          <p class="profile-data-note">Carregando conquistas…</p>
+        </div>
+      </div>
+    </div>
+
     <div
       class="modal-backdrop"
       data-confidence-progress-modal
@@ -1207,8 +1215,8 @@
               <span>Lado preferido</span>
               <select name="preferredSide">
                 <option value="">Não informado</option>
-                <option value="drive">Drive</option>
-                <option value="reves">Revés</option>
+                <option value="esquerdo">Esquerda</option>
+                <option value="direito">Direita</option>
                 <option value="indiferente">Indiferente</option>
               </select>
             </label>
@@ -1222,15 +1230,6 @@
               </select>
             </label>
           </div>
-          <label class="input-group">
-            <span>Disponibilidade</span>
-            <input
-              type="text"
-              name="availability"
-              maxlength="160"
-              placeholder="Ex.: noites durante a semana"
-            />
-          </label>
           <label class="input-group">
             <span>Estilo de jogo</span>
             <select name="playStyle">

@@ -103,7 +103,6 @@ test("club edits every public court field including its uploaded photo", async (
     cookie: owner.cookie,
     body: {
       name: "Quadra A",
-      type: "covered",
       price: 120,
       openTime: "07:00",
       closeTime: "22:00",
@@ -118,7 +117,6 @@ test("club edits every public court field including its uploaded photo", async (
     cookie: owner.cookie,
     body: {
       name: "Quadra Central",
-      type: "outdoor",
       price: 175,
       openTime: "08:00",
       closeTime: "23:00",
@@ -132,7 +130,6 @@ test("club edits every public court field including its uploaded photo", async (
   assert.equal(updated.id, court.id);
   assert.equal(updated.clubId, court.clubId);
   assert.equal(updated.name, "Quadra Central");
-  assert.equal(updated.type, "outdoor");
   assert.equal(updated.price, 175);
   assert.equal(updated.openTime, "08:00");
   assert.equal(updated.closeTime, "23:00");

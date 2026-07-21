@@ -295,9 +295,6 @@
     let clubs = state.clubs.filter((club) =>
       club.name.toLowerCase().includes(query),
     );
-    if (state.activeClubFilter === "indoor") {
-      clubs = clubs.filter((club) => club.courtTypes?.includes("covered"));
-    }
     if (sort === "price") {
       clubs.sort(
         (a, b) =>
@@ -394,7 +391,7 @@
       `<div class="detail-art">${detailArtwork}</div><div class="detail-info"><span>${club.courtCount} ${club.courtCount === 1 ? "quadra cadastrada" : "quadras cadastradas"}</span><h1>${escapeHTML(club.name)}</h1><p>${escapeHTML(club.address || "Endereço ainda não informado")}</p><div class="detail-tags">${club.courts
         .map((court) => {
           const photoUrl = safePhotoUrl(court.photoUrl);
-          return `<span>${photoUrl ? `<img src="${escapeHTML(photoUrl)}" alt="" />` : ""}${escapeHTML(court.name)} · ${court.type === "covered" ? "Coberta" : "Descoberta"}</span>`;
+          return `<span>${photoUrl ? `<img src="${escapeHTML(photoUrl)}" alt="" />` : ""}${escapeHTML(court.name)}</span>`;
         })
         .join("")}</div></div>`;
     renderDateStrip();
@@ -2443,19 +2440,19 @@
     $("[data-profile-preferred-side]").textContent = profileValue(
       profile.preferredSide,
       {
-        drive: "Drive",
-        reves: "Revés",
-        direito: "Drive",
-        esquerdo: "Revés",
+        esquerdo: "Esquerda",
+        direito: "Direita",
+        // TASK-99: valores antigos (drive/revés) mapeados para o lado mais
+        // comum associado (direita/esquerda), agora que o campo pergunta
+        // literalmente o lado da quadra preferido.
+        drive: "Direita",
+        reves: "Esquerda",
         indiferente: "Indiferente",
       },
     );
     $("[data-profile-dominant-hand]").textContent = profileValue(
       profile.dominantHand,
       { destra: "Destra", canhota: "Canhota", ambidestra: "Ambidestra" },
-    );
-    $("[data-profile-availability]").textContent = profileValue(
-      profile.availability,
     );
     const playStyleLabel = profileValue(profile.playStyle, {
       competitivo: "Competitivo",
@@ -2471,7 +2468,6 @@
     const hasPreferences = Boolean(
       profile.preferredSide ||
       profile.dominantHand ||
-      profile.availability ||
       profile.playStyle ||
       (Array.isArray(profile.preferredTimes) && profile.preferredTimes.length),
     );
@@ -2481,12 +2477,13 @@
   }
 
   // TASK-23/25 — dados que dependem do histórico de partidas confirmadas.
+  // TASK-99: conquistas não aparecem mais direto no perfil — carregadas sob
+  // demanda quando o modal "Ver conquistas" é aberto.
   async function loadProfileExtras() {
     await Promise.all([
       loadProfileStats(),
       loadLevelHistoryChart(),
       loadConnections(),
-      loadAchievements(),
     ]);
   }
 
@@ -2597,8 +2594,10 @@
     }
   }
 
+  // TASK-99 — conquistas só aparecem ao abrir o modal (botão "Ver
+  // conquistas"), não mais direto no corpo do perfil.
   async function loadAchievements() {
-    const container = $('[data-achievements-grid]');
+    const container = $('[data-achievements-modal-grid]');
     const userId = state.session?.user?.id;
     if (!container || !userId) return;
     try {
@@ -2610,7 +2609,7 @@
       const items = ownAchievementItems();
       renderAchievementsGrid(container, items, { owner: true });
       const unlockedCount = state.achievements.length;
-      const count = $('[data-achievements-count]');
+      const count = $('[data-achievements-modal-count]');
       if (count) {
         count.textContent = `${unlockedCount} ${unlockedCount === 1 ? "desbloqueado" : "desbloqueados"}`;
       }
@@ -2929,13 +2928,12 @@
           )
         : "";
     }
-    form.elements.availability.value = profile.availability || "";
     form.elements.photo.value = "";
     clearPlayerPhotoObjectUrl();
     setPlayerPhotoPreview(profile.photoUrl);
-    // TASK-21: valores antigos ("direito"/"esquerdo") são mapeados para a
-    // nomenclatura de padel (Drive/Revés).
-    const legacySides = { direito: "drive", esquerdo: "reves" };
+    // TASK-99: valores antigos ("drive"/"reves") são mapeados para o lado
+    // mais comum associado (direita/esquerda).
+    const legacySides = { drive: "direito", reves: "esquerdo" };
     setSelectValue(
       form.elements.preferredSide,
       legacySides[String(profile.preferredSide || "").toLowerCase()] ||
@@ -3081,15 +3079,14 @@
       "click",
       loadLevelExplanation,
     );
-    // TASK-73: atalho "Ver conquistas" leva direto à seção, sempre visível na rolagem do perfil.
+    // TASK-99: "Ver conquistas" abre um modal com todas as conquistas, em
+    // vez de mostrá-las direto no corpo do perfil.
     $("[data-achievements-open]")?.addEventListener("click", () => {
-      const card = $(".achievements-card");
-      card?.scrollIntoView({ behavior: "smooth", block: "start" });
-      card?.classList.add("achievements-card-highlight");
-      setTimeout(
-        () => card?.classList.remove("achievements-card-highlight"),
-        1500,
+      openAccessibleModal(
+        $("[data-achievements-modal]"),
+        "[data-modal-close]",
       );
+      loadAchievements();
     });
 
     const levelModal = $("[data-level-test-modal]");

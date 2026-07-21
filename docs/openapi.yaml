@@ -954,7 +954,6 @@ components:
         - photoUrl
         - status
         - courtCount
-        - courtTypes
         - minimumPrice
       properties:
         id: { type: string, format: uuid }
@@ -965,10 +964,6 @@ components:
         photoUrl: { type: string }
         status: { type: string }
         courtCount: { type: integer, minimum: 0 }
-        courtTypes:
-          type: array
-          uniqueItems: true
-          items: { enum: [covered, outdoor] }
         minimumPrice: { type: [number, "null"], minimum: 0 }
     PlayerProfileUpdate:
       type: object
@@ -991,12 +986,6 @@ components:
               minLength: 2
               maxLength: 40
           examples: [destra]
-        availability:
-          anyOf:
-            - const: ""
-            - type: string
-              minLength: 2
-              maxLength: 160
         playStyle:
           anyOf:
             - const: ""
@@ -1073,11 +1062,10 @@ components:
       description: >-
         openTime/closeTime/slotDuration são canônicos. Cada horário aceita também
         seu alias legado; campos canônicos prevalecem quando ambos são enviados.
-      required: [name, price, type]
+      required: [name, price]
       properties:
         name: { type: string, minLength: 2, maxLength: 100 }
         price: { type: number, minimum: 1, maximum: 10000 }
-        type: { enum: [covered, outdoor] }
         openTime:
           type: string
           pattern: "^([01]\\d|2[0-3]):(?:00|30)$"
@@ -1142,7 +1130,6 @@ components:
         - clubId
         - name
         - price
-        - type
         - active
         - openTime
         - closeTime
@@ -1156,7 +1143,6 @@ components:
         clubId: { type: string, format: uuid }
         name: { type: string }
         price: { type: number }
-        type: { enum: [covered, outdoor] }
         active: { type: boolean }
         openTime: { type: string }
         closeTime: { type: string }

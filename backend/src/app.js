@@ -494,7 +494,6 @@ export async function createApp(overrides = {}) {
       clubId: court.clubId,
       name: court.name,
       price: court.price,
-      type: court.type,
       active: court.active,
       openTime: court.openTime ?? court.opensAt,
       closeTime: court.closeTime ?? court.closesAt,
@@ -519,7 +518,6 @@ export async function createApp(overrides = {}) {
       photoUrl: club.photoUrl ?? "",
       status: club.status,
       courtCount: activeCourts.length,
-      courtTypes: [...new Set(activeCourts.map((court) => court.type))],
       minimumPrice: prices.length ? Math.min(...prices) : null,
     };
     if (includeCourts) view.courts = activeCourts.map(courtView);

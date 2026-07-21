@@ -5346,6 +5346,14 @@ button.match-player-row:focus-visible strong {
 .level-info-modal {
   max-width: 560px;
 }
+/* TASK-99 — modal com todas as conquistas (não aparecem mais direto no
+   corpo do perfil, só ao clicar em "Ver conquistas"). */
+.achievements-modal-card {
+  max-width: 640px;
+}
+.achievements-modal-card .panel-heading {
+  margin-bottom: 4px;
+}
 .level-bands-table {
   width: 100%;
   margin: 12px 0;

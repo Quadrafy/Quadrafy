@@ -3,7 +3,6 @@ import { normalizeEmail } from "./security.js";
 import { LEVEL_CATEGORY_NAMES } from "./level-engine.js";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const COURT_TYPES = new Set(["covered", "outdoor"]);
 const HALF_HOUR_TIME_PATTERN = /^([01]\d|2[0-3]):(?:00|30)$/;
 
 function timeToMinutesValidation(value) {
@@ -611,16 +610,6 @@ export function validateArena(body) {
 }
 
 export function validateCourt(body) {
-  const type = String(body.type ?? "");
-  if (!COURT_TYPES.has(type)) {
-    throw new ApiError(
-      422,
-      "validation_failed",
-      "Selecione um tipo de quadra válido.",
-      { field: "type" },
-    );
-  }
-
   const openTime = String(body.openTime ?? body.opensAt ?? "");
   const closeTime = String(body.closeTime ?? body.closesAt ?? "");
   if (
@@ -669,7 +658,6 @@ export function validateCourt(body) {
   return {
     name: text(body.name, "name", { max: 100 }),
     price: number(body.price, "price", { min: 1, max: 10_000 }),
-    type,
     openTime,
     closeTime,
     slotDuration,
@@ -758,10 +746,6 @@ export function validatePlayerProfile(body) {
     dominantHand: optionalText(body.dominantHand, "dominantHand", {
       min: 2,
       max: 40,
-    }),
-    availability: optionalText(body.availability, "availability", {
-      min: 2,
-      max: 160,
     }),
     playStyle: optionalChoice(body.playStyle, "playStyle", PLAY_STYLES),
     gender: optionalChoice(body.gender, "gender", PLAYER_GENDERS),
