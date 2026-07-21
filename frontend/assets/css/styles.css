@@ -2214,15 +2214,18 @@ em {
 .slot-legend .busy {
   background: #d8d6d0;
 }
+/* TASK-98 — a data é só um filtro secundário nesta tela; reduzimos
+   levemente seu peso visual (sem comprometer a legibilidade) para dar
+   espaço à seleção de quadra, a decisão mais importante aqui. */
 .date-strip {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 7px;
+  gap: 6px;
   margin: 25px 0;
 }
 .date-strip button {
   display: flex;
-  min-height: 65px;
+  min-height: 56px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -2233,11 +2236,11 @@ em {
 }
 .date-strip small {
   color: var(--ink-soft);
-  font: 500 8px/1 var(--mono);
+  font: 500 7px/1 var(--mono);
 }
 .date-strip strong {
-  margin-top: 7px;
-  font: 600 17px/1 var(--mono);
+  margin-top: 6px;
+  font: 600 15px/1 var(--mono);
 }
 .date-strip button.active {
   border-color: var(--coral);
@@ -2247,25 +2250,46 @@ em {
 .date-strip button.active small {
   color: rgba(255, 255, 255, 0.7);
 }
+/* TASK-98 — a quadra é a decisão mais importante da tela (não existe
+   opção "Todas"), então o seletor ganha mais destaque: botões maiores e
+   um ícone em evidência para indicar qual quadra está selecionada. */
 .court-selector {
   display: flex;
-  gap: 6px;
-  margin-bottom: 18px;
+  gap: 10px;
+  margin-bottom: 20px;
   overflow-x: auto;
 }
 .court-selector button {
+  display: flex;
   flex: none;
+  align-items: center;
+  gap: 8px;
   border: 1px solid var(--line);
-  border-radius: 20px;
-  padding: 7px 12px;
+  border-radius: 24px;
+  padding: 11px 18px;
   background: transparent;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 650;
   cursor: pointer;
+}
+.court-selector-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: var(--indigo);
+}
+.court-selector-icon svg {
+  width: 100%;
+  height: 100%;
 }
 .court-selector button.active {
   border-color: var(--indigo);
   background: var(--indigo);
+  color: #fff;
+}
+.court-selector button.active .court-selector-icon {
   color: #fff;
 }
 .time-grid {
@@ -5753,15 +5777,68 @@ button.match-player-row:focus-visible strong {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
 }
+/* TASK-94 — redesign do card, mesmo padrão de qualidade do .match-card:
+   contador de jogadores em destaque no canto superior direito, corpo com
+   hierarquia clara, rodapé com data/horário/quadras. */
 .super8-card {
-  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
   border: 1px solid var(--line);
   border-radius: 14px;
+  overflow: hidden;
   background: #fff;
+  box-shadow: 0 12px 32px rgba(16, 25, 46, 0.07);
   cursor: pointer;
 }
+.super8-card:focus-visible {
+  outline: 3px solid rgba(255, 107, 74, 0.35);
+  outline-offset: 3px;
+}
+.super8-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 17px 18px 0;
+}
+.super8-card-mode {
+  display: block;
+  margin-top: 6px;
+  color: var(--ink-soft);
+  font: 600 11px/1 var(--mono);
+}
+.super8-players-badge {
+  flex: none;
+  padding: 6px 11px;
+  border-radius: 999px;
+  background: var(--coral);
+  color: #fff;
+  font: 700 13px/1 var(--mono);
+}
 .super8-card h3 {
-  margin: 10px 0 12px;
+  margin: 14px 18px 4px;
+  font-family: var(--sans);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  font-size: 19px;
+}
+.super8-card-categories {
+  margin: 0 18px 16px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+.super8-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+  background: rgba(246, 244, 239, 0.65);
+  color: var(--ink-soft);
+  font: 600 12px/1.3 var(--mono);
 }
 .super8-status-em_configuracao {
   background: rgba(20, 23, 31, 0.08);
@@ -6379,6 +6456,35 @@ button.super8-open-row:focus-visible {
 }
 .super8-start-time strong {
   font: 700 16px/1 var(--mono);
+}
+
+/* TASK-95 — data + horário de início em destaque tipográfico grande na
+   tela de detalhe do torneio (o jogador decide rápido se vai participar). */
+.super8-datetime-highlight {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+  margin: -4px 0 16px;
+}
+.super8-datetime-highlight > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.super8-datetime-highlight small {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+.super8-datetime-highlight strong {
+  font: 700 26px/1.15 var(--mono);
+  color: var(--coral-dark);
+}
+@media (max-width: 560px) {
+  .super8-datetime-highlight strong {
+    font-size: 21px;
+  }
 }
 
 /* TASK-62 — seção "Meus jogos" no topo de Jogos Abertos */

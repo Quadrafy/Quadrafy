@@ -21,7 +21,12 @@ export class Super8Store {
       const file = await readFile(this.filePath, "utf8");
       const parsed = JSON.parse(file);
       if (!Array.isArray(parsed)) throw new Error("Expected an array");
-      this.tournaments = parsed;
+      // TASK-95 — torneios criados antes do campo de data ficam sem data
+      // definida (o clube pode preencher depois pela edição).
+      this.tournaments = parsed.map((tournament) => ({
+        date: null,
+        ...tournament,
+      }));
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
       await this.persist();
@@ -78,6 +83,7 @@ export class Super8Store {
     mode,
     players,
     pairs,
+    date,
     startTime,
     levelCategories,
   }) {
@@ -91,6 +97,8 @@ export class Super8Store {
         mode,
         players,
         pairs: pairs ?? null,
+        // TASK-95: data do evento ("YYYY-MM-DD") ou null (a definir depois)
+        date: date ?? null,
         // TASK-59: horário de início do evento (convocação), "HH:MM" ou null
         startTime: startTime ?? null,
         // TASK-77: categorias de nível permitidas ou null = todas

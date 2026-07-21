@@ -6,6 +6,11 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const COURT_TYPES = new Set(["covered", "outdoor"]);
 const HALF_HOUR_TIME_PATTERN = /^([01]\d|2[0-3]):(?:00|30)$/;
 
+function timeToMinutesValidation(value) {
+  const [hours, minutes] = String(value).split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
 // TASK-77/TASK-92 — categorias de nível permitidas: null/vazio = todas (sem
 // restrição); senão, uma lista de categorias da tabela oficial de 7.
 // Reaproveitado tanto pelo Super 8 quanto pela criação de jogo aberto.
@@ -33,6 +38,19 @@ function parseLevelCategories(rawCategories, field = "levelCategories") {
     ? unique
     : null;
 }
+// TASK-95 — data do Super 8 (dia do evento), formato "YYYY-MM-DD".
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+function parseSuper8Date(rawDate, field = "date") {
+  if (rawDate === undefined || rawDate === null || rawDate === "") return null;
+  const raw = String(rawDate).trim();
+  if (!ISO_DATE_PATTERN.test(raw) || Number.isNaN(Date.parse(raw))) {
+    throw new ApiError(422, "validation_failed", "Informe uma data válida.", {
+      field,
+    });
+  }
+  return raw;
+}
+
 const MAX_BOOKING_HORIZON_MS = 90 * 24 * 60 * 60 * 1_000;
 // TASK-26 — questionário determinístico: 6 perguntas, cada resposta vale
 // de 1 a 4 pontos (pontuação total 6–24).
@@ -226,6 +244,8 @@ export function validateSuper8(body) {
     );
   }
   const levelCategories = parseLevelCategories(body?.levelCategories);
+  // TASK-95 — data do evento (dia em que os jogos acontecem), opcional.
+  const date = parseSuper8Date(body?.date);
   // TASKS-14 / TASK-59 — horário de início do EVENTO (convocação), em
   // intervalos de 30 minutos. Não gera horário por jogo (TASK-43 mantida).
   let startTime = null;
@@ -249,7 +269,7 @@ export function validateSuper8(body) {
     mode === "duplas_fixas" && players.length === size
       ? validateSuper8Pairs(body?.pairs, size)
       : null;
-  return { name, size, mode, players, pairs, startTime, levelCategories };
+  return { name, size, mode, players, pairs, date, startTime, levelCategories };
 }
 
 // TASK-90 — edição parcial do Super 8 (nome, horário, categorias e tamanho),
@@ -275,6 +295,9 @@ export function validateSuper8Update(body) {
   if (body?.levelCategories !== undefined) {
     update.levelCategories = parseLevelCategories(body.levelCategories);
   }
+  if (body?.date !== undefined) {
+    update.date = parseSuper8Date(body.date);
+  }
   if (body?.startTime !== undefined) {
     if (body.startTime === null || body.startTime === "") {
       update.startTime = null;
@@ -292,6 +315,36 @@ export function validateSuper8Update(body) {
     }
   }
   return update;
+}
+
+// TASK-93 — adicionar jogadores a um Super 8 já existente, direto na tela de
+// edição do clube. Reaproveita o mesmo formato de item da criação (id/name).
+export function validateSuper8AddPlayers(body) {
+  const rawPlayers = body?.players;
+  if (!Array.isArray(rawPlayers) || rawPlayers.length === 0) {
+    throw new ApiError(
+      422,
+      "validation_failed",
+      "Informe ao menos um jogador para adicionar.",
+      { field: "players" },
+    );
+  }
+  const players = rawPlayers.map((player, index) => ({
+    id: player?.id ? String(player.id).trim() : null,
+    name: text(player?.name, `players[${index}].name`, { min: 2, max: 80 }),
+  }));
+  const linkedIds = players
+    .filter((player) => player.id)
+    .map((player) => player.id);
+  if (new Set(linkedIds).size !== linkedIds.length) {
+    throw new ApiError(
+      422,
+      "validation_failed",
+      "Um mesmo jogador cadastrado não pode aparecer duas vezes.",
+      { field: "players" },
+    );
+  }
+  return { players };
 }
 
 // TASK-74 — validação das duplas fixas, reutilizada tanto na criação (quando
@@ -573,7 +626,7 @@ export function validateCourt(body) {
   if (
     !HALF_HOUR_TIME_PATTERN.test(openTime) ||
     !HALF_HOUR_TIME_PATTERN.test(closeTime) ||
-    openTime >= closeTime
+    openTime === closeTime
   ) {
     throw new ApiError(
       422,
@@ -592,6 +645,24 @@ export function validateCourt(body) {
       "validation_failed",
       "A duração da reserva deve ser de 60 ou 90 minutos.",
       { field: "slotDuration" },
+    );
+  }
+  // TASK-96 — funcionamento que atravessa a meia-noite (ex.: abre 06:00,
+  // fecha 01:00 do dia seguinte) é válido: nesse caso o fechamento é
+  // numericamente menor/igual ao horário de abertura, então tratamos como
+  // pertencente ao dia seguinte para checar se cabe ao menos um horário.
+  const opensAtMinutes = timeToMinutesValidation(openTime);
+  const closesAtMinutes = timeToMinutesValidation(closeTime);
+  const closesAtMinutesNextDay =
+    closesAtMinutes <= opensAtMinutes
+      ? closesAtMinutes + 24 * 60
+      : closesAtMinutes;
+  if (closesAtMinutesNextDay - opensAtMinutes < slotDuration) {
+    throw new ApiError(
+      422,
+      "validation_failed",
+      "O horário de fechamento deve permitir ao menos um horário completo.",
+      { field: "closeTime" },
     );
   }
 

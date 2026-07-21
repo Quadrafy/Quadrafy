@@ -398,13 +398,16 @@
         })
         .join("")}</div></div>`;
     renderDateStrip();
+    // TASK-98 — a escolha da quadra é a decisão mais importante desta tela
+    // (não existe opção "Todas"), então o seletor ganha um ícone em destaque.
     const selector = $("[data-court-selector]");
     selector.innerHTML = club.courts
       .map(
         (court) =>
-          `<button class="${court.id === state.selectedCourt ? "active" : ""}" type="button" data-court="${escapeHTML(court.id)}">${escapeHTML(court.name)}</button>`,
+          `<button class="${court.id === state.selectedCourt ? "active" : ""}" type="button" data-court="${escapeHTML(court.id)}"><span class="court-selector-icon" data-icon="court"></span>${escapeHTML(court.name)}</button>`,
       )
       .join("");
+    hydrateIcons(selector);
     $$("[data-court]", selector).forEach((button) =>
       button.addEventListener("click", () => {
         state.selectedCourt = button.dataset.court;
@@ -1242,6 +1245,49 @@
     </article>`;
   }
 
+  // TASK-95 — data + horário do torneio, formatados para exibição.
+  function super8DateTimeLabel(tournament) {
+    const parts = [];
+    if (tournament.date) {
+      parts.push(
+        formatDate(`${tournament.date}T12:00:00-03:00`, {
+          day: "2-digit",
+          month: "short",
+        }),
+      );
+    }
+    if (tournament.startTime) parts.push(tournament.startTime);
+    return parts.length ? parts.join(" · ") : "Data a definir";
+  }
+
+  function super8CourtsSummary(tournament) {
+    const count = tournament.courts?.length || 0;
+    if (!count) return "Quadra a definir";
+    return count === 1 ? tournament.courts[0].name : `${count} quadras`;
+  }
+
+  // TASK-94 — mesma hierarquia visual do card do clube: contador de vagas
+  // em destaque no canto superior direito, corpo com nome/clube/categorias,
+  // rodapé com data/horário e quadras.
+  function super8OpenCard(tournament) {
+    const modeLabel =
+      tournament.mode === "duplas_fixas"
+        ? "Duplas fixas"
+        : "Cada um por si (rotação)";
+    const categoriesLabel = tournament.levelCategories
+      ? tournament.levelCategories.join(", ")
+      : "Todas as categorias";
+    return `<article class="super8-card card-hover" data-super8-open-row="${escapeHTML(tournament.id)}" tabindex="0" role="button" aria-label="Ver detalhes de ${escapeHTML(tournament.name)}">
+      <div class="super8-card-top">
+        <div><span class="status-badge">${tournament.alreadyJoined ? "Inscrito" : "Inscrições abertas"}</span><span class="super8-card-mode">${escapeHTML(modeLabel)}</span></div>
+        <span class="super8-players-badge">${tournament.enrolled}/${tournament.size}</span>
+      </div>
+      <h3>${escapeHTML(tournament.name)}</h3>
+      <p class="super8-card-categories">${escapeHTML(tournament.clubName)} · ${escapeHTML(categoriesLabel)}</p>
+      <div class="super8-card-footer"><span>${escapeHTML(super8DateTimeLabel(tournament))}</span><span>${escapeHTML(super8CourtsSummary(tournament))}</span></div>
+    </article>`;
+  }
+
   function super8StandingsTable(tournament) {
     if (!tournament.standings?.length) return "";
     const myId = state.session?.user?.id;
@@ -1268,7 +1314,7 @@
                   (player) => player.id === myId,
                 ),
               );
-              return `<details class="ranking-category super8-player-card"${index === 0 ? " open" : ""}><summary><span class="ranking-category-title">${escapeHTML(tournament.name)}</span><span class="ranking-category-meta">${escapeHTML(tournament.clubName)}${tournament.startTime ? ` · Início às ${escapeHTML(tournament.startTime)}` : ""} · ${tournament.gamesFinished}/${tournament.gamesTotal} jogos · ${tournament.status === "finalizado" ? "Finalizado" : "Em andamento"}</span></summary>${super8StandingsTable(tournament)}<div class="super8-games">${myGames.map((game) => super8MyGameCard(game, myId)).join("")}</div></details>`;
+              return `<details class="ranking-category super8-player-card"${index === 0 ? " open" : ""}><summary><span class="ranking-category-title">${escapeHTML(tournament.name)}</span><span class="ranking-category-meta">${escapeHTML(tournament.clubName)} · ${escapeHTML(super8DateTimeLabel(tournament))} · ${tournament.gamesFinished}/${tournament.gamesTotal} jogos · ${tournament.status === "finalizado" ? "Finalizado" : "Em andamento"}</span></summary>${super8StandingsTable(tournament)}<div class="super8-games">${myGames.map((game) => super8MyGameCard(game, myId)).join("")}</div></details>`;
             })
             .join("")
         : '<p class="profile-data-note">Você ainda não participa de nenhum Super 8.</p>';
@@ -1281,21 +1327,23 @@
       const { tournaments } = await apiRequest("/api/v1/players/super8/open");
       state.super8Open = tournaments || [];
       openList.innerHTML = state.super8Open.length
-        ? state.super8Open
-            .map(
-              (tournament) =>
-                `<button class="super8-open-row" type="button" data-super8-open-row="${escapeHTML(tournament.id)}"><div><strong>${escapeHTML(tournament.name)}</strong><small>${escapeHTML(tournament.clubName)} · Super ${tournament.size} · ${tournament.spotsLeft} ${tournament.spotsLeft === 1 ? "vaga" : "vagas"}${tournament.levelCategories ? ` · ${escapeHTML(tournament.levelCategories.join(", "))}` : ""}</small></div>${tournament.alreadyJoined ? '<span class="status-badge">Inscrito</span>' : '<span class="super8-entry-arrow" aria-hidden="true">→</span>'}</button>`,
-            )
-            .join("")
+        ? state.super8Open.map(super8OpenCard).join("")
         : '<p class="profile-data-note">Nenhum Super 8 com inscrições abertas no momento.</p>';
-      $$("[data-super8-open-row]", openList).forEach((row) =>
-        row.addEventListener("click", () => {
+      $$("[data-super8-open-row]", openList).forEach((row) => {
+        const open = () => {
           const tournament = state.super8Open.find(
             (item) => item.id === row.dataset.super8OpenRow,
           );
           if (tournament) openSuper8PlayerDetail(tournament);
-        }),
-      );
+        };
+        row.addEventListener("click", open);
+        row.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            open();
+          }
+        });
+      });
     } catch (error) {
       openList.innerHTML = `<p class="profile-data-note">${escapeHTML(error.message)}</p>`;
     }
@@ -1328,8 +1376,8 @@
       : "A definir";
     $("[data-super8-player-detail-content]").innerHTML = `
       <p class="super8-start-time">${escapeHTML(tournament.clubName)}${tournament.clubAddress ? ` · ${escapeHTML(tournament.clubAddress)}` : ""}</p>
+      <div class="super8-datetime-highlight"><div><small>Data</small><strong>${tournament.date ? escapeHTML(formatDate(`${tournament.date}T12:00:00-03:00`, { weekday: "short", day: "2-digit", month: "short" })) : "A definir"}</strong></div><div><small>Horário de início</small><strong>${tournament.startTime ? escapeHTML(tournament.startTime) : "A definir"}</strong></div></div>
       <div class="match-detail super8-meta">
-        <div><small>Horário de início</small><strong>${tournament.startTime ? escapeHTML(tournament.startTime) : "A definir"}</strong></div>
         <div><small>Vagas</small><strong>${tournament.enrolled}/${tournament.size}</strong></div>
         <div><small>Modalidade</small><strong>${escapeHTML(modeLabel)}</strong></div>
         <div><small>Categorias permitidas</small><strong>${escapeHTML(categoriesLabel)}</strong></div>

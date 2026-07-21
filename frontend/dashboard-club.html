@@ -763,6 +763,10 @@
           </label>
           <div class="form-grid-2">
             <label class="input-group">
+              <span>Data do torneio</span>
+              <input type="date" name="date" data-super8-date />
+            </label>
+            <label class="input-group">
               <span>Horário de início do evento</span>
               <select name="startTime" data-super8-start-time>
                 <option value="">Sem horário definido</option>
@@ -804,7 +808,6 @@
                 <option value="23:30">23:30</option>
               </select>
             </label>
-            <label class="input-group hidden" aria-hidden="true"></label>
           </div>
           <div class="form-grid-2">
             <label class="input-group">
@@ -1054,12 +1057,16 @@
             </select>
           </label>
           <label class="input-group">
-            <span>Horário de início</span>
-            <select name="startTime" data-super8-edit-start-time>
-              <option value="">Sem horário definido</option>
-            </select>
+            <span>Data do torneio</span>
+            <input type="date" name="date" data-super8-edit-date />
           </label>
         </div>
+        <label class="input-group">
+          <span>Horário de início</span>
+          <select name="startTime" data-super8-edit-start-time>
+            <option value="">Sem horário definido</option>
+          </select>
+        </label>
         <fieldset class="super8-fieldset" data-super8-edit-categories-field>
           <legend>Categorias permitidas</legend>
           <label class="super8-category-all">
@@ -1120,6 +1127,51 @@
               /><span>Elite</span></label
             >
           </div>
+        </fieldset>
+        <fieldset class="super8-fieldset" data-super8-edit-players-field>
+          <legend>
+            Jogadores
+            <span class="super8-count" data-super8-edit-player-count
+              >0/8</span
+            >
+          </legend>
+          <div class="super8-add-row">
+            <label class="input-group">
+              <span>Buscar jogador cadastrado</span>
+              <input
+                type="search"
+                data-super8-edit-search
+                placeholder="Digite ao menos 2 letras"
+                autocomplete="off"
+              />
+            </label>
+            <div
+              class="super8-search-results hidden"
+              data-super8-edit-search-results
+            ></div>
+          </div>
+          <div class="super8-add-row">
+            <label class="input-group">
+              <span>Ou adicionar convidado (sem conta)</span>
+              <input
+                type="text"
+                data-super8-edit-guest-name
+                maxlength="80"
+                placeholder="Nome do convidado"
+              />
+            </label>
+            <button
+              class="button button-outline"
+              type="button"
+              data-super8-edit-add-guest
+            >
+              Adicionar convidado
+            </button>
+          </div>
+          <div
+            class="super8-player-chips"
+            data-super8-edit-players
+          ></div>
         </fieldset>
         <div
           class="super8-section hidden"
