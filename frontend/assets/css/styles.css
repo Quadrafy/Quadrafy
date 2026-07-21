@@ -675,6 +675,36 @@ em {
 .field-icon {
   color: var(--coral);
 }
+/* TASK-86 — prévia de jogos em aberto na landing, no lugar da busca de
+   reserva de quadra. */
+.open-game-preview-list {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-bottom: 15px;
+  overflow: hidden;
+}
+.open-game-preview {
+  display: flex;
+  min-height: 74px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 17px;
+  background: #fff;
+}
+.open-game-preview + .open-game-preview {
+  border-top: 1px solid var(--line);
+}
+.open-game-preview strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--indigo-deep);
+}
+.open-game-preview small {
+  color: var(--ink-soft);
+  font-size: 11px;
+}
 .search-proof {
   display: flex;
   align-items: center;
@@ -1620,6 +1650,15 @@ em {
 }
 .app-tabs button.active::after {
   right: 0;
+}
+/* TASK-85 — "Jogos abertos" é a tela de entrada; primeiro item da
+   navegação com destaque mesmo quando não está ativo. */
+.app-tabs--matches-first button:first-child {
+  color: var(--coral-dark);
+  font-weight: 800;
+}
+.app-tabs--matches-first button:first-child.active {
+  color: var(--indigo-deep);
 }
 .nav-count {
   display: inline-grid;
@@ -2597,6 +2636,18 @@ em {
   margin: 3px 0 0;
   color: var(--ink-soft);
   font-size: 10px;
+}
+/* TASK-84 — "Ver conquistas" vira um link discreto perto do nome, em vez de
+   um botão em destaque no card principal. */
+.profile-inline-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--coral-dark);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
 }
 .profile-layout {
   display: grid;
@@ -3731,8 +3782,7 @@ em {
   margin: 21px 0 0;
   padding: 0;
 }
-.booking-visibility legend,
-.payment-options legend {
+.booking-visibility legend {
   margin-bottom: 10px;
   font-size: 10px;
   font-weight: 700;
@@ -3810,64 +3860,6 @@ em {
 }
 .open-match-fields .input-group {
   margin: 0;
-}
-.payment-options {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  border: 0;
-  margin: 21px 0;
-  padding: 0;
-}
-.payment-options legend {
-  margin-bottom: 10px;
-  font-size: 10px;
-  font-weight: 700;
-}
-.payment-options label {
-  position: relative;
-  display: grid;
-  min-height: 57px;
-  grid-template-columns: 32px 1fr auto;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 10px 13px;
-  background: rgba(255, 255, 255, 0.4);
-  cursor: pointer;
-}
-.payment-options label.active {
-  border-color: var(--coral);
-  background: #fff;
-}
-.payment-options input {
-  position: absolute;
-  opacity: 0;
-}
-.payment-options label > span {
-  color: var(--indigo);
-}
-.payment-options b {
-  display: flex;
-  flex-direction: column;
-  font-size: 10px;
-}
-.payment-options small {
-  color: var(--ink-soft);
-  font-size: 8px;
-  font-weight: 400;
-}
-.payment-options label > i {
-  width: 10px;
-  height: 10px;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-}
-.payment-options label.active > i {
-  border: 3px solid #fff;
-  background: var(--coral);
-  box-shadow: 0 0 0 1px var(--coral);
 }
 .modal-total {
   display: flex;
@@ -6307,7 +6299,7 @@ button.match-player-row:focus-visible strong {
   font-size: 11px;
 }
 /* TASK-76 — na área de Super 8 a linha vira um botão (abre a tela de
-   detalhe); em Torneios ela continua sendo um <div> com botão próprio. */
+   detalhe). */
 button.super8-open-row {
   width: 100%;
   font: inherit;
@@ -6355,31 +6347,6 @@ button.super8-open-row:focus-visible {
   z-index: 140;
 }
 
-/* TASKS-13 — Torneios */
-.tournament-entry {
-  border-color: rgba(20, 23, 31, 0.35);
-  background: linear-gradient(105deg, rgba(20, 23, 31, 0.06), rgba(246, 244, 239, 0.7));
-}
-.tournament-groups,
-.tournament-group {
-  display: grid;
-  gap: 12px;
-  margin-top: 12px;
-}
-.tournament-group table {
-  margin: 4px 0 0;
-}
-.tournament-partner {
-  position: relative;
-  margin-top: 8px;
-}
-.tournament-partner input {
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  font-size: 13px;
-}
 .super8-game-card.mine {
   border-color: var(--coral);
 }

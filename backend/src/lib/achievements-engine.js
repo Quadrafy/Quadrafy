@@ -43,20 +43,13 @@ export function matchMetricsForPlayer(player, confirmedResults = []) {
   };
 }
 
-export function countFinishedParticipations(playerId, super8Tournaments = [], tournaments = []) {
-  const super8Count = super8Tournaments.filter(
+// TASK-83 — Torneios deixaram de existir; a métrica conta só Super 8.
+export function countFinishedParticipations(playerId, super8Tournaments = []) {
+  return super8Tournaments.filter(
     (competition) =>
       competition.status === "finalizado" &&
       (competition.players ?? []).some((player) => player.id === playerId),
   ).length;
-  const tournamentCount = tournaments.filter(
-    (competition) =>
-      competition.status === "finalizado" &&
-      (competition.registrations ?? []).some((registration) =>
-        registration.players?.some((player) => player.id === playerId),
-      ),
-  ).length;
-  return super8Count + tournamentCount;
 }
 
 export function isCriterionSatisfied(criterion, metrics) {
@@ -70,13 +63,12 @@ export function eligibleProgressAchievements(metrics, catalog = ACHIEVEMENT_CATA
 
 export function toAchievementView(record) {
   if (record.type === "champion_title") {
-    const competitionLabel = record.competitionType === "super8" ? "Super 8" : "Torneio";
     return {
       ...record,
-      name: `Campeão ${competitionLabel}`,
+      name: "Campeão Super 8",
       description: `Título conquistado em ${record.competitionName}.`,
       category: "Campeão",
-      asset: CHAMPION_PIN_ASSETS[record.competitionType] ?? CHAMPION_PIN_ASSETS.tournament,
+      asset: CHAMPION_PIN_ASSETS.super8,
       titleDetails: {
         competitionName: record.competitionName,
         clubName: record.clubName,
@@ -89,18 +81,14 @@ export function toAchievementView(record) {
   return definition ? { ...definition, ...record } : null;
 }
 
-export function createAchievementsEngine({ users, matchResults, super8, tournaments, clubs, achievementStore }) {
+export function createAchievementsEngine({ users, matchResults, super8, clubs, achievementStore }) {
   async function metricsFor(playerId) {
     const player = users.findById(playerId);
     if (!player || player.role !== "player") return null;
     const metrics = matchMetricsForPlayer(player, matchResults.listConfirmedByPlayer(playerId));
     return {
       ...metrics,
-      eventsParticipated: countFinishedParticipations(
-        playerId,
-        super8.listAll(),
-        tournaments.listAll(),
-      ),
+      eventsParticipated: countFinishedParticipations(playerId, super8.listAll()),
     };
   }
 

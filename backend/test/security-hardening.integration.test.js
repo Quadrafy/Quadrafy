@@ -312,15 +312,6 @@ test("agenda conflicts and sensitive mutations produce attributable audit events
       "recurring_booking_conflict",
     );
 
-    const paymentRequestId = "security-payment-request";
-    const payment = await api(`/api/v1/club/bookings/${booking.id}/payment`, {
-      method: "PATCH",
-      cookie: clubAccount.cookie,
-      headers: { "X-Request-Id": paymentRequestId },
-      body: { status: "paid" },
-    });
-    assert.equal(payment.status, 200);
-
     const cancellationRequestId = "security-cancellation-request";
     const cancellation = await api(`/api/v1/player/bookings/${booking.id}`, {
       method: "PATCH",
@@ -360,17 +351,6 @@ test("agenda conflicts and sensitive mutations produce attributable audit events
     const events = JSON.parse(
       await readFile(path.join(dataDirectory, "audit-log.json"), "utf8"),
     );
-    const paymentEvent = events.find(
-      (event) =>
-        event.action === "booking.payment_status_changed" &&
-        event.resourceId === booking.id,
-    );
-    assert.ok(paymentEvent);
-    assert.equal(paymentEvent.actorId, clubAccount.user.id);
-    assert.equal(paymentEvent.requestId, paymentRequestId);
-    assert.equal(paymentEvent.before.paymentStatus, "pending");
-    assert.equal(paymentEvent.after.paymentStatus, "paid");
-
     const cancellationEvent = events.find(
       (event) =>
         event.action === "booking.cancelled" && event.resourceId === booking.id,
@@ -380,7 +360,6 @@ test("agenda conflicts and sensitive mutations produce attributable audit events
     assert.equal(cancellationEvent.requestId, cancellationRequestId);
     assert.equal(cancellationEvent.before.status, "confirmed");
     assert.equal(cancellationEvent.after.status, "cancelled");
-    assert.equal(cancellationEvent.after.refundStatus, "pending");
 
     const recurringDeleteEvent = events.find(
       (event) =>

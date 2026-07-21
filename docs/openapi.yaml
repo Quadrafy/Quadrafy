@@ -164,18 +164,23 @@ paths:
         "429": { $ref: "#/components/responses/RateLimited" }
   /player/bookings:
     get:
-      summary: Lista reservas criadas ou participadas pelo jogador
+      summary: Lista jogos criados ou participados pelo jogador
       security: [{ sessionCookie: [] }]
       responses:
         "200": { $ref: "#/components/responses/Success" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
-      summary: Cria uma reserva privada ou um jogo aberto
+      summary: Cria um jogo privado ou um jogo aberto
       description: >-
-        Aceita horários até 90 dias no futuro. Cada jogador pode manter no máximo
-        oito reservas futuras confirmadas como criador e fazer 20 tentativas de
-        criação por hora. Jogos abertos exigem teste e faixa de nível elegível.
+        O Quadrafy não reserva a quadra nem processa pagamento — o jogador já
+        reservou o horário por fora e só registra o jogo aqui. Aceita horários
+        até 90 dias no futuro. Cada jogador pode manter no máximo oito jogos
+        futuros confirmados como criador e fazer 20 tentativas de criação por
+        hora. Jogos abertos exigem teste e faixa de nível elegível. Se já
+        existir outro jogo criado na mesma quadra/horário, a API responde
+        409 booking_conflict como aviso (não bloqueio); reenviar com
+        allowConflict:true para confirmar mesmo assim.
       security: [{ sessionCookie: [] }]
       x-error-codes:
         - booking_horizon_exceeded
@@ -203,7 +208,7 @@ paths:
     parameters:
       - $ref: "#/components/parameters/BookingId"
     get:
-      summary: Retorna o detalhe de uma reserva do jogador
+      summary: Retorna o detalhe de um jogo do jogador
       description: O criador e os participantes confirmados podem consultar o detalhe.
       security: [{ sessionCookie: [] }]
       responses:
@@ -212,15 +217,13 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
     patch:
-      summary: Altera a visibilidade ou cancela uma reserva
+      summary: Altera a visibilidade ou cancela um jogo
       description: >-
-        Somente o criador pode alterar. Uma reserva aberta não pode voltar a privada
-        depois que outro jogador entrou. O cancelamento exige no mínimo seis horas de
-        antecedência em relação ao início. Cancelar uma reserva paga define
-        refundStatus como pending.
+        Somente o criador pode alterar. Um jogo aberto não pode voltar a privado
+        depois que outro jogador entrou. Cancelar é uma ação simples, sem prazo
+        ou lógica de reembolso (o Quadrafy não processa pagamento da quadra).
       security: [{ sessionCookie: [] }]
       x-error-codes:
-        - cancellation_window_closed
         - booking_has_participants
         - booking_unavailable
         - level_assessment_required
@@ -440,46 +443,21 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
   /club/bookings:
     get:
-      summary: Lista reservas das quadras do clube
+      summary: Lista jogos criados nas quadras do clube
       security: [{ sessionCookie: [] }]
       responses:
         "200": { $ref: "#/components/responses/Success" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
-  /club/bookings/{bookingId}/payment:
-    patch:
-      summary: Confirma ou reabre o pagamento de uma reserva do clube
-      description: Registra auditoria com estado anterior/novo e rejeita reservas canceladas.
-      security: [{ sessionCookie: [] }]
-      x-error-codes: [booking_cancelled]
-      parameters:
-        - name: bookingId
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-        - $ref: "#/components/parameters/RequestIdHeader"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [status]
-              properties:
-                status: { enum: [paid, pending] }
-      responses:
-        "200": { $ref: "#/components/responses/BookingSuccess" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "422": { $ref: "#/components/responses/ValidationError" }
   /club/finance:
     get:
-      summary: Agrega receita, reservas, ocupação e pagamentos por período
+      summary: Agrega jogos criados e ocupação da grade por período
       description: >-
-        Quando period é informado, seu intervalo prevalece sobre from e to.
-        Datas personalizadas devem ser enviadas em par e em ordem crescente.
+        O Quadrafy não processa pagamento da quadra, então este painel mostra
+        ocupação (jogos criados, jogos por quadra, taxa de ocupação,
+        abertos x privados), não receita. Quando period é informado, seu
+        intervalo prevalece sobre from e to. Datas personalizadas devem ser
+        enviadas em par e em ordem crescente.
       security: [{ sessionCookie: [] }]
       parameters:
         - name: period
@@ -928,7 +906,7 @@ components:
                   - $ref: "#/components/schemas/ClubDaySchedule"
                   - $ref: "#/components/schemas/ClubWeekSchedule"
     FinanceSuccess:
-      description: Indicadores e séries financeiras do período
+      description: Indicadores e séries de ocupação (jogos criados) do período
       headers:
         X-Request-Id: { $ref: "#/components/headers/RequestId" }
       content:
@@ -1295,7 +1273,7 @@ components:
           deprecated: true
           description: Alias legado de slotDuration.
     BookingInput:
-      description: Reserva privada ou jogo aberto com faixa numérica obrigatória.
+      description: Jogo privado ou jogo aberto com faixa numérica obrigatória.
       oneOf:
         - $ref: "#/components/schemas/PrivateBookingInput"
         - $ref: "#/components/schemas/OpenBookingInput"
@@ -1306,7 +1284,7 @@ components:
           open: "#/components/schemas/OpenBookingInput"
     PrivateBookingInput:
       type: object
-      required: [clubId, courtId, startAt, paymentMethod, visibility]
+      required: [clubId, courtId, startAt, visibility]
       properties:
         clubId: { type: string, format: uuid }
         courtId: { type: string, format: uuid }
@@ -1314,8 +1292,13 @@ components:
           type: string
           format: date-time
           description: Horário futuro situado no máximo 90 dias à frente.
-        paymentMethod: { enum: [pix, card, venue] }
         visibility: { const: private }
+        allowConflict:
+          type: boolean
+          default: false
+          description: >-
+            Confirma a criação mesmo com outro jogo/compromisso fixo já
+            criado na mesma quadra/horário (aviso, não bloqueio).
     OpenBookingInput:
       type: object
       required:
@@ -1323,7 +1306,6 @@ components:
           clubId,
           courtId,
           startAt,
-          paymentMethod,
           visibility,
           levelMin,
           levelMax,
@@ -1335,10 +1317,15 @@ components:
           type: string
           format: date-time
           description: Horário futuro situado no máximo 90 dias à frente.
-        paymentMethod: { enum: [pix, card, venue] }
         visibility: { const: open }
         levelMin: { type: number, minimum: 0.5, maximum: 7, multipleOf: 0.01 }
         levelMax: { type: number, minimum: 0.5, maximum: 7, multipleOf: 0.01 }
+        allowConflict:
+          type: boolean
+          default: false
+          description: >-
+            Confirma a criação mesmo com outro jogo/compromisso fixo já
+            criado na mesma quadra/horário (aviso, não bloqueio).
         availableSpots:
           type: integer
           deprecated: true
@@ -1393,10 +1380,7 @@ components:
         - courtId
         - courtName
         - startAt
-        - price
-        - paymentMethod
-        - paymentStatus
-        - refundStatus
+        - referencePrice
         - visibility
         - maxPlayers
         - openSpots
@@ -1404,7 +1388,6 @@ components:
         - teams
         - slotDuration
         - status
-        - cancellableUntil
         - canCancel
         - createdAt
       properties:
@@ -1419,13 +1402,12 @@ components:
         courtId: { type: string, format: uuid }
         courtName: { type: string }
         startAt: { type: string, format: date-time }
-        price: { type: number }
-        paymentMethod: { enum: [pix, card, venue] }
-        paymentStatus: { enum: [pending, paid] }
-        refundStatus:
-          type: [string, "null"]
-          enum: [pending, null]
-          description: Pending quando uma reserva paga foi cancelada e requer reembolso externo.
+        referencePrice:
+          type: [number, "null"]
+          description: >-
+            Preço de referência da quadra (cadastrado pelo clube). O
+            Quadrafy não processa nem cobra esse valor — a reserva e o
+            pagamento continuam sendo feitos fora da plataforma.
         visibility: { enum: [private, open] }
         levelRange: { type: [string, "null"] }
         levelMin:
@@ -1456,8 +1438,11 @@ components:
           type: [integer, "null"]
           enum: [60, 90, null]
         status: { enum: [confirmed, cancelled] }
-        cancellableUntil: { type: string, format: date-time }
-        canCancel: { type: boolean }
+        canCancel:
+          type: boolean
+          description: >-
+            Cancelar é simples e sem prazo/reembolso — só depende de o jogo
+            ainda estar confirmado.
         createdAt: { type: string, format: date-time }
     PublicPlayer:
       type: object
@@ -1531,7 +1516,9 @@ components:
               - type: "null"
     Match:
       type: object
-      description: DTO da partida; não contém forma/status de pagamento nem reembolso.
+      description: >-
+        DTO da partida; não contém forma/status de pagamento nem reembolso —
+        o Quadrafy não reserva nem processa pagamento da quadra.
       required:
         - id
         - creatorId
@@ -1540,7 +1527,7 @@ components:
         - courtId
         - courtName
         - startAt
-        - price
+        - referencePrice
         - visibility
         - levelRange
         - levelMin
@@ -1558,7 +1545,6 @@ components:
         - isParticipant
         - isOrganizer
         - canJoin
-        - pricePerPlayer
         - address
         - distanceKm
       properties:
@@ -1569,7 +1555,9 @@ components:
         courtId: { type: string, format: uuid }
         courtName: { type: string }
         startAt: { type: string, format: date-time }
-        price: { type: number }
+        referencePrice:
+          type: [number, "null"]
+          description: Preço de referência da quadra — informativo, não cobrado pelo Quadrafy.
         visibility: { const: open }
         levelRange: { type: [string, "null"] }
         levelMin: { type: [number, "null"], minimum: 0.5, maximum: 7 }
@@ -1595,7 +1583,6 @@ components:
         canJoin:
           type: boolean
           description: Indicação para UI; o POST de entrada sempre revalida início, nível e vagas.
-        pricePerPlayer: { type: number }
         address: { type: [string, "null"] }
         distanceKm: { type: [number, "null"] }
     MatchJoinInput:
@@ -1763,9 +1750,9 @@ components:
         - summary
         - byCourt
         - bookings
-        - revenueByDay
+        - gamesByDay
         - occupancyByCourt
-        - byPaymentMethod
+        - byVisibility
         - previousPeriod
         - period
       properties:
@@ -1776,63 +1763,58 @@ components:
         bookings:
           type: array
           items: { $ref: "#/components/schemas/Booking" }
-        revenueByDay:
+        gamesByDay:
           type: array
           items: { $ref: "#/components/schemas/FinanceDailyPoint" }
         occupancyByCourt:
           type: array
           items: { $ref: "#/components/schemas/FinanceOccupancy" }
-        byPaymentMethod:
+        byVisibility:
           type: array
-          items: { $ref: "#/components/schemas/FinancePaymentMethod" }
-        previousPeriod: { $ref: "#/components/schemas/FinancePaidSummary" }
+          items: { $ref: "#/components/schemas/FinanceVisibility" }
+        previousPeriod: { $ref: "#/components/schemas/FinanceGamesSummary" }
         period: { $ref: "#/components/schemas/FinancePeriod" }
-    FinancePaidSummary:
+    FinanceGamesSummary:
       type: object
-      required: [paidRevenue, paidBookings]
+      required: [games]
       properties:
-        paidRevenue: { type: number, minimum: 0 }
-        paidBookings: { type: integer, minimum: 0 }
+        games: { type: integer, minimum: 0 }
     FinanceSummary:
-      allOf:
-        - $ref: "#/components/schemas/FinancePaidSummary"
-        - type: object
-          required: [totalBookings, averageTicket]
-          properties:
-            totalBookings: { type: integer, minimum: 0 }
-            averageTicket: { type: number, minimum: 0 }
-    FinanceCourtSummary:
-      allOf:
-        - $ref: "#/components/schemas/FinancePaidSummary"
-        - type: object
-          required: [courtId, courtName]
-          properties:
-            courtId: { type: string, format: uuid }
-            courtName: { type: string }
-    FinanceDailyPoint:
-      allOf:
-        - $ref: "#/components/schemas/FinancePaidSummary"
-        - type: object
-          required: [date]
-          properties:
-            date: { type: string, format: date }
-    FinanceOccupancy:
       type: object
-      required: [courtId, courtName, occupiedSlots, totalSlots, occupancyRate]
+      required: [totalGames, totalBookings, averageGamesPerDay]
+      properties:
+        totalGames: { type: integer, minimum: 0 }
+        totalBookings: { type: integer, minimum: 0 }
+        averageGamesPerDay: { type: number, minimum: 0 }
+    FinanceCourtSummary:
+      type: object
+      required: [courtId, courtName, games]
       properties:
         courtId: { type: string, format: uuid }
         courtName: { type: string }
-        occupiedSlots: { type: integer, minimum: 0 }
+        games: { type: integer, minimum: 0 }
+    FinanceDailyPoint:
+      type: object
+      required: [date, games]
+      properties:
+        date: { type: string, format: date }
+        games: { type: integer, minimum: 0 }
+    FinanceOccupancy:
+      type: object
+      required: [courtId, courtName, games, totalSlots, occupancyRate]
+      properties:
+        courtId: { type: string, format: uuid }
+        courtName: { type: string }
+        games: { type: integer, minimum: 0 }
         totalSlots: { type: integer, minimum: 0 }
         occupancyRate: { type: number, minimum: 0, maximum: 100 }
-    FinancePaymentMethod:
-      allOf:
-        - $ref: "#/components/schemas/FinancePaidSummary"
-        - type: object
-          required: [paymentMethod, label]
-          properties:
-            paymentMethod: { enum: [pix, card, venue] }
-            label: { type: string }
+    FinanceVisibility:
+      type: object
+      required: [visibility, label, games]
+      properties:
+        visibility: { enum: [open, private] }
+        label: { type: string }
+        games: { type: integer, minimum: 0 }
     FinancePeriod:
       type: object
       required: [from, to, previousFrom, previousTo]

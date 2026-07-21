@@ -786,12 +786,10 @@ test("booking detail supports opening with three fixed spots, protects participa
     assert.equal(detail.clubId, clubAccount.club.id);
     assert.equal(detail.courtId, court.id);
     assert.equal(detail.startAt, startAt);
-    assert.equal(detail.price, 160);
-    assert.equal(detail.paymentMethod, "pix");
+    assert.equal(detail.referencePrice, 160);
     assert.equal(detail.status, "confirmed");
     assert.equal(detail.visibility, "private");
     assert.equal(detail.canCancel, true);
-    assert.ok(detail.cancellableUntil);
 
     const privateDetailLeak = await api(
       `/api/v1/player/bookings/${booking.id}`,

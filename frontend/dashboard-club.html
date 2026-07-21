@@ -36,9 +36,7 @@
           Minhas arenas</button
         ><button type="button" data-owner-tab="super8">
           Super 8</button
-        ><button type="button" data-owner-tab="tournaments">
-          Torneios</button
-        ><button type="button" data-owner-tab="finance">Financeiro</button>
+        ><button type="button" data-owner-tab="finance">Ocupação</button>
       </nav>
       <div class="profile-menu">
         <button
@@ -98,7 +96,7 @@
             <article>
               <span class="kpi-icon" data-icon="calendar"></span>
               <div>
-                <small>Reservas hoje</small
+                <small>Jogos hoje</small
                 ><strong data-kpi-bookings-today>—</strong>
               </div>
               <em data-kpi-bookings-trend></em>
@@ -114,7 +112,7 @@
             <article>
               <span class="kpi-icon" data-icon="wallet"></span>
               <div>
-                <small>Receita no mês</small><strong data-kpi-revenue>—</strong>
+                <small>Jogos no mês</small><strong data-kpi-revenue>—</strong>
               </div>
               <em data-kpi-revenue-trend></em>
             </article>
@@ -158,7 +156,7 @@
             ><button type="button" data-manage-tab="schedule">
               Grade horária</button
             ><button type="button" data-manage-tab="reservations">
-              Reservas
+              Jogos
               <span class="hidden" data-reservation-count></span></button
             ><button type="button" data-manage-tab="settings">
               Configurações
@@ -186,7 +184,9 @@
                 <h2>Grade horária</h2>
                 <p>
                   Visão geral da ocupação para
-                  <strong data-schedule-date>—</strong>.
+                  <strong data-schedule-date>—</strong>. Mostra os jogos
+                  criados no Quadrafy e os compromissos fixos — não é o
+                  sistema oficial de reserva da quadra.
                 </p>
               </div>
               <div class="schedule-actions">
@@ -253,8 +253,11 @@
           <div class="manage-view" data-manage-view="reservations">
             <div class="subheading">
               <div>
-                <h2>Reservas</h2>
-                <p>Acompanhe e gerencie as reservas desta arena.</p>
+                <h2>Jogos</h2>
+                <p>
+                  Jogos criados no Quadrafy nesta arena — referência
+                  informativa, não o sistema oficial de reserva da quadra.
+                </p>
               </div>
               <label class="search-input compact-search"
                 ><span data-icon="search"></span
@@ -268,9 +271,8 @@
                     <th>Cliente</th>
                     <th>Quadra</th>
                     <th>Data e hora</th>
-                    <th>Pagamento</th>
+                    <th>Visibilidade</th>
                     <th>Status</th>
-                    <th></th>
                   </tr>
                 </thead>
                 <tbody data-reservation-table></tbody>
@@ -419,38 +421,17 @@
         </div>
       </section>
 
-      <section class="app-view" data-owner-view="tournaments">
-        <div class="app-container">
-          <div class="app-heading">
-            <div>
-              <p class="eyebrow dark">Grupos + mata-mata</p>
-              <h1>Seus <em>torneios.</em></h1>
-              <p>
-                Torneios tradicionais com fase de grupos, chaveamento
-                eliminatório e classificação final automática.
-              </p>
-            </div>
-            <button
-              class="button button-primary shine"
-              type="button"
-              data-tournament-create-open
-            >
-              + Criar novo torneio
-            </button>
-          </div>
-          <div class="super8-grid" data-tournament-grid>
-            <p class="profile-data-note">Carregando torneios…</p>
-          </div>
-        </div>
-      </section>
-
       <section class="app-view" data-owner-view="finance">
         <div class="app-container finance-page">
           <div class="app-heading finance-heading">
             <div>
-              <p class="eyebrow dark">Financeiro</p>
-              <h1>Seus números,<br /><em>sem mistério.</em></h1>
-              <p>Acompanhe reservas pagas e receita por quadra e período.</p>
+              <p class="eyebrow dark">Ocupação</p>
+              <h1>Seus jogos,<br /><em>sem mistério.</em></h1>
+              <p>
+                Acompanhe os jogos criados no Quadrafy e a ocupação da grade
+                por quadra e período. A reserva e o pagamento da quadra
+                continuam sendo feitos direto com você, fora do app.
+              </p>
             </div>
           </div>
 
@@ -486,33 +467,13 @@
             </label>
           </form>
 
-          <section class="finance-kpis" aria-label="Resumo financeiro">
+          <section class="finance-kpis" aria-label="Resumo de ocupação">
             <article class="finance-kpi-card featured">
-              <span class="kpi-icon" data-icon="wallet"></span>
-              <div>
-                <small>Receita no período</small>
-                <strong data-finance-kpi-revenue>—</strong>
-                <small class="finance-comparison" data-finance-compare-revenue
-                  >—</small
-                >
-              </div>
-            </article>
-            <article class="finance-kpi-card">
               <span class="kpi-icon" data-icon="calendar"></span>
               <div>
-                <small>Reservas pagas</small>
-                <strong data-finance-kpi-paid-bookings>—</strong>
-                <small class="finance-comparison" data-finance-compare-bookings
-                  >—</small
-                >
-              </div>
-            </article>
-            <article class="finance-kpi-card">
-              <span class="kpi-icon" data-icon="chart"></span>
-              <div>
-                <small>Ticket médio</small>
-                <strong data-finance-kpi-average>—</strong>
-                <small class="finance-comparison" data-finance-compare-average
+                <small>Jogos criados no período</small>
+                <strong data-finance-kpi-games>—</strong>
+                <small class="finance-comparison" data-finance-compare-games
                   >—</small
                 >
               </div>
@@ -520,25 +481,41 @@
             <article class="finance-kpi-card">
               <span class="kpi-icon" data-icon="court"></span>
               <div>
-                <small>A receber</small>
-                <strong data-finance-kpi-pending>—</strong>
-                <small class="finance-comparison">Sem comparativo</small>
+                <small>Jogos em aberto</small>
+                <strong data-finance-kpi-open>—</strong>
+                <small class="finance-comparison">Aberto a novos jogadores</small>
+              </div>
+            </article>
+            <article class="finance-kpi-card">
+              <span class="kpi-icon" data-icon="chart"></span>
+              <div>
+                <small>Jogos privados</small>
+                <strong data-finance-kpi-private>—</strong>
+                <small class="finance-comparison">Só entre convidados</small>
+              </div>
+            </article>
+            <article class="finance-kpi-card">
+              <span class="kpi-icon" data-icon="court"></span>
+              <div>
+                <small>Ocupação média</small>
+                <strong data-finance-kpi-occupancy>—</strong>
+                <small class="finance-comparison">Da grade no período</small>
               </div>
             </article>
           </section>
 
-          <section class="finance-charts" aria-label="Gráficos financeiros">
+          <section class="finance-charts" aria-label="Gráficos de ocupação">
             <article class="finance-chart-card finance-chart-card-wide">
               <header>
                 <p class="micro-label">Evolução</p>
-                <h2>Receita ao longo do tempo</h2>
+                <h2>Jogos ao longo do tempo</h2>
               </header>
               <div class="finance-chart" data-chart-revenue></div>
             </article>
             <article class="finance-chart-card">
               <header>
                 <p class="micro-label">Quadras</p>
-                <h2>Receita por quadra</h2>
+                <h2>Jogos por quadra</h2>
               </header>
               <div class="finance-chart" data-chart-courts></div>
             </article>
@@ -551,8 +528,8 @@
             </article>
             <article class="finance-chart-card">
               <header>
-                <p class="micro-label">Recebimentos</p>
-                <h2>Formas de pagamento</h2>
+                <p class="micro-label">Visibilidade</p>
+                <h2>Abertos x privados</h2>
               </header>
               <div class="finance-chart" data-chart-payments></div>
             </article>
@@ -562,10 +539,8 @@
             <div class="subheading">
               <div>
                 <p class="micro-label">Desempenho</p>
-                <h2>Receita por quadra</h2>
-                <p>
-                  Relação entre quadras cadastradas, reservas e valores pagos.
-                </p>
+                <h2>Jogos por quadra</h2>
+                <p>Relação entre quadras cadastradas e jogos criados nelas.</p>
               </div>
             </div>
             <div class="finance-court-list" data-finance-by-court></div>
@@ -575,8 +550,8 @@
             <div class="subheading">
               <div>
                 <p class="micro-label">Movimentações</p>
-                <h2>Reservas do período</h2>
-                <p>Valores, formas de pagamento e status de cada reserva.</p>
+                <h2>Jogos do período</h2>
+                <p>Visibilidade e status de cada jogo criado no Quadrafy.</p>
               </div>
             </div>
             <div class="reservation-table-wrap">
@@ -586,16 +561,15 @@
                     <th>Data</th>
                     <th>Quadra</th>
                     <th>Cliente</th>
-                    <th>Pagamento</th>
+                    <th>Visibilidade</th>
                     <th>Status</th>
-                    <th>Valor</th>
                   </tr>
                 </thead>
                 <tbody data-finance-table></tbody>
               </table>
               <div class="table-empty-state hidden" data-finance-empty>
-                <strong>Nenhuma movimentação no período.</strong>
-                <p>As reservas pagas das suas quadras aparecerão aqui.</p>
+                <strong>Nenhum jogo no período.</strong>
+                <p>Os jogos criados nas suas quadras aparecerão aqui.</p>
               </div>
             </div>
           </section>
@@ -636,7 +610,7 @@
         </label>
         <div class="input-grid court-form-grid">
           <label class="input-group">
-            <span>Preço por reserva</span>
+            <span>Preço de referência por horário</span>
             <input
               type="number"
               name="price"
@@ -671,7 +645,7 @@
           </label>
         </div>
         <label class="input-group">
-          <span>Duração padrão da reserva</span>
+          <span>Duração padrão do horário</span>
           <select name="slotDuration" required>
             <option value="60">1 hora</option>
             <option value="90">1 hora e 30 minutos</option>
@@ -1298,190 +1272,5 @@
       </div>
     </div>
 
-    <div class="modal-backdrop" data-tournament-create-modal aria-hidden="true">
-      <div
-        class="modal-card super8-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="tournament-create-title"
-      >
-        <button
-          class="modal-close"
-          type="button"
-          data-modal-close
-          aria-label="Fechar criação de torneio"
-        >
-          ×
-        </button>
-        <p class="eyebrow dark">Novo torneio</p>
-        <h2 id="tournament-create-title">Criar torneio.</h2>
-        <form data-tournament-form>
-          <label class="input-group">
-            <span>Nome do torneio</span>
-            <input
-              type="text"
-              name="name"
-              maxlength="80"
-              placeholder="Ex.: Aberto de Inverno"
-              required
-            />
-          </label>
-          <div class="form-grid-2">
-            <label class="input-group">
-              <span>Data (opcional)</span>
-              <input type="datetime-local" name="date" />
-            </label>
-            <label class="input-group">
-              <span>Tipo de inscrição</span>
-              <select name="registrationType">
-                <option value="dupla">Em dupla (dupla já formada)</option>
-                <option value="individual">
-                  Individual (o sistema forma as duplas)
-                </option>
-              </select>
-            </label>
-          </div>
-          <div class="form-grid-2">
-            <label class="input-group">
-              <span>Categoria</span>
-              <select name="genderCategory">
-                <option value="all" selected>Todos os jogadores</option>
-                <option value="women_only">Apenas Mulheres</option>
-                <option value="men_only">Apenas Homens</option>
-                <option value="mixed">Misto</option>
-              </select>
-            </label>
-            <div class="form-grid-2">
-              <label class="input-group">
-                <span>Nível mín.</span>
-                <input
-                  type="number"
-                  name="levelMin"
-                  min="0.5"
-                  max="7"
-                  step="0.1"
-                  value="0.5"
-                />
-              </label>
-              <label class="input-group">
-                <span>Nível máx.</span>
-                <input
-                  type="number"
-                  name="levelMax"
-                  min="0.5"
-                  max="7"
-                  step="0.1"
-                  value="7"
-                />
-              </label>
-            </div>
-          </div>
-          <fieldset class="super8-fieldset">
-            <legend>Quadras do torneio</legend>
-            <div class="super8-courts" data-tournament-courts></div>
-          </fieldset>
-          <p
-            class="profile-data-note"
-            data-tournament-form-note
-            aria-live="polite"
-          ></p>
-          <button
-            class="button button-primary button-block shine"
-            type="submit"
-            data-tournament-submit
-          >
-            Criar torneio e abrir inscrições
-          </button>
-        </form>
-      </div>
-    </div>
-
-    <div class="modal-backdrop" data-tournament-detail-modal aria-hidden="true">
-      <div
-        class="modal-card super8-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="tournament-detail-title"
-      >
-        <button
-          class="modal-close"
-          type="button"
-          data-modal-close
-          aria-label="Fechar torneio"
-        >
-          ×
-        </button>
-        <p class="eyebrow dark">Torneio</p>
-        <h2 id="tournament-detail-title" data-tournament-detail-title>
-          Torneio
-        </h2>
-        <div data-tournament-detail-content></div>
-      </div>
-    </div>
-
-    <div
-      class="modal-backdrop modal-stacked"
-      data-tournament-result-modal
-      aria-hidden="true"
-    >
-      <div
-        class="modal-card court-delete-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="tournament-result-title"
-      >
-        <button
-          class="modal-close"
-          type="button"
-          data-modal-close
-          aria-label="Fechar lançamento de placar"
-        >
-          ×
-        </button>
-        <p class="eyebrow dark">Placar do jogo</p>
-        <h2 id="tournament-result-title" data-tournament-result-title>
-          Lançar resultado.
-        </h2>
-        <p class="profile-data-note">
-          Informe o total de games de cada dupla (sem empate).
-        </p>
-        <form data-tournament-result-form>
-          <div class="super8-score-row">
-            <label class="input-group">
-              <span data-tournament-result-team1>Dupla 1</span>
-              <input
-                type="number"
-                name="team1Games"
-                min="0"
-                max="99"
-                step="1"
-                inputmode="numeric"
-                required
-              />
-            </label>
-            <span class="result-set-x" aria-hidden="true">×</span>
-            <label class="input-group">
-              <span data-tournament-result-team2>Dupla 2</span>
-              <input
-                type="number"
-                name="team2Games"
-                min="0"
-                max="99"
-                step="1"
-                inputmode="numeric"
-                required
-              />
-            </label>
-          </div>
-          <button
-            class="button button-primary button-block shine"
-            type="submit"
-            data-tournament-result-submit
-          >
-            Salvar placar
-          </button>
-        </form>
-      </div>
-    </div>
   </body>
 </html>

@@ -4,7 +4,6 @@ import { LEVEL_CATEGORY_NAMES } from "./level-engine.js";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const COURT_TYPES = new Set(["covered", "outdoor"]);
-const PAYMENT_METHODS = new Set(["pix", "card", "venue"]);
 const VISIBILITIES = new Set(["private", "open"]);
 const HALF_HOUR_TIME_PATTERN = /^([01]\d|2[0-3]):(?:00|30)$/;
 const MAX_BOOKING_HORIZON_MS = 90 * 24 * 60 * 60 * 1_000;
@@ -315,50 +314,6 @@ export function validateSuper8Courts(body) {
   return { courtIds: [...new Set(courtIds.map((id) => String(id).trim()))] };
 }
 
-// TASKS-13 / TASK-54 — criação de torneio tradicional.
-export function validateTournament(body) {
-  const name = text(body?.name, "name", { min: 3, max: 80 });
-  let date = null;
-  if (body?.date) {
-    const parsed = new Date(body.date);
-    if (Number.isNaN(parsed.getTime())) {
-      throw new ApiError(422, "validation_failed", "Informe uma data válida.", {
-        field: "date",
-      });
-    }
-    date = parsed.toISOString();
-  }
-  const registrationType = String(body?.registrationType ?? "").trim();
-  if (!["individual", "dupla"].includes(registrationType)) {
-    throw new ApiError(
-      422,
-      "validation_failed",
-      "Escolha o tipo de inscrição: individual ou em dupla.",
-      { field: "registrationType" },
-    );
-  }
-  const genderCategory = String(body?.genderCategory ?? "all").trim();
-  if (!GENDER_CATEGORIES.has(genderCategory)) {
-    throw new ApiError(
-      422,
-      "validation_failed",
-      "Escolha uma categoria de gênero válida.",
-      { field: "genderCategory" },
-    );
-  }
-  const levelMin = level(body?.levelMin ?? 0.5, "levelMin");
-  const levelMax = level(body?.levelMax ?? 7, "levelMax");
-  if (levelMin > levelMax) {
-    throw new ApiError(
-      422,
-      "validation_failed",
-      "A faixa de nível é inválida.",
-      { field: "levelMin" },
-    );
-  }
-  return { name, date, registrationType, genderCategory, levelMin, levelMax };
-}
-
 // TASKS-12 / TASK-44 — placar de um jogo do Super 8.
 // Decisão documentada (a validar com produto): formato de "games corridos"
 // em um único placar por dupla (padrão de torneios Americano/Super 8
@@ -627,16 +582,7 @@ export function validateCourt(body) {
 }
 
 export function validateBooking(body) {
-  const paymentMethod = String(body.paymentMethod ?? "").toLowerCase();
   const visibility = String(body.visibility ?? "private").toLowerCase();
-  if (!PAYMENT_METHODS.has(paymentMethod)) {
-    throw new ApiError(
-      422,
-      "validation_failed",
-      "Selecione uma forma de pagamento válida.",
-      { field: "paymentMethod" },
-    );
-  }
   if (!VISIBILITIES.has(visibility)) {
     throw new ApiError(
       422,
@@ -662,7 +608,7 @@ export function validateBooking(body) {
     throw new ApiError(
       422,
       "booking_horizon_exceeded",
-      "As reservas podem ser feitas com até 90 dias de antecedência.",
+      "Os jogos podem ser criados com até 90 dias de antecedência.",
       { field: "startAt", maximumDays: 90 },
     );
   }
@@ -703,12 +649,14 @@ export function validateBooking(body) {
     courtId: identifier(body.courtId, "courtId"),
     startAt: startAt.toISOString(),
     genderCategory,
-    paymentMethod,
     visibility,
     levelRange,
     levelMin,
     levelMax,
     maxPlayers: visibility === "open" ? 4 : 1,
+    // TASK-79 — o jogador já confirmou (fora do app) que reservou esse
+    // horário mesmo vendo o aviso de conflito com outro jogo criado.
+    allowConflict: Boolean(body.allowConflict),
   };
 }
 

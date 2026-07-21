@@ -1,26 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { computeFinanceAnalytics } from "../src/services/finance-analytics.js";
+import { computeOccupancyAnalytics } from "../src/services/finance-analytics.js";
 
-test("revenueByDay includes every date and groups paid confirmed revenue by the Brazil booking date", () => {
-  const result = computeFinanceAnalytics({
+test("gamesByDay includes every date and groups confirmed games by the Brazil booking date", () => {
+  const result = computeOccupancyAnalytics({
     bookings: [
       {
         courtId: "court-1",
         startAt: "2026-07-02T01:30:00.000Z",
-        price: 180,
         status: "confirmed",
-        paymentStatus: "paid",
-        paymentMethod: "pix",
+        visibility: "private",
       },
       {
         courtId: "court-1",
         startAt: "2026-07-03T15:00:00.000Z",
-        price: 220,
         status: "cancelled",
-        paymentStatus: "paid",
-        paymentMethod: "card",
+        visibility: "private",
       },
     ],
     courts: [],
@@ -30,39 +26,33 @@ test("revenueByDay includes every date and groups paid confirmed revenue by the 
     previousTo: "2026-06-30",
   });
 
-  assert.deepEqual(result.revenueByDay, [
-    { date: "2026-07-01", paidRevenue: 180, paidBookings: 1 },
-    { date: "2026-07-02", paidRevenue: 0, paidBookings: 0 },
-    { date: "2026-07-03", paidRevenue: 0, paidBookings: 0 },
+  assert.deepEqual(result.gamesByDay, [
+    { date: "2026-07-01", games: 1 },
+    { date: "2026-07-02", games: 0 },
+    { date: "2026-07-03", games: 0 },
   ]);
 });
 
-test("computes occupancy, payment breakdown and previous-period totals", () => {
-  const result = computeFinanceAnalytics({
+test("computes occupancy, visibility breakdown and previous-period totals", () => {
+  const result = computeOccupancyAnalytics({
     bookings: [
       {
         courtId: "court-1",
         startAt: "2026-07-01T12:00:00.000Z",
-        price: 180,
         status: "confirmed",
-        paymentStatus: "paid",
-        paymentMethod: "pix",
+        visibility: "open",
       },
       {
         courtId: "court-1",
         startAt: "2026-07-02T12:00:00.000Z",
-        price: 200,
         status: "confirmed",
-        paymentStatus: "pending",
-        paymentMethod: "card",
+        visibility: "private",
       },
       {
         courtId: "court-1",
         startAt: "2026-06-30T12:00:00.000Z",
-        price: 150,
         status: "confirmed",
-        paymentStatus: "paid",
-        paymentMethod: "card",
+        visibility: "private",
       },
     ],
     courts: [
@@ -84,24 +74,17 @@ test("computes occupancy, payment breakdown and previous-period totals", () => {
     {
       courtId: "court-1",
       courtName: "Quadra Central",
-      occupiedSlots: 2,
+      games: 2,
       totalSlots: 4,
       occupancyRate: 50,
     },
   ]);
   assert.deepEqual(
-    result.byPaymentMethod.map((entry) => [
-      entry.paymentMethod,
-      entry.paidRevenue,
-    ]),
+    result.byVisibility.map((entry) => [entry.visibility, entry.games]),
     [
-      ["pix", 180],
-      ["card", 0],
-      ["venue", 0],
+      ["open", 1],
+      ["private", 1],
     ],
   );
-  assert.deepEqual(result.previousPeriod, {
-    paidRevenue: 150,
-    paidBookings: 1,
-  });
+  assert.deepEqual(result.previousPeriod, { games: 1 });
 });

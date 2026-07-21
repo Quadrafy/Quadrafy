@@ -78,6 +78,20 @@ export class BookingStore {
       if (!Array.isArray(parsed)) throw new Error("Expected an array");
       let migrated = false;
       this.bookings = parsed.map((booking) => {
+        // TASK-78 — jogos antigos vinham com campos de pagamento/reembolso;
+        // esses conceitos saem da plataforma, então removemos os campos ao
+        // carregar (preserva data/horário/quadra/participantes já existentes).
+        for (const field of [
+          "price",
+          "paymentMethod",
+          "paymentStatus",
+          "refundStatus",
+        ]) {
+          if (field in booking) {
+            delete booking[field];
+            migrated = true;
+          }
+        }
         if (booking.visibility !== "open") return booking;
         const previousTeams = JSON.stringify(booking.teams);
         ensureTeams(booking);
@@ -133,13 +147,23 @@ export class BookingStore {
         booking.cancelledAt = cancelledAt;
         booking.cancelledBy = cancelledBy;
         booking.updatedAt = cancelledAt;
-        if (booking.paymentStatus === "paid") {
-          booking.refundStatus = "pending";
-        }
       });
       if (affected.length) await this.persist();
       return affected;
     });
+  }
+
+  // TASK-79 — o Quadrafy não é mais o sistema oficial de reserva da quadra,
+  // então dois jogos na mesma quadra/horário não são mais bloqueados: só
+  // avisamos o jogador (ver `hasConflict`) e deixamos ele confirmar mesmo
+  // assim com `allowConflict`.
+  hasConflict(courtId, startAt) {
+    return this.bookings.some(
+      (booking) =>
+        booking.courtId === courtId &&
+        booking.startAt === startAt &&
+        booking.status === "confirmed",
+    );
   }
 
   async create({
@@ -147,8 +171,6 @@ export class BookingStore {
     clubId,
     courtId,
     startAt,
-    price,
-    paymentMethod,
     visibility = "private",
     levelRange = null,
     levelMin = null,
@@ -157,21 +179,18 @@ export class BookingStore {
     genderCategory = "all",
     participantIds = [],
     status = "confirmed",
+    allowConflict = false,
   }) {
     return this.enqueueWrite(async () => {
       if (
         status === "confirmed" &&
-        this.bookings.some(
-          (booking) =>
-            booking.courtId === courtId &&
-            booking.startAt === startAt &&
-            booking.status === "confirmed",
-        )
+        !allowConflict &&
+        this.hasConflict(courtId, startAt)
       ) {
         throw new ApiError(
           409,
           "booking_conflict",
-          "Este horário já foi reservado.",
+          "Já existe um jogo criado neste horário nesta quadra.",
           { courtId, startAt },
         );
       }
@@ -191,11 +210,8 @@ export class BookingStore {
         clubId,
         courtId,
         startAt,
-        price,
-        paymentMethod,
         // TASK-49: "all" | "women_only" | "men_only" | "mixed"
         genderCategory: visibility === "open" ? genderCategory : "all",
-        paymentStatus: "pending",
         visibility,
         levelRange,
         levelMin,
@@ -227,7 +243,7 @@ export class BookingStore {
         throw new ApiError(
           409,
           "match_not_open",
-          "Esta reserva não é um jogo aberto.",
+          "Este jogo não está aberto.",
         );
       }
       if (booking.status !== "confirmed") {
@@ -309,7 +325,7 @@ export class BookingStore {
         throw new ApiError(
           409,
           "match_not_open",
-          "Esta reserva n\u00e3o \u00e9 um jogo aberto.",
+          "Este jogo n\u00e3o est\u00e1 aberto.",
         );
       }
 
@@ -355,7 +371,7 @@ export class BookingStore {
         throw new ApiError(
           409,
           "cannot_remove_self",
-          "Para sair do jogo, cancele a reserva pela tela de reservas.",
+          "Para sair do jogo, cancele-o pela tela de jogos.",
         );
       }
       const participantIds = booking.participantIds ?? [];
@@ -490,39 +506,22 @@ export class BookingStore {
     });
   }
 
-  async setPaymentStatus(bookingId, paymentStatus) {
-    return this.enqueueWrite(async () => {
-      const booking = this.findById(bookingId);
-      if (!booking) {
-        throw new ApiError(404, "booking_not_found", "Reserva não encontrada.");
-      }
-
-      booking.paymentStatus = paymentStatus;
-      booking.updatedAt = new Date().toISOString();
-      await this.persist();
-      return booking;
-    });
-  }
-
   async updateByOwner(bookingId, playerId, update) {
     return this.enqueueWrite(async () => {
       const booking = this.findById(bookingId);
       if (!booking || booking.playerId !== playerId) {
-        throw new ApiError(404, "booking_not_found", "Reserva não encontrada.");
+        throw new ApiError(404, "booking_not_found", "Jogo não encontrado.");
       }
 
       if (update.status === "cancelled") {
         booking.status = "cancelled";
         booking.cancelledAt = new Date().toISOString();
-        if (booking.paymentStatus === "paid") {
-          booking.refundStatus = "pending";
-        }
       } else {
         if (booking.status !== "confirmed") {
           throw new ApiError(
             409,
             "booking_unavailable",
-            "Esta reserva não pode mais ser alterada.",
+            "Este jogo não pode mais ser alterado.",
           );
         }
         if (

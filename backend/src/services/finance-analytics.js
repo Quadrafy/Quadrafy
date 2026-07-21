@@ -1,3 +1,7 @@
+// TASK-78/81 — o Quadrafy deixou de processar pagamento da quadra, então o
+// antigo painel de receita ("Financeiro") vira um painel de OCUPAÇÃO: em vez
+// de dinheiro, medimos quantos jogos foram criados por dia/quadra e a taxa
+// de ocupação da grade, sem nenhum valor monetário.
 const BRAZIL_TIME_ZONE = "America/Sao_Paulo";
 
 function dateKey(value) {
@@ -30,8 +34,8 @@ function inRange(booking, from, to) {
   return (!from || key >= from) && (!to || key <= to);
 }
 
-function paidConfirmed(booking) {
-  return booking.status === "confirmed" && booking.paymentStatus === "paid";
+function confirmed(booking) {
+  return booking.status === "confirmed";
 }
 
 function minutesFromTime(value) {
@@ -41,16 +45,11 @@ function minutesFromTime(value) {
   return hours * 60 + minutes;
 }
 
-function paidSummary(bookings) {
-  const paid = bookings.filter(paidConfirmed);
-  const paidRevenue = paid.reduce(
-    (total, booking) => total + Number(booking.price || 0),
-    0,
-  );
-  return { paidRevenue, paidBookings: paid.length };
+function gamesSummary(bookings) {
+  return { games: bookings.filter(confirmed).length };
 }
 
-export function computeFinanceAnalytics({
+export function computeOccupancyAnalytics({
   bookings = [],
   courts = [],
   from,
@@ -59,19 +58,12 @@ export function computeFinanceAnalytics({
   previousTo,
 }) {
   const current = bookings.filter((booking) => inRange(booking, from, to));
-  const paid = current.filter(paidConfirmed);
-  const revenueByDay = dateKeys(from, to).map((date) => {
-    const dayBookings = paid.filter(
+  const played = current.filter(confirmed);
+  const gamesByDay = dateKeys(from, to).map((date) => {
+    const dayGames = played.filter(
       (booking) => dateKey(booking.startAt) === date,
     );
-    return {
-      date,
-      paidRevenue: dayBookings.reduce(
-        (total, booking) => total + Number(booking.price || 0),
-        0,
-      ),
-      paidBookings: dayBookings.length,
-    };
+    return { date, games: dayGames.length };
   });
 
   const daysInPeriod = Math.max(1, dateKeys(from, to).length);
@@ -88,18 +80,15 @@ export function computeFinanceAnalytics({
       ),
     );
     const occupiedSlots = new Set(
-      current
-        .filter(
-          (booking) =>
-            booking.courtId === court.id && booking.status === "confirmed",
-        )
+      played
+        .filter((booking) => booking.courtId === court.id)
         .map((booking) => `${dateKey(booking.startAt)}:${booking.startAt}`),
     ).size;
     const totalSlots = slotsPerDay * daysInPeriod;
     return {
       courtId: court.id,
       courtName: court.name,
-      occupiedSlots,
+      games: occupiedSlots,
       totalSlots,
       occupancyRate: totalSlots
         ? Math.min(100, Math.round((occupiedSlots / totalSlots) * 1000) / 10)
@@ -107,35 +96,23 @@ export function computeFinanceAnalytics({
     };
   });
 
-  const paymentLabels = {
-    pix: "Pix",
-    card: "Cartão",
-    venue: "Na arena",
-  };
-  const byPaymentMethod = Object.entries(paymentLabels).map(
-    ([paymentMethod, label]) => {
-      const methodBookings = paid.filter(
-        (booking) => booking.paymentMethod === paymentMethod,
-      );
-      return {
-        paymentMethod,
-        label,
-        paidRevenue: methodBookings.reduce(
-          (total, booking) => total + Number(booking.price || 0),
-          0,
-        ),
-        paidBookings: methodBookings.length,
-      };
-    },
+  const visibilityLabels = { open: "Jogos abertos", private: "Jogos privados" };
+  const byVisibility = Object.entries(visibilityLabels).map(
+    ([visibility, label]) => ({
+      visibility,
+      label,
+      games: played.filter((booking) => booking.visibility === visibility)
+        .length,
+    }),
   );
 
   const previous = bookings.filter((booking) =>
     inRange(booking, previousFrom, previousTo),
   );
   return {
-    revenueByDay,
+    gamesByDay,
     occupancyByCourt,
-    byPaymentMethod,
-    previousPeriod: paidSummary(previous),
+    byVisibility,
+    previousPeriod: gamesSummary(previous),
   };
 }

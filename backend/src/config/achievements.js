@@ -41,9 +41,10 @@ export const ACHIEVEMENT_CATALOG = Object.freeze([
   progress({ id: "streak-5", name: "Sequência forte", description: "Venceu 5 partidas seguidas.", category: "Sequência de vitórias", metric: "currentWinStreak", threshold: 5, tier: "prata", asset: "pin-sequencia-prata" }),
   progress({ id: "streak-10", name: "Invencível", description: "Venceu 10 partidas seguidas.", category: "Sequência de vitórias", metric: "currentWinStreak", threshold: 10, tier: "ouro", asset: "pin-sequencia-ouro" }),
 
-  progress({ id: "events-1", name: "Primeiro desafio", description: "Participou de um Super 8 ou torneio finalizado.", category: "Torneios e Super 8", metric: "eventsParticipated", threshold: 1, tier: "bronze", asset: "pin-torneios-bronze" }),
-  progress({ id: "events-5", name: "Competidor", description: "Participou de 5 Super 8 ou torneios finalizados.", category: "Torneios e Super 8", metric: "eventsParticipated", threshold: 5, tier: "prata", asset: "pin-torneios-prata" }),
-  progress({ id: "events-15", name: "Veterano de torneios", description: "Participou de 15 Super 8 ou torneios finalizados.", category: "Torneios e Super 8", metric: "eventsParticipated", threshold: 15, tier: "ouro", asset: "pin-torneios-ouro" }),
+  // TASK-83 — Torneios deixaram de existir; a categoria conta só Super 8.
+  progress({ id: "events-1", name: "Primeiro desafio", description: "Participou de um Super 8 finalizado.", category: "Super 8", metric: "eventsParticipated", threshold: 1, tier: "bronze", asset: "pin-torneios-bronze" }),
+  progress({ id: "events-5", name: "Competidor", description: "Participou de 5 Super 8 finalizados.", category: "Super 8", metric: "eventsParticipated", threshold: 5, tier: "prata", asset: "pin-torneios-prata" }),
+  progress({ id: "events-15", name: "Veterano de Super 8", description: "Participou de 15 Super 8 finalizados.", category: "Super 8", metric: "eventsParticipated", threshold: 15, tier: "ouro", asset: "pin-torneios-ouro" }),
 
   progress({ id: "level-2", name: "Intermediário", description: "Alcançou o nível 2,0.", category: "Evolução de nível", metric: "level", threshold: 2, tier: "bronze", asset: "pin-nivel-bronze" }),
   progress({ id: "level-3-5", name: "Intermediário avançado", description: "Alcançou o nível 3,5.", category: "Evolução de nível", metric: "level", threshold: 3.5, tier: "prata", asset: "pin-nivel-prata" }),
@@ -54,9 +55,10 @@ export const ACHIEVEMENT_CATALOG = Object.freeze([
   progress({ id: "social-rivals-10", name: "Colecionador de rivais", description: "Enfrentou 10 rivais recorrentes diferentes.", category: "Social", metric: "recurringRivals", threshold: 10, tier: "prata", asset: "pin-social-rivais-prata" }),
 ]);
 
+// TASK-83 — Torneios deixaram de existir; só o pin de campeão de Super 8
+// permanece.
 export const CHAMPION_PIN_ASSETS = Object.freeze({
   super8: "/assets/images/achievements/pin-campeao-super8.svg",
-  tournament: "/assets/images/achievements/pin-campeao-torneio.svg",
 });
 
 export function achievementById(id) {

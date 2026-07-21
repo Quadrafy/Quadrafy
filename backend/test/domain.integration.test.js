@@ -256,7 +256,6 @@ test("club, court, booking, open match and finance form one persisted flow", asy
         clubId: club.id,
         courtId: court.id,
         startAt: privateBookingStart,
-        paymentMethod: "pix",
         visibility: "private",
       },
     });
@@ -264,9 +263,8 @@ test("club, court, booking, open match and finance form one persisted flow", asy
     const pixBooking = (await pixBookingCreation.json()).data.booking;
     assert.equal(pixBooking.playerId, player.user.id);
     assert.equal(pixBooking.courtId, court.id);
-    assert.equal(pixBooking.price, 180);
+    assert.equal(pixBooking.referencePrice, 180);
     assert.equal(pixBooking.status, "confirmed");
-    assert.equal(pixBooking.paymentStatus, "pending");
     assert.equal(pixBooking.visibility, "private");
 
     const playerBookings = await api("/api/v1/player/bookings", {
@@ -277,56 +275,14 @@ test("club, court, booking, open match and finance form one persisted flow", asy
     assert.equal(initialBookingList.length, 1);
     assert.equal(initialBookingList[0].id, pixBooking.id);
 
-    const otherClubAccount = await registerClub(api, "outra-arena");
-    const foreignPaymentConfirmation = await api(
-      `/api/v1/club/bookings/${pixBooking.id}/payment`,
-      {
-        method: "PATCH",
-        cookie: otherClubAccount.cookie,
-        body: { status: "paid" },
-      },
-    );
-    assert.equal(foreignPaymentConfirmation.status, 404);
-    assert.equal(
-      (await foreignPaymentConfirmation.json()).error.code,
-      "booking_not_found",
-    );
-
-    const invalidPaymentConfirmation = await api(
-      `/api/v1/club/bookings/${pixBooking.id}/payment`,
-      {
-        method: "PATCH",
-        cookie: clubAccount.cookie,
-        body: { status: "refunded" },
-      },
-    );
-    assert.equal(invalidPaymentConfirmation.status, 422);
-    assert.equal(
-      (await invalidPaymentConfirmation.json()).error.code,
-      "validation_failed",
-    );
-
-    const financeBeforeConfirmation = await api("/api/v1/club/finance", {
+    const occupancyBeforeOpenBooking = await api("/api/v1/club/finance", {
       cookie: clubAccount.cookie,
     });
-    assert.equal(financeBeforeConfirmation.status, 200);
+    assert.equal(occupancyBeforeOpenBooking.status, 200);
     assert.equal(
-      (await financeBeforeConfirmation.json()).data.summary.paidRevenue,
-      0,
+      (await occupancyBeforeOpenBooking.json()).data.summary.totalGames,
+      1,
     );
-
-    const paymentConfirmation = await api(
-      `/api/v1/club/bookings/${pixBooking.id}/payment`,
-      {
-        method: "PATCH",
-        cookie: clubAccount.cookie,
-        body: { status: "paid" },
-      },
-    );
-    assert.equal(paymentConfirmation.status, 200);
-    const confirmedPayment = (await paymentConfirmation.json()).data.booking;
-    assert.equal(confirmedPayment.id, pixBooking.id);
-    assert.equal(confirmedPayment.paymentStatus, "paid");
 
     const matchesBeforeOpenBooking = await api("/api/v1/matches", {
       cookie: player.cookie,
@@ -341,7 +297,6 @@ test("club, court, booking, open match and finance form one persisted flow", asy
         clubId: club.id,
         courtId: court.id,
         startAt: openBookingStart,
-        paymentMethod: "venue",
         visibility: "open",
         levelMin: 0.5,
         levelMax: 7,
@@ -350,7 +305,6 @@ test("club, court, booking, open match and finance form one persisted flow", asy
     });
     assert.equal(openBookingCreation.status, 201);
     const openBooking = (await openBookingCreation.json()).data.booking;
-    assert.equal(openBooking.paymentStatus, "pending");
     assert.equal(openBooking.visibility, "open");
 
     const openMatches = await api("/api/v1/matches", {
@@ -458,37 +412,34 @@ test("club, court, booking, open match and finance form one persisted flow", asy
     });
     assert.equal(finance.status, 200);
     const financeData = (await finance.json()).data;
-    assert.equal(financeData.summary.paidRevenue, 180);
+    assert.equal(financeData.summary.totalGames, 2);
     assert.equal(financeData.byCourt.length, 1);
     assert.equal(financeData.byCourt[0].courtId, court.id);
-    assert.equal(financeData.byCourt[0].paidRevenue, 180);
+    assert.equal(financeData.byCourt[0].games, 2);
     assert.equal(
-      financeData.revenueByDay.reduce(
-        (total, day) => total + day.paidRevenue,
-        0,
-      ),
-      180,
+      financeData.gamesByDay.reduce((total, day) => total + day.games, 0),
+      2,
     );
     assert.equal(financeData.occupancyByCourt.length, 1);
     assert.equal(
-      financeData.byPaymentMethod.find(
-        (method) => method.paymentMethod === "pix",
-      ).paidRevenue,
-      180,
+      financeData.byVisibility.find((item) => item.visibility === "private")
+        .games,
+      1,
     );
-    assert.equal(typeof financeData.previousPeriod.paidRevenue, "number");
+    assert.equal(
+      financeData.byVisibility.find((item) => item.visibility === "open")
+        .games,
+      1,
+    );
+    assert.equal(typeof financeData.previousPeriod.games, "number");
     assert.equal(financeData.bookings.length, 2);
-    assert.deepEqual(
-      new Set(financeData.bookings.map((booking) => booking.paymentStatus)),
-      new Set(["paid", "pending"]),
-    );
     assert.ok(
       financeData.bookings.every((booking) => booking.courtId === court.id),
     );
   });
 });
 
-test("monthly finance includes future and late month-end paid bookings but excludes the next month", async () => {
+test("monthly occupancy includes future and late month-end games but excludes the next month", async () => {
   await withTestServer(async ({ api }) => {
     const clubAccount = await registerClub(api, "financeiro-mensal");
     const dashboard = await api("/api/v1/club/dashboard", {
@@ -521,7 +472,7 @@ test("monthly finance includes future and late month-end paid bookings but exclu
       tomorrow.slice(0, 7) === today.slice(0, 7) ? tomorrow : today;
     const nextMonthDate = nextMonthDateKey(today);
 
-    async function createAndPay(date, time) {
+    async function createGame(date, time) {
       const creation = await api("/api/v1/player/bookings", {
         method: "POST",
         cookie: player.cookie,
@@ -529,39 +480,26 @@ test("monthly finance includes future and late month-end paid bookings but exclu
           clubId: club.id,
           courtId: court.id,
           startAt: bookingStartAt(date, time),
-          paymentMethod: "pix",
           visibility: "private",
         },
       });
       assert.equal(creation.status, 201);
-      const booking = (await creation.json()).data.booking;
-
-      const confirmation = await api(
-        `/api/v1/club/bookings/${booking.id}/payment`,
-        {
-          method: "PATCH",
-          cookie: clubAccount.cookie,
-          body: { status: "paid" },
-        },
-      );
-      assert.equal(confirmation.status, 200);
-      return booking;
+      return (await creation.json()).data.booking;
     }
 
-    const currentMonthBooking = await createAndPay(currentMonthDate, "18:00");
-    const monthEndBooking = await createAndPay(
+    const currentMonthBooking = await createGame(currentMonthDate, "18:00");
+    const monthEndBooking = await createGame(
       lastDayOfMonthDateKey(today),
       "22:00",
     );
-    await createAndPay(nextMonthDate, "19:00");
+    await createGame(nextMonthDate, "19:00");
 
     const monthlyFinance = await api("/api/v1/club/finance?period=month", {
       cookie: clubAccount.cookie,
     });
     assert.equal(monthlyFinance.status, 200);
     const financeData = (await monthlyFinance.json()).data;
-    assert.equal(financeData.summary.paidRevenue, 360);
-    assert.equal(financeData.summary.paidBookings, 2);
+    assert.equal(financeData.summary.totalGames, 2);
     assert.deepEqual(
       financeData.bookings.map((booking) => booking.id),
       [currentMonthBooking.id, monthEndBooking.id],
@@ -588,16 +526,6 @@ test("domain routes return 403 when the authenticated role is wrong", async () =
       cookie: player.cookie,
     });
     assert.equal(playerReadingClubFinance.status, 403);
-
-    const playerConfirmingClubPayment = await api(
-      "/api/v1/club/bookings/not-a-booking/payment",
-      {
-        method: "PATCH",
-        cookie: player.cookie,
-        body: { status: "paid" },
-      },
-    );
-    assert.equal(playerConfirmingClubPayment.status, 403);
 
     const clubJoiningMatch = await api("/api/v1/matches/not-a-match/join", {
       method: "POST",

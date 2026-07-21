@@ -18,7 +18,18 @@ export class AchievementStore {
     try {
       const parsed = JSON.parse(await readFile(this.filePath, "utf8"));
       if (!Array.isArray(parsed)) throw new Error("Expected an array");
-      this.achievements = parsed;
+      // TASK-83 — Torneios deixaram de existir; pins de campeão de Torneio
+      // já concedidos são removidos (decisão do produto), mantendo só
+      // Super 8 e as conquistas de progressão.
+      const withoutTournamentTitles = parsed.filter(
+        (achievement) =>
+          !(
+            achievement.type === "champion_title" &&
+            achievement.competitionType === "tournament"
+          ),
+      );
+      this.achievements = withoutTournamentTitles;
+      if (withoutTournamentTitles.length !== parsed.length) await this.persist();
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
       await this.persist();

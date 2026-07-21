@@ -33,11 +33,7 @@ test("o catálogo é genérico e desbloqueia uma conquista de cada categoria", (
     ...matchMetricsForPlayer(player, results),
     eventsParticipated: countFinishedParticipations(
       player.id,
-      Array.from({ length: 8 }, () => ({ status: "finalizado", players: [{ id: player.id }] })),
-      Array.from({ length: 7 }, () => ({
-        status: "finalizado",
-        registrations: [{ players: [{ id: player.id }] }],
-      })),
+      Array.from({ length: 15 }, () => ({ status: "finalizado", players: [{ id: player.id }] })),
     ),
   };
 

@@ -105,7 +105,6 @@
     scrollTo({ top: 0, behavior: "smooth" });
     if (name === "finance") loadFinance();
     if (name === "super8") loadSuper8();
-    if (name === "tournaments") loadTournaments();
   }
 
   function switchManageView(name) {
@@ -869,281 +868,6 @@
   }
 
 
-  /* ================= TASKS-13 — Torneios (grupos + mata-mata) ========== */
-
-  const tournamentState = { tournaments: [], current: null, currentGameId: null };
-
-  const TOURNAMENT_STATUS_LABELS = {
-    inscricoes_abertas: "Inscrições abertas",
-    em_andamento: "Em andamento",
-    finalizado: "Finalizado",
-  };
-  const TOURNAMENT_GENDER_LABELS = {
-    all: "Todos os jogadores",
-    women_only: "Apenas Mulheres",
-    men_only: "Apenas Homens",
-    mixed: "Misto",
-  };
-
-  function tournamentCard(tournament) {
-    const statusLabel =
-      TOURNAMENT_STATUS_LABELS[tournament.status] || tournament.status;
-    const meta =
-      tournament.status === "inscricoes_abertas"
-        ? `${tournament.registrationsCount} ${tournament.registrationsCount === 1 ? "inscrição" : "inscrições"}`
-        : `${tournament.gamesFinished}/${tournament.gamesTotal} jogos`;
-    return `<article class="super8-card card-hover" data-tournament-open="${escapeHTML(tournament.id)}" tabindex="0" role="button" aria-label="Abrir torneio ${escapeHTML(tournament.name)}">
-      <div class="match-top"><span class="status-badge super8-status-${escapeHTML(tournament.status)}">${escapeHTML(statusLabel)}</span><span class="match-date">${escapeHTML(meta)}</span></div>
-      <h3>${escapeHTML(tournament.name)}</h3>
-      <div class="match-detail"><div><small>Inscrição</small><strong>${tournament.registrationType === "dupla" ? "Em dupla" : "Individual"}</strong></div><div><small>Categoria</small><strong>${escapeHTML(TOURNAMENT_GENDER_LABELS[tournament.genderCategory])}</strong></div><div><small>Nível</small><strong>${Number(tournament.levelMin).toLocaleString("pt-BR")}–${Number(tournament.levelMax).toLocaleString("pt-BR")}</strong></div></div>
-    </article>`;
-  }
-
-  async function loadTournaments() {
-    const grid = $("[data-tournament-grid]");
-    if (!grid) return;
-    try {
-      const data = await apiRequest("/api/v1/club/tournaments");
-      tournamentState.tournaments = data.tournaments;
-      grid.innerHTML = data.tournaments.length
-        ? data.tournaments.map(tournamentCard).join("")
-        : `<p class="profile-data-note">Nenhum torneio criado ainda. Clique em "Criar novo torneio" para abrir as inscrições do primeiro.</p>`;
-      $$("[data-tournament-open]", grid).forEach((card) => {
-        const open = () => openTournamentDetail(card.dataset.tournamentOpen);
-        card.addEventListener("click", open);
-        card.addEventListener("keydown", (event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            open();
-          }
-        });
-      });
-    } catch (error) {
-      grid.innerHTML = `<p class="profile-data-note">${escapeHTML(error.message)}</p>`;
-    }
-  }
-
-  function renderTournamentCourts() {
-    const container = $("[data-tournament-courts]");
-    container.innerHTML = state.courts.length
-      ? state.courts
-          .filter((court) => court.active !== false)
-          .map(
-            (court) =>
-              `<label class="super8-court-option"><input type="checkbox" name="courtIds" value="${escapeHTML(court.id)}" /><span>${escapeHTML(court.name)}</span></label>`,
-          )
-          .join("")
-      : '<p class="profile-data-note">Cadastre ao menos uma quadra na aba "Minhas arenas".</p>';
-  }
-
-  function openTournamentCreate() {
-    const form = $("[data-tournament-form]");
-    form.reset();
-    $("[data-tournament-form-note]").textContent = "";
-    renderTournamentCourts();
-    openModal($("[data-tournament-create-modal]"));
-  }
-
-  async function submitTournament(event) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const note = $("[data-tournament-form-note]");
-    note.textContent = "";
-    const courtIds = $$('[data-tournament-courts] input:checked', form).map(
-      (input) => input.value,
-    );
-    if (!courtIds.length) {
-      note.textContent = "Selecione ao menos uma quadra para o torneio.";
-      return;
-    }
-    const button = $("[data-tournament-submit]", form);
-    button.disabled = true;
-    try {
-      const dateRaw = form.elements.date.value;
-      const { tournament } = await apiRequest("/api/v1/club/tournaments", {
-        method: "POST",
-        body: {
-          name: form.elements.name.value,
-          ...(dateRaw ? { date: new Date(dateRaw).toISOString() } : {}),
-          registrationType: form.elements.registrationType.value,
-          genderCategory: form.elements.genderCategory.value,
-          levelMin: Number(form.elements.levelMin.value),
-          levelMax: Number(form.elements.levelMax.value),
-        },
-      });
-      await apiRequest(
-        `/api/v1/club/tournaments/${encodeURIComponent(tournament.id)}/courts`,
-        { method: "PATCH", body: { courtIds } },
-      );
-      closeModal($("[data-tournament-create-modal]"));
-      showToast("Torneio criado — inscrições abertas para os jogadores.");
-      await loadTournaments();
-      openTournamentDetail(tournament.id);
-    } catch (error) {
-      note.textContent = error.message;
-    } finally {
-      button.disabled = false;
-    }
-  }
-
-  function tournamentGameCard(game, tournament) {
-    const finished = game.status === "finalizado";
-    const editable = tournament.status === "em_andamento";
-    const action = !finished
-      ? editable
-        ? `<button class="button button-primary" type="button" data-tournament-result="${escapeHTML(game.id)}">Lançar resultado</button>`
-        : '<span class="status-badge">Aguardando</span>'
-      : `<div class="super8-game-score"><strong>${game.score.team1Games} × ${game.score.team2Games}</strong><span class="status-badge super8-status-finalizado">Finalizado</span></div>`;
-    const phaseChip =
-      game.phase === "grupos"
-        ? `${tournament.groups[game.groupIndex]?.name ?? "Grupo"}`
-        : game.phase;
-    return `<article class="super8-game-card${finished ? " finished" : ""}">
-      <div class="super8-game-head"><span class="super8-court-chip">${escapeHTML(phaseChip)} · ${escapeHTML(game.court.name)}</span></div>
-      <div class="super8-versus"><div class="super8-side"><strong>${escapeHTML(game.team1.names.join(" + "))}</strong></div><span class="super8-x" aria-hidden="true">×</span><div class="super8-side right"><strong>${escapeHTML(game.team2.names.join(" + "))}</strong></div></div>
-      <div class="super8-game-action">${action}</div>
-    </article>`;
-  }
-
-  function tournamentGroupsTables(tournament) {
-    if (!tournament.groups.length) return "";
-    const pairNames = (pairId) =>
-      tournament.pairs.find((pair) => pair.id === pairId)?.names.join(" + ") ??
-      "—";
-    return `<div class="tournament-groups">${tournament.groups
-      .map(
-        (group) =>
-          `<div class="tournament-group"><p class="micro-label">${escapeHTML(group.name)}</p><table class="level-bands-table super8-table"><thead><tr><th scope="col">Dupla</th><th scope="col">V</th><th scope="col">J</th><th scope="col">Saldo</th></tr></thead><tbody>${group.standings
-            .map(
-              (row) =>
-                `<tr${row.position <= 2 ? ' class="current-band"' : ""}><td>${escapeHTML(pairNames(row.pairId))}</td><td>${row.wins}</td><td>${row.played}</td><td>${row.balance > 0 ? "+" : ""}${row.balance}</td></tr>`,
-            )
-            .join("")}</tbody></table></div>`,
-      )
-      .join("")}</div>`;
-  }
-
-  function tournamentStandingsTable(tournament) {
-    if (!tournament.standings?.length) return "";
-    return `<div class="super8-standings"><p class="micro-label">Classificação final</p><div class="super8-grid-scroll"><table class="level-bands-table super8-table"><thead><tr><th scope="col">Pos.</th><th scope="col">Dupla</th><th scope="col">Campanha</th></tr></thead><tbody>${tournament.standings
-      .map(
-        (row) =>
-          `<tr${row.position === 1 ? ' class="current-band"' : ""}><td>#${row.position}</td><td>${escapeHTML(row.names.join(" + "))}</td><td>${escapeHTML(row.stage)}</td></tr>`,
-      )
-      .join("")}</tbody></table></div></div>`;
-  }
-
-  function openTournamentDetail(id, fresh = null) {
-    const tournament =
-      fresh ||
-      tournamentState.tournaments.find((item) => item.id === id) ||
-      null;
-    if (!tournament) return;
-    tournamentState.current = tournament;
-    $("[data-tournament-detail-title]").textContent = tournament.name;
-    const games = tournament.games || [];
-    const waiting = games.filter((game) => game.status !== "finalizado");
-    const finished = games.filter((game) => game.status === "finalizado");
-    let primary = "";
-    if (tournament.status === "inscricoes_abertas") {
-      primary = `<div class="super8-section"><p class="micro-label">Inscritos (${tournament.registrationsCount})</p>${
-        tournament.registeredPlayers.length
-          ? `<div class="super8-player-chips">${tournament.registeredPlayers.map((player) => `<span class="super8-chip">${escapeHTML(player.name)}</span>`).join("")}</div>`
-          : '<p class="profile-data-note">Nenhuma inscrição ainda.</p>'
-      }<button class="button button-primary button-block shine" type="button" data-tournament-close-registrations>Encerrar inscrições e gerar chaves</button></div>`;
-    }
-    $("[data-tournament-detail-content]").innerHTML = `
-      <div class="match-detail super8-meta"><div><small>Status</small><strong>${escapeHTML(TOURNAMENT_STATUS_LABELS[tournament.status] || tournament.status)}</strong></div><div><small>Inscrição</small><strong>${tournament.registrationType === "dupla" ? "Em dupla" : "Individual"}</strong></div><div><small>Categoria</small><strong>${escapeHTML(TOURNAMENT_GENDER_LABELS[tournament.genderCategory])}</strong></div><div><small>Nível</small><strong>${Number(tournament.levelMin).toLocaleString("pt-BR")}–${Number(tournament.levelMax).toLocaleString("pt-BR")}</strong></div></div>
-      ${primary}
-      ${tournamentStandingsTable(tournament)}
-      ${tournamentGroupsTables(tournament)}
-      ${waiting.length ? `<div class="super8-section"><p class="micro-label">Aguardando resultado (${waiting.length})</p><div class="super8-games">${waiting.map((game) => tournamentGameCard(game, tournament)).join("")}</div></div>` : ""}
-      ${finished.length ? `<div class="super8-section"><p class="micro-label">Finalizados (${finished.length})</p><div class="super8-games">${finished.map((game) => tournamentGameCard(game, tournament)).join("")}</div></div>` : ""}`;
-    $("[data-tournament-close-registrations]")?.addEventListener("click", closeTournamentRegistrations);
-    $$("[data-tournament-result]").forEach((button) =>
-      button.addEventListener("click", () =>
-        openTournamentResultForm(button.dataset.tournamentResult),
-      ),
-    );
-    openModal($("[data-tournament-detail-modal]"));
-  }
-
-  async function closeTournamentRegistrations(event) {
-    const button = event.currentTarget;
-    button.disabled = true;
-    try {
-      const { tournament } = await apiRequest(
-        `/api/v1/club/tournaments/${encodeURIComponent(tournamentState.current.id)}/close-registrations`,
-        { method: "POST" },
-      );
-      showToast("Chaves geradas — fase de grupos pronta.");
-      await loadTournaments();
-      openTournamentDetail(tournament.id, tournament);
-    } catch (error) {
-      showToast(error.message);
-      button.disabled = false;
-    }
-  }
-
-  function openTournamentResultForm(gameId) {
-    const game = (tournamentState.current?.games || []).find(
-      (item) => item.id === gameId,
-    );
-    if (!game) return;
-    tournamentState.currentGameId = gameId;
-    const modal = $("[data-tournament-result-modal]");
-    const form = $("[data-tournament-result-form]", modal);
-    form.reset();
-    $("[data-tournament-result-team1]", modal).textContent =
-      game.team1.names.join(" + ");
-    $("[data-tournament-result-team2]", modal).textContent =
-      game.team2.names.join(" + ");
-    openModal(modal);
-  }
-
-  async function submitTournamentResult(event) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const button = $("[data-tournament-result-submit]", form);
-    button.disabled = true;
-    try {
-      const { tournament } = await apiRequest(
-        `/api/v1/club/tournaments/${encodeURIComponent(tournamentState.current.id)}/games/${encodeURIComponent(tournamentState.currentGameId)}/result`,
-        {
-          method: "POST",
-          body: {
-            team1Games: Number(form.elements.team1Games.value),
-            team2Games: Number(form.elements.team2Games.value),
-          },
-        },
-      );
-      closeModal($("[data-tournament-result-modal]"));
-      showToast(
-        tournament.status === "finalizado"
-          ? "Final decidida — classificação final gerada!"
-          : "Placar salvo.",
-      );
-      await loadTournaments();
-      openTournamentDetail(tournament.id, tournament);
-    } catch (error) {
-      showToast(error.message);
-    } finally {
-      button.disabled = false;
-    }
-  }
-
-  function setupTournaments() {
-    $("[data-tournament-create-open]")?.addEventListener(
-      "click",
-      openTournamentCreate,
-    );
-    $("[data-tournament-form]")?.addEventListener("submit", submitTournament);
-    $("[data-tournament-result-form]")?.addEventListener(
-      "submit",
-      submitTournamentResult,
-    );
-  }
-
   function setupTabs() {
     $$("[data-owner-tab]").forEach((button) =>
       button.addEventListener("click", () =>
@@ -1170,10 +894,8 @@
     $("[data-kpi-bookings-trend]").textContent = "Dados de hoje";
     $("[data-kpi-occupancy]").textContent = `${summary.occupancyRate}%`;
     $("[data-kpi-occupancy-trend]").textContent = "Com base na grade atual";
-    $("[data-kpi-revenue]").textContent = formatCurrency(
-      summary.monthlyRevenue,
-    );
-    $("[data-kpi-revenue-trend]").textContent = "Reservas pagas no mês";
+    $("[data-kpi-revenue]").textContent = String(summary.monthlyGames);
+    $("[data-kpi-revenue-trend]").textContent = "Jogos criados no mês";
   }
 
   function arenaCard() {
@@ -1182,7 +904,7 @@
     const artwork = photoUrl
       ? `<img class="owner-arena-photo" src="${escapeHTML(photoUrl)}" alt="${escapeHTML(club.name)}" />`
       : '<div class="club-cover-art"></div>';
-    return `<article class="owner-arena-card card-hover" data-owner-arena tabindex="0"><div class="owner-arena-art">${artwork}</div><div class="owner-arena-info"><span class="status-open"><i></i> ${club.status === "active" ? "Arena ativa" : "Arena inativa"}</span><h3>${escapeHTML(club.name)}</h3><p>${state.courts.length ? "Visível para jogadores" : "Cadastre uma quadra para publicar a arena"}</p><div class="arena-mini-stats"><span><small>Quadras</small><strong>${state.courts.length}</strong></span><span><small>Reservas</small><strong>${state.bookings.length}</strong></span><span><small>Receita paga</small><strong>${escapeHTML(formatCurrency(state.session.summary.monthlyRevenue))}</strong></span></div></div></article>`;
+    return `<article class="owner-arena-card card-hover" data-owner-arena tabindex="0"><div class="owner-arena-art">${artwork}</div><div class="owner-arena-info"><span class="status-open"><i></i> ${club.status === "active" ? "Arena ativa" : "Arena inativa"}</span><h3>${escapeHTML(club.name)}</h3><p>${state.courts.length ? "Visível para jogadores" : "Cadastre uma quadra para publicar a arena"}</p><div class="arena-mini-stats"><span><small>Quadras</small><strong>${state.courts.length}</strong></span><span><small>Jogos</small><strong>${state.bookings.length}</strong></span><span><small>Jogos no mês</small><strong>${escapeHTML(String(state.session.summary.monthlyGames))}</strong></span></div></div></article>`;
   }
 
   // TASK-51: card das arenas adicionais (unidades extras do clube).
@@ -1435,7 +1157,7 @@
     ) {
       showFormFeedback(
         "[data-court-feedback]",
-        "O horário de fechamento deve permitir ao menos uma reserva completa.",
+        "O horário de fechamento deve permitir ao menos um horário completo.",
       );
       return;
     }
@@ -1508,7 +1230,7 @@
         `/api/v1/club/courts/${encodeURIComponent(court.id)}/deletion-impact`,
       );
       const bookingWarning = futureBookings
-        ? ` Esta quadra possui ${futureBookings} ${futureBookings === 1 ? "reserva futura que será cancelada" : "reservas futuras que serão canceladas"}.`
+        ? ` Esta quadra possui ${futureBookings} ${futureBookings === 1 ? "jogo futuro que será cancelado" : "jogos futuros que serão cancelados"}.`
         : "";
       $("[data-court-delete-message]").textContent =
         `Tem certeza que deseja excluir ${court.name}? Essa ação não pode ser desfeita.${bookingWarning}`;
@@ -1579,25 +1301,17 @@
       hour: "2-digit",
       minute: "2-digit",
     });
-    const payment =
-      { pix: "Pix", card: "Cartão", venue: "Na arena" }[
-        booking.paymentMethod
-      ] || booking.paymentMethod;
     const initials = booking.player?.initials || "—";
     const name = booking.player?.displayName || "Jogador";
-    const value = escapeHTML(formatCurrency(booking.price));
-    const action =
-      booking.paymentStatus === "pending"
-        ? `<button class="button button-outline button-small" type="button" data-confirm-payment="${escapeHTML(booking.id)}">Confirmar ${value}</button>`
-        : value;
-    return `<tr><td><span class="client-cell"><span>${escapeHTML(initials)}</span><strong>${escapeHTML(name)}</strong></span></td><td>${escapeHTML(booking.courtName)}</td><td>${escapeHTML(date)}</td><td class="payment-status">${escapeHTML(payment)}</td><td><span class="status-badge${booking.paymentStatus !== "paid" ? " done" : ""}">${booking.paymentStatus === "paid" ? "Pago" : "Pendente"}</span></td><td>${action}</td></tr>`;
+    const statusLabels = { confirmed: "Confirmado", cancelled: "Cancelado" };
+    return `<tr><td><span class="client-cell"><span>${escapeHTML(initials)}</span><strong>${escapeHTML(name)}</strong></span></td><td>${escapeHTML(booking.courtName)}</td><td>${escapeHTML(date)}</td><td>${booking.visibility === "open" ? "Aberto" : "Privado"}</td><td><span class="status-badge${booking.status !== "confirmed" ? " done" : ""}">${escapeHTML(statusLabels[booking.status] || booking.status)}</span></td></tr>`;
   }
 
   function renderBookings() {
     const table = $("[data-reservation-table]");
     table.innerHTML = state.bookings.map(bookingRow).join("");
     if (!state.bookings.length) {
-      table.innerHTML = `<tr><td colspan="6">${emptyState("Nenhuma reserva ainda.", "As reservas das suas quadras aparecerão aqui.")}</td></tr>`;
+      table.innerHTML = `<tr><td colspan="5">${emptyState("Nenhum jogo ainda.", "Os jogos criados nas suas quadras aparecerão aqui.")}</td></tr>`;
     }
     const count = $("[data-reservation-count]");
     count.textContent = String(state.bookings.length);
@@ -1613,38 +1327,6 @@
     } catch (error) {
       showToast(error.message);
     }
-  }
-
-  async function confirmPayment(bookingId, button) {
-    const booking = state.bookings.find((item) => item.id === bookingId);
-    if (!booking || booking.paymentStatus !== "pending") return;
-
-    button.disabled = true;
-    button.textContent = "Confirmando...";
-    try {
-      await apiRequest(
-        `/api/v1/club/bookings/${encodeURIComponent(bookingId)}/payment`,
-        {
-          method: "PATCH",
-          body: { status: "paid" },
-        },
-      );
-      await refreshDashboard();
-      await loadFinance();
-      showToast("Pagamento confirmado.");
-    } catch (error) {
-      button.disabled = false;
-      button.textContent = `Confirmar ${formatCurrency(booking.price)}`;
-      showToast(error.message);
-    }
-  }
-
-  function setupBookingActions() {
-    $("[data-reservation-table]")?.addEventListener("click", (event) => {
-      const button = event.target.closest("[data-confirm-payment]");
-      if (!button) return;
-      confirmPayment(button.dataset.confirmPayment, button);
-    });
   }
 
   function clearClubPhotoObjectUrl() {
@@ -1834,7 +1516,7 @@
       typeof recurring === "object" ? recurring.clientName : "";
     const labels = {
       available: "Livre",
-      booked: "Reservado",
+      booked: "Jogo criado",
       recurring: clientName ? `Fixo · ${clientName}` : "Fixo",
       blocked: "Bloqueado",
     };
@@ -1847,7 +1529,7 @@
     const recurringId = recurringIdFromSlot(slot);
     const interaction =
       status === "recurring" && recurringId
-        ? ` data-recurring-id="${escapeHTML(recurringId)}" role="button" tabindex="0" aria-label="Ver reserva fixa de ${escapeHTML(clientName || "cliente")}"`
+        ? ` data-recurring-id="${escapeHTML(recurringId)}" role="button" tabindex="0" aria-label="Ver compromisso fixo de ${escapeHTML(clientName || "cliente")}"`
         : "";
     return `<span class="schedule-cell ${compatibilityClass}" data-schedule-status="${status}"${interaction}><span>${escapeHTML(labels[status])}</span></span>`;
   }
@@ -1885,7 +1567,7 @@
           total[slot.status] = (total[slot.status] || 0) + 1;
           return total;
         }, {});
-        html += `<button class="week-summary-cell" type="button" data-week-date="${escapeHTML(day.date)}" aria-label="Abrir grade de ${escapeHTML(dayLabel)}"><strong>${counts.available || 0} livres</strong><span>${counts.booked || 0} reservados · ${counts.recurring || 0} fixos</span></button>`;
+        html += `<button class="week-summary-cell" type="button" data-week-date="${escapeHTML(day.date)}" aria-label="Abrir grade de ${escapeHTML(dayLabel)}"><strong>${counts.available || 0} livres</strong><span>${counts.booked || 0} jogos · ${counts.recurring || 0} fixos</span></button>`;
       });
     });
     html += "</div>";
@@ -1922,7 +1604,7 @@
       return;
     }
     const columns = `100px repeat(${courts.length}, minmax(140px, 1fr))`;
-    let html = `<div class="schedule-legend" aria-label="Legenda da grade"><span data-schedule-status="available">Livre</span><span data-schedule-status="booked">Reservado</span><span data-schedule-status="recurring">Fixo</span><span data-schedule-status="blocked">Bloqueado</span></div><div class="schedule-grid"><span class="head">Horário</span>${courts.map((court) => `<span class="head court-name">${escapeHTML(court.courtName)}</span>`).join("")}`;
+    let html = `<div class="schedule-legend" aria-label="Legenda da grade"><span data-schedule-status="available">Livre</span><span data-schedule-status="booked">Jogo criado</span><span data-schedule-status="recurring">Fixo</span><span data-schedule-status="blocked">Bloqueado</span></div><div class="schedule-grid"><span class="head">Horário</span>${courts.map((court) => `<span class="head court-name">${escapeHTML(court.courtName)}</span>`).join("")}`;
     times.forEach((time) => {
       html += `<span class="head schedule-time">${escapeHTML(time)}</span>`;
       courts.forEach((court) => {
@@ -1954,12 +1636,6 @@
     return params.toString();
   }
 
-  function pendingTotal(bookings) {
-    return bookings
-      .filter((booking) => booking.paymentStatus === "pending")
-      .reduce((total, booking) => total + booking.price, 0);
-  }
-
   function renderFinanceComparison(selector, current, previous) {
     const element = $(selector);
     if (!element) return;
@@ -1980,33 +1656,35 @@
     element.classList.toggle("negative", rounded < 0);
   }
 
+  // TASK-78/81 — sem pagamento processado pelo Quadrafy, os gráficos viram
+  // ocupação: jogos criados, não receita.
   function renderFinanceCharts(data) {
     const charts = window.QuadrafyCharts;
     if (!charts) return;
     charts.renderLine(
       $("[data-chart-revenue]"),
-      data.revenueByDay.map((day) => ({
+      data.gamesByDay.map((day) => ({
         label: formatDate(day.date + "T12:00:00-03:00", {
           day: "2-digit",
           month: "short",
         }),
         shortLabel: day.date.slice(8),
-        value: day.paidRevenue,
+        value: day.games,
       })),
       {
-        label: "Receita paga por dia",
-        formatValue: (value) => formatCurrency(value),
+        label: "Jogos criados por dia",
+        formatValue: (value) => String(value),
       },
     );
     charts.renderBars(
       $("[data-chart-courts]"),
       data.byCourt.map((court) => ({
         label: court.courtName,
-        value: court.paidRevenue,
+        value: court.games,
       })),
       {
-        label: "Receita paga por quadra",
-        formatValue: (value) => formatCurrency(value),
+        label: "Jogos criados por quadra",
+        formatValue: (value) => String(value),
       },
     );
     charts.renderBars(
@@ -2025,60 +1703,50 @@
     );
     charts.renderDonut(
       $("[data-chart-payments]"),
-      data.byPaymentMethod.map((method) => ({
-        label: method.label,
-        value: method.paidRevenue,
+      data.byVisibility.map((item) => ({
+        label: item.label,
+        value: item.games,
       })),
       {
-        label: "Receita por forma de pagamento",
-        formatValue: (value) => formatCurrency(value),
+        label: "Jogos por visibilidade",
+        formatValue: (value) => String(value),
       },
     );
   }
 
   function renderFinance() {
     const data = state.finance;
-    $("[data-finance-kpi-revenue]").textContent = formatCurrency(
-      data.summary.paidRevenue,
+    $("[data-finance-kpi-games]").textContent = String(data.summary.totalGames);
+    $("[data-finance-kpi-open]").textContent = String(
+      data.byVisibility.find((item) => item.visibility === "open")?.games ?? 0,
     );
-    $("[data-finance-kpi-paid-bookings]").textContent = String(
-      data.summary.paidBookings,
+    $("[data-finance-kpi-private]").textContent = String(
+      data.byVisibility.find((item) => item.visibility === "private")
+        ?.games ?? 0,
     );
-    $("[data-finance-kpi-average]").textContent = formatCurrency(
-      data.summary.averageTicket,
-    );
-    $("[data-finance-kpi-pending]").textContent = formatCurrency(
-      pendingTotal(data.bookings),
-    );
-    const previousAverage = data.previousPeriod.paidBookings
-      ? data.previousPeriod.paidRevenue / data.previousPeriod.paidBookings
+    const averageOccupancy = data.occupancyByCourt.length
+      ? data.occupancyByCourt.reduce(
+          (total, court) => total + court.occupancyRate,
+          0,
+        ) / data.occupancyByCourt.length
       : 0;
+    $("[data-finance-kpi-occupancy]").textContent = `${Math.round(averageOccupancy)}%`;
     renderFinanceComparison(
-      "[data-finance-compare-revenue]",
-      data.summary.paidRevenue,
-      data.previousPeriod.paidRevenue,
-    );
-    renderFinanceComparison(
-      "[data-finance-compare-bookings]",
-      data.summary.paidBookings,
-      data.previousPeriod.paidBookings,
-    );
-    renderFinanceComparison(
-      "[data-finance-compare-average]",
-      data.summary.averageTicket,
-      previousAverage,
+      "[data-finance-compare-games]",
+      data.summary.totalGames,
+      data.previousPeriod.games,
     );
     renderFinanceCharts(data);
     $("[data-finance-by-court]").innerHTML = data.byCourt.length
       ? data.byCourt
           .map(
             (court) =>
-              `<article class="finance-court-card"><header><div><h3>${escapeHTML(court.courtName)}</h3><p>${court.paidBookings} ${court.paidBookings === 1 ? "reserva paga" : "reservas pagas"}</p></div><strong>${escapeHTML(formatCurrency(court.paidRevenue))}</strong></header><footer><small>Receita confirmada</small></footer></article>`,
+              `<article class="finance-court-card"><header><div><h3>${escapeHTML(court.courtName)}</h3><p>${court.games} ${court.games === 1 ? "jogo criado" : "jogos criados"}</p></div></header></article>`,
           )
           .join("")
       : emptyState(
           "Nenhuma quadra cadastrada.",
-          "Cadastre quadras para acompanhar a receita por espaço.",
+          "Cadastre quadras para acompanhar a ocupação por espaço.",
         );
     $("[data-finance-table]").innerHTML = data.bookings
       .map(financeRow)
@@ -2097,11 +1765,8 @@
       hour: "2-digit",
       minute: "2-digit",
     });
-    const method =
-      { pix: "Pix", card: "Cartão", venue: "Na arena" }[
-        booking.paymentMethod
-      ] || booking.paymentMethod;
-    return `<tr><td>${escapeHTML(date)}</td><td>${escapeHTML(booking.courtName)}</td><td>${escapeHTML(booking.player?.displayName || "Jogador")}</td><td>${escapeHTML(method)}</td><td>${booking.paymentStatus === "paid" ? "Pago" : "Pendente"}</td><td>${escapeHTML(formatCurrency(booking.price))}</td></tr>`;
+    const statusLabels = { confirmed: "Confirmado", cancelled: "Cancelado" };
+    return `<tr><td>${escapeHTML(date)}</td><td>${escapeHTML(booking.courtName)}</td><td>${escapeHTML(booking.player?.displayName || "Jogador")}</td><td>${booking.visibility === "open" ? "Aberto" : "Privado"}</td><td>${escapeHTML(statusLabels[booking.status] || booking.status)}</td></tr>`;
   }
 
   async function loadFinance() {
@@ -2498,13 +2163,11 @@
   async function initialize() {
     setupTabs();
     setupSuper8();
-    setupTournaments();
     // TASK-51: botão "Adicionar arena" (antes sem listener — botão morto).
     $("[data-add-arena]")?.addEventListener("click", openArenaModal);
     $("[data-arena-form]")?.addEventListener("submit", saveArena);
     loadArenas();
     setupCourtModal();
-    setupBookingActions();
     setupClubSettings();
     setupFinance();
     setupRecurringBookings();

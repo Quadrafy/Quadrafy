@@ -34,14 +34,13 @@ import {
   validateRecurringBooking,
   validateRecurringBookingUpdate,
   validateArena,
-  validateTournament,
   validateRegistration,
   validateSuper8,
   validateSuper8Courts,
   validateSuper8GameResult,
   validateSuper8Pairs,
 } from "./lib/validation.js";
-import { computeFinanceAnalytics } from "./services/finance-analytics.js";
+import { computeOccupancyAnalytics } from "./services/finance-analytics.js";
 import { AuditLogStore } from "./stores/audit-log-store.js";
 import { BookingStore } from "./stores/booking-store.js";
 import { ClubStore } from "./stores/club-store.js";
@@ -50,25 +49,12 @@ import { LevelTestStore } from "./stores/level-test-store.js";
 import { MatchResultStore } from "./stores/match-result-store.js";
 import { LevelHistoryStore } from "./stores/level-history-store.js";
 import { Super8Store } from "./stores/super8-store.js";
-import { TournamentStore } from "./stores/tournament-store.js";
 import { AchievementStore } from "./stores/achievement-store.js";
 import { publicAchievementCatalog } from "./config/achievements.js";
 import {
   createAchievementsEngine,
   toAchievementView,
 } from "./lib/achievements-engine.js";
-import {
-  buildGroups,
-  buildKnockoutBracket,
-  computeFinalStandings,
-  formPairsFromIndividuals,
-  generateGroupGames,
-  groupStandings,
-  nextKnockoutRound,
-  roundLabelFor,
-  TOURNAMENT_MIN_PAIRS,
-  TOURNAMENT_MAX_PAIRS,
-} from "./lib/tournament-engine.js";
 import {
   computeSuper8Standings,
   generateSuper8Games,
@@ -102,7 +88,6 @@ const PROTECTED_PAGES = new Map([
   ["/dashboard-player.html", "player"],
   ["/dashboard-club.html", "club"],
 ]);
-const CANCELLATION_WINDOW_MS = 6 * 60 * 60 * 1000;
 const IMAGE_UPLOAD_LIMIT = 5 * 1024 * 1024;
 const IMAGE_UPLOAD_BODY_LIMIT = 7 * 1024 * 1024;
 const IMAGE_UPLOAD_TYPES = new Map([
@@ -297,7 +282,6 @@ export async function createApp(overrides = {}) {
   const matchResults = new MatchResultStore(config.dataDirectory);
   const levelHistory = new LevelHistoryStore(config.dataDirectory);
   const super8 = new Super8Store(config.dataDirectory);
-  const tournaments = new TournamentStore(config.dataDirectory);
   const achievements = new AchievementStore(config.dataDirectory);
   const supabaseEnabled = Boolean(config.supabaseUrl && config.supabaseSecretKey);
   const loginIpLimiter = new RateLimiter({
@@ -357,14 +341,12 @@ export async function createApp(overrides = {}) {
     matchResults.initialize(),
     levelHistory.initialize(),
     super8.initialize(),
-    tournaments.initialize(),
     achievements.initialize(),
   ]);
   const achievementsEngine = createAchievementsEngine({
     users,
     matchResults,
     super8,
-    tournaments,
     clubs,
     achievementStore: achievements,
   });
@@ -477,8 +459,6 @@ export async function createApp(overrides = {}) {
     return {
       status: booking.status,
       visibility: booking.visibility,
-      paymentStatus: booking.paymentStatus,
-      refundStatus: booking.refundStatus ?? null,
       levelMin: booking.levelMin ?? null,
       levelMax: booking.levelMax ?? null,
     };
@@ -537,9 +517,6 @@ export async function createApp(overrides = {}) {
   function bookingView(booking) {
     const club = clubs.findById(booking.clubId);
     const court = courts.findById(booking.courtId);
-    const cancellableUntil = new Date(
-      new Date(booking.startAt).getTime() - CANCELLATION_WINDOW_MS,
-    ).toISOString();
     const participantIds = booking.participantIds ?? [booking.playerId];
     return {
       id: booking.id,
@@ -550,10 +527,9 @@ export async function createApp(overrides = {}) {
       courtId: booking.courtId,
       courtName: court?.name ?? "Quadra indisponível",
       startAt: booking.startAt,
-      price: booking.price,
-      paymentMethod: booking.paymentMethod,
-      paymentStatus: booking.paymentStatus,
-      refundStatus: booking.refundStatus ?? null,
+      // TASK-78 — preço da quadra fica só como referência (o Quadrafy não
+      // cobra nem processa pagamento da reserva feita por fora).
+      referencePrice: court?.price ?? null,
       visibility: booking.visibility,
       levelRange: booking.levelRange,
       levelMin: booking.levelMin ?? null,
@@ -568,10 +544,8 @@ export async function createApp(overrides = {}) {
       teams: booking.teams ?? null,
       slotDuration: court?.slotDuration ?? court?.slotDurationMinutes ?? null,
       status: booking.status,
-      cancellableUntil,
-      canCancel:
-        booking.status === "confirmed" &&
-        Date.now() <= new Date(cancellableUntil).getTime(),
+      // TASK-79 — cancelar um jogo é uma ação simples, sem prazo/reembolso.
+      canCancel: booking.status === "confirmed",
       createdAt: booking.createdAt,
     };
   }
@@ -603,7 +577,7 @@ export async function createApp(overrides = {}) {
       courtId: base.courtId,
       courtName: base.courtName,
       startAt: base.startAt,
-      price: base.price,
+      referencePrice: base.referencePrice,
       visibility: base.visibility,
       levelRange: base.levelRange,
       levelMin: base.levelMin,
@@ -626,7 +600,6 @@ export async function createApp(overrides = {}) {
         !isParticipant &&
         booking.status === "confirmed" &&
         players.length < booking.maxPlayers,
-      pricePerPlayer: booking.price / booking.maxPlayers,
       address: clubs.findById(booking.clubId)?.address ?? null,
       distanceKm: null,
     };
@@ -797,7 +770,10 @@ export async function createApp(overrides = {}) {
     };
   }
 
-  function financeFor(club, { courtId, from, to } = {}) {
+  // TASK-78/81 — "Financeiro" virou "Ocupação": sem pagamento processado
+  // pelo Quadrafy, o painel do clube passa a mostrar jogos criados e taxa
+  // de ocupação da grade, não mais receita.
+  function occupancyFor(club, { courtId, from, to } = {}) {
     const clubCourts = courts.listByClub(club.id);
     const allowedCourtIds = new Set(clubCourts.map((court) => court.id));
     let baseBookings = bookings
@@ -818,27 +794,18 @@ export async function createApp(overrides = {}) {
         (booking) => brazilDateKey(booking.startAt) <= to,
       );
 
-    const paid = filtered.filter(
-      (booking) =>
-        booking.status === "confirmed" && booking.paymentStatus === "paid",
-    );
-    const paidRevenue = paid.reduce(
-      (total, booking) => total + booking.price,
-      0,
-    );
+    const played = filtered.filter((booking) => booking.status === "confirmed");
     const selectedCourts = courtId
       ? clubCourts.filter((court) => court.id === courtId)
       : clubCourts;
     const byCourt = selectedCourts.map((court) => {
-      const courtPaid = paid.filter((booking) => booking.courtId === court.id);
+      const courtGames = played.filter(
+        (booking) => booking.courtId === court.id,
+      );
       return {
         courtId: court.id,
         courtName: court.name,
-        paidRevenue: courtPaid.reduce(
-          (total, booking) => total + booking.price,
-          0,
-        ),
-        paidBookings: courtPaid.length,
+        games: courtGames.length,
       };
     });
 
@@ -859,7 +826,7 @@ export async function createApp(overrides = {}) {
       ) + 1;
     const previousTo = shiftDateKey(effectiveFrom, -1);
     const previousFrom = shiftDateKey(previousTo, -(periodDays - 1));
-    const analytics = computeFinanceAnalytics({
+    const analytics = computeOccupancyAnalytics({
       bookings: baseBookings,
       courts: selectedCourts,
       from: effectiveFrom,
@@ -870,10 +837,9 @@ export async function createApp(overrides = {}) {
 
     return {
       summary: {
-        paidRevenue,
-        paidBookings: paid.length,
+        totalGames: played.length,
         totalBookings: filtered.length,
-        averageTicket: paid.length ? paidRevenue / paid.length : 0,
+        averageGamesPerDay: periodDays ? played.length / periodDays : 0,
       },
       byCourt,
       bookings: filtered.map(bookingView),
@@ -1287,14 +1253,13 @@ export async function createApp(overrides = {}) {
         (booking) => brazilDateKey(booking.startAt) === today,
       );
       const currentMonth = today.slice(0, 7);
-      const monthlyRevenue = clubBookings
-        .filter(
-          (booking) =>
-            brazilDateKey(booking.startAt).startsWith(currentMonth) &&
-            booking.paymentStatus === "paid" &&
-            booking.status === "confirmed",
-        )
-        .reduce((total, booking) => total + booking.price, 0);
+      // TASK-78/81 — sem pagamento processado pelo Quadrafy, o indicador do
+      // mês passa a ser a quantidade de jogos criados, não receita.
+      const monthlyGames = clubBookings.filter(
+        (booking) =>
+          brazilDateKey(booking.startAt).startsWith(currentMonth) &&
+          booking.status === "confirmed",
+      ).length;
       sendData(response, 200, {
         user: toPublicUser(user),
         identity: {
@@ -1316,7 +1281,7 @@ export async function createApp(overrides = {}) {
                 ),
               )
             : 0,
-          monthlyRevenue,
+          monthlyGames,
         },
       });
       return true;
@@ -1681,49 +1646,6 @@ export async function createApp(overrides = {}) {
       return true;
     }
 
-    const ownerBookingPaymentRoute = pathname.match(
-      /^\/api\/v1\/club\/bookings\/([^/]+)\/payment$/,
-    );
-    if (ownerBookingPaymentRoute && request.method === "PATCH") {
-      assertSameOrigin(request);
-      const user = requireUser(request, "club");
-      const club = await clubs.ensureForUser(user);
-      const bookingId = decodeURIComponent(ownerBookingPaymentRoute[1]);
-      const ownerBooking = bookings.findById(bookingId);
-      if (!ownerBooking || ownerBooking.clubId !== club.id) {
-        throw new ApiError(404, "booking_not_found", "Reserva não encontrada.");
-      }
-      if (ownerBooking.status === "cancelled") {
-        throw new ApiError(
-          409,
-          "booking_cancelled",
-          "Uma reserva cancelada não pode receber confirmação de pagamento.",
-        );
-      }
-      const body = await readJson(request);
-      if (!["paid", "pending"].includes(body.status)) {
-        throw new ApiError(
-          422,
-          "validation_failed",
-          "Informe um status de pagamento válido.",
-          { field: "status" },
-        );
-      }
-      const before = bookingAuditSnapshot(ownerBooking);
-      const booking = await bookings.setPaymentStatus(bookingId, body.status);
-      await auditLog.record({
-        actorId: user.id,
-        action: "booking.payment_status_changed",
-        resourceType: "booking",
-        resourceId: booking.id,
-        before,
-        after: bookingAuditSnapshot(booking),
-        requestId: request.requestId,
-      });
-      sendData(response, 200, { booking: bookingView(booking) });
-      return true;
-    }
-
     if (pathname === "/api/v1/club/finance" && request.method === "GET") {
       const user = requireUser(request, "club");
       const club = await clubs.ensureForUser(user);
@@ -1733,7 +1655,7 @@ export async function createApp(overrides = {}) {
         throw new ApiError(
           422,
           "validation_failed",
-          "Informe um período financeiro válido.",
+          "Informe um período válido.",
           { field: "period" },
         );
       }
@@ -1751,7 +1673,7 @@ export async function createApp(overrides = {}) {
         throw new ApiError(
           422,
           "validation_failed",
-          "Informe um período financeiro válido.",
+          "Informe um período válido.",
           { field: "period" },
         );
       }
@@ -1763,7 +1685,7 @@ export async function createApp(overrides = {}) {
       ) {
         throw new ApiError(404, "court_not_found", "Quadra não encontrada.");
       }
-      sendData(response, 200, financeFor(club, filters));
+      sendData(response, 200, occupancyFor(club, filters));
       return true;
     }
 
@@ -1845,18 +1767,8 @@ export async function createApp(overrides = {}) {
       if (update.visibility === "open") {
         assertPlayerEligibleForRange(user, update);
       }
-      if (
-        update.status === "cancelled" &&
-        new Date(booking.startAt).getTime() - Date.now() <
-          CANCELLATION_WINDOW_MS
-      ) {
-        throw new ApiError(
-          409,
-          "cancellation_window_closed",
-          "O prazo de cancelamento gratuito já terminou.",
-          { cancellableUntil: bookingView(booking).cancellableUntil },
-        );
-      }
+      // TASK-79 — cancelar é simples e sem prazo/reembolso: não há mais
+      // janela de cancelamento gratuito.
       const before = bookingAuditSnapshot(booking);
       const updated = await bookings.updateByOwner(bookingId, user.id, update);
       await auditLog.record({
@@ -1939,7 +1851,7 @@ export async function createApp(overrides = {}) {
         throw new ApiError(
           429,
           "active_booking_limit_reached",
-          "Você pode manter no máximo oito reservas futuras ativas.",
+          "Você pode manter no máximo oito jogos futuros ativos.",
           { maximumActiveBookings: 8 },
         );
       }
@@ -1967,19 +1879,24 @@ export async function createApp(overrides = {}) {
             { field: "startAt" },
           );
         }
-        if (!selectedSlot.available) {
+        // TASK-79 — o Quadrafy não é mais o sistema oficial de reserva:
+        // isso não bloqueia mais a criação, só avisa (a menos que o
+        // jogador já tenha confirmado o aviso com `allowConflict`).
+        if (!selectedSlot.available && !input.allowConflict) {
           throw new ApiError(
             409,
             "booking_conflict",
-            "Este horário já está ocupado.",
+            "Já existe um jogo criado ou um compromisso fixo neste horário nesta quadra. Você tem certeza que também reservou este horário por fora?",
             { courtId: court.id, startAt: input.startAt },
           );
         }
         return bookings.create({
           ...input,
           playerId: user.id,
-          price: court.price,
           status: "confirmed",
+          // já verificamos acima (inclui reservas fixas do clube, que o
+          // hasConflict interno do store não enxerga).
+          allowConflict: true,
         });
       });
       // TASK-60: posiciona os convidados nas vagas seguintes, validando a
@@ -2760,540 +2677,6 @@ export async function createApp(overrides = {}) {
         frequentPartners: toSortedList(partners),
         recurringRivals: toSortedList(rivals),
         achievementsUnlocked,
-      });
-      return true;
-    }
-
-    // ================= TASKS-13 — Torneios (grupos + mata-mata) ==========
-    // Decisão de produto (mesma do Super 8, documentada lá): os jogos de
-    // torneio NÃO alteram o nível oficial do jogador — o clube lança os
-    // resultados diretamente, sem confirmação cruzada.
-
-    function tournamentPairView(tournament, pairId) {
-      const pair = tournament.pairs.find((item) => item.id === pairId);
-      return pair
-        ? { id: pair.id, names: pair.players.map((player) => player.name) }
-        : { id: pairId, names: ["—"] };
-    }
-
-    function tournamentView(tournament) {
-      const games = tournament.games ?? [];
-      return {
-        id: tournament.id,
-        name: tournament.name,
-        date: tournament.date,
-        registrationType: tournament.registrationType,
-        genderCategory: tournament.genderCategory,
-        levelMin: tournament.levelMin,
-        levelMax: tournament.levelMax,
-        courtIds: tournament.courtIds ?? [],
-        registrationsCount: tournament.registrations.length,
-        registeredPlayers: tournament.registrations.flatMap((entry) =>
-          entry.players.map((player) => ({ id: player.id, name: player.name })),
-        ),
-        pairs: tournament.pairs.map((pair) => ({
-          id: pair.id,
-          names: pair.players.map((player) => player.name),
-          players: pair.players.map((player) => ({
-            id: player.id,
-            name: player.name,
-          })),
-          seedLevel: pair.seedLevel,
-        })),
-        groups: (tournament.groups ?? []).map((group, index) => ({
-          name: group.name,
-          pairIds: group.pairIds,
-          standings: groupStandings(
-            group,
-            games.filter((game) => game.groupIndex === index),
-          ),
-        })),
-        games: games.map((game) => ({
-          ...game,
-          team1: tournamentPairView(tournament, game.team1PairId),
-          team2: tournamentPairView(tournament, game.team2PairId),
-        })),
-        gamesTotal: games.length,
-        gamesFinished: games.filter((game) => game.status === "finalizado")
-          .length,
-        standings: tournament.standings
-          ? tournament.standings.map((row) => ({
-              ...row,
-              names: tournamentPairView(tournament, row.pairId).names,
-            }))
-          : null,
-        status: tournament.status,
-        createdAt: tournament.createdAt,
-      };
-    }
-
-    function tournamentPlayerEligible(tournament, user) {
-      const gender = user.profile?.gender;
-      if (tournament.genderCategory === "women_only" && gender !== "female")
-        return false;
-      if (tournament.genderCategory === "men_only" && gender !== "male")
-        return false;
-      if (
-        tournament.genderCategory === "mixed" &&
-        gender !== "female" &&
-        gender !== "male"
-      )
-        return false;
-      const playerLevel = Number(user.profile?.level);
-      if (!Number.isFinite(playerLevel)) return false;
-      return (
-        playerLevel >= tournament.levelMin && playerLevel <= tournament.levelMax
-      );
-    }
-
-    function tournamentHasPlayer(tournament, playerId) {
-      return tournament.registrations.some((entry) =>
-        entry.players.some((player) => player.id === playerId),
-      );
-    }
-
-    // TASK-54.2 — listagem do clube
-    if (pathname === "/api/v1/club/tournaments" && request.method === "GET") {
-      const user = requireUser(request, "club");
-      const club = await clubs.ensureForUser(user);
-      sendData(response, 200, {
-        tournaments: tournaments.listByClub(club.id).map(tournamentView),
-      });
-      return true;
-    }
-
-    // TASK-54.3 — criação
-    if (pathname === "/api/v1/club/tournaments" && request.method === "POST") {
-      assertSameOrigin(request);
-      const user = requireUser(request, "club");
-      const club = await clubs.ensureForUser(user);
-      const input = validateTournament(await readJson(request));
-      const tournament = await tournaments.create({
-        clubId: club.id,
-        ...input,
-        courtIds: [],
-      });
-      sendData(response, 201, { tournament: tournamentView(tournament) });
-      return true;
-    }
-
-    // TASK-54.3 — quadras do torneio (mesmo padrão do Super 8)
-    const tournamentCourtsRoute = pathname.match(
-      /^\/api\/v1\/club\/tournaments\/([^/]+)\/courts$/,
-    );
-    if (tournamentCourtsRoute && request.method === "PATCH") {
-      assertSameOrigin(request);
-      const user = requireUser(request, "club");
-      const club = await clubs.ensureForUser(user);
-      const id = decodeURIComponent(tournamentCourtsRoute[1]);
-      tournaments.requireOwned(id, club.id);
-      const input = validateSuper8Courts(await readJson(request));
-      const owned = courts.listByClub(club.id).map((court) => court.id);
-      if (input.courtIds.some((courtId) => !owned.includes(courtId))) {
-        throw new ApiError(
-          422,
-          "validation_failed",
-          "Selecione apenas quadras do seu clube.",
-          { field: "courtIds" },
-        );
-      }
-      const tournament = await tournaments.update(id, {
-        courtIds: input.courtIds,
-      });
-      sendData(response, 200, { tournament: tournamentView(tournament) });
-      return true;
-    }
-
-    // TASK-54.4 — encerra inscrições: forma duplas (se individual), grupos
-    // com cabeças de chave e os jogos da fase de grupos.
-    const tournamentCloseRoute = pathname.match(
-      /^\/api\/v1\/club\/tournaments\/([^/]+)\/close-registrations$/,
-    );
-    if (tournamentCloseRoute && request.method === "POST") {
-      assertSameOrigin(request);
-      const user = requireUser(request, "club");
-      const club = await clubs.ensureForUser(user);
-      const id = decodeURIComponent(tournamentCloseRoute[1]);
-      const current = tournaments.requireOwned(id, club.id);
-      if (current.status !== "inscricoes_abertas") {
-        throw new ApiError(
-          409,
-          "tournament_not_open",
-          "As inscrições deste torneio já foram encerradas.",
-        );
-      }
-      if (!current.courtIds?.length) {
-        throw new ApiError(
-          409,
-          "tournament_courts_required",
-          "Selecione as quadras do torneio antes de gerar as chaves.",
-        );
-      }
-      let rawPairs;
-      if (current.registrationType === "individual") {
-        const entries = current.registrations.map((entry) => entry.players[0]);
-        try {
-          rawPairs = formPairsFromIndividuals(
-            entries,
-            current.genderCategory,
-          );
-        } catch (error) {
-          throw new ApiError(
-            409,
-            "tournament_pairing_failed",
-            error.message === "mixed_requires_equal_counts"
-              ? "Torneio misto: é preciso o mesmo número de homens e mulheres inscritos."
-              : "É preciso um número par de inscritos para formar as duplas.",
-          );
-        }
-      } else {
-        rawPairs = current.registrations.map((entry) => entry.players);
-      }
-      if (
-        rawPairs.length < TOURNAMENT_MIN_PAIRS ||
-        rawPairs.length > TOURNAMENT_MAX_PAIRS
-      ) {
-        throw new ApiError(
-          409,
-          "tournament_size_invalid",
-          `O torneio precisa de ${TOURNAMENT_MIN_PAIRS} a ${TOURNAMENT_MAX_PAIRS} duplas (há ${rawPairs.length}).`,
-        );
-      }
-      const pairs = rawPairs.map((players, index) => ({
-        id: `pair-${index + 1}`,
-        players: players.map((player) => ({
-          id: player.id ?? null,
-          name: player.name,
-        })),
-        seedLevel:
-          players.reduce((sum, player) => sum + (Number(player.level) || 0), 0) /
-          players.length,
-      }));
-      const groups = buildGroups(pairs);
-      const tournamentCourts = current.courtIds
-        .map((courtId) => courts.findById(courtId))
-        .filter(Boolean)
-        .map((court) => ({ id: court.id, name: court.name }));
-      const games = generateGroupGames(groups, tournamentCourts).map(
-        (game) => ({
-          id: createId(),
-          ...game,
-          status: "aguardando",
-          score: null,
-        }),
-      );
-      const tournament = await tournaments.update(id, {
-        pairs,
-        groups,
-        games,
-        status: "em_andamento",
-      });
-      await auditLog.record({
-        actorId: user.id,
-        action: "tournament.brackets_generated",
-        resourceType: "tournament",
-        resourceId: id,
-        before: null,
-        after: { pairs: pairs.length, groups: groups.length },
-        requestId: request.requestId,
-      });
-      sendData(response, 200, { tournament: tournamentView(tournament) });
-      return true;
-    }
-
-    // TASK-54.5 — clube lança/corrige o resultado; avança o mata-mata e
-    // finaliza automaticamente quando a final é decidida (TASK-54.6).
-    const tournamentResultRoute = pathname.match(
-      /^\/api\/v1\/club\/tournaments\/([^/]+)\/games\/([^/]+)\/result$/,
-    );
-    if (tournamentResultRoute && request.method === "POST") {
-      assertSameOrigin(request);
-      const user = requireUser(request, "club");
-      const club = await clubs.ensureForUser(user);
-      const id = decodeURIComponent(tournamentResultRoute[1]);
-      const gameId = decodeURIComponent(tournamentResultRoute[2]);
-      const current = tournaments.requireOwned(id, club.id);
-      if (current.status !== "em_andamento") {
-        throw new ApiError(
-          409,
-          "tournament_result_unavailable",
-          "Os resultados só podem ser lançados com o torneio em andamento.",
-        );
-      }
-      const target = current.games.find((game) => game.id === gameId);
-      if (!target) {
-        throw new ApiError(
-          404,
-          "tournament_game_not_found",
-          "Jogo não encontrado neste torneio.",
-        );
-      }
-      // jogos de fases já concluídas não podem ser reescritos depois que a
-      // fase seguinte foi gerada (mudaria uma chave já disputada)
-      const knockoutPhases = [
-        ...new Set(
-          current.games
-            .filter((game) => game.phase !== "grupos")
-            .map((game) => game.phase),
-        ),
-      ];
-      const phaseLocked =
-        (target.phase === "grupos" && knockoutPhases.length > 0) ||
-        (target.phase !== "grupos" &&
-          knockoutPhases.indexOf(target.phase) < knockoutPhases.length - 1);
-      if (target.status === "finalizado" && phaseLocked) {
-        throw new ApiError(
-          409,
-          "tournament_phase_locked",
-          "Este resultado não pode mais ser editado: a fase seguinte já foi gerada.",
-        );
-      }
-      const score = validateSuper8GameResult(await readJson(request));
-      let games = current.games.map((game) =>
-        game.id === gameId
-          ? { ...game, status: "finalizado", score }
-          : game,
-      );
-      let status = current.status;
-      let standings = current.standings ?? null;
-
-      const groupGames = games.filter((game) => game.phase === "grupos");
-      const groupsDone = groupGames.every(
-        (game) => game.status === "finalizado",
-      );
-      const knockout = games.filter((game) => game.phase !== "grupos");
-      const tournamentCourts = current.courtIds
-        .map((courtId) => courts.findById(courtId))
-        .filter(Boolean)
-        .map((court) => ({ id: court.id, name: court.name }));
-      const appendKnockout = (matchups) => {
-        const label = roundLabelFor(matchups.length);
-        matchups.forEach((matchup, index) => {
-          games.push({
-            id: createId(),
-            phase: label,
-            groupIndex: undefined,
-            order: games.length + 1,
-            court: tournamentCourts[index % tournamentCourts.length],
-            team1PairId: matchup.team1PairId,
-            team2PairId: matchup.team2PairId,
-            status: "aguardando",
-            score: null,
-          });
-        });
-      };
-      if (groupsDone && !knockout.length) {
-        // grupos concluídos → primeira fase eliminatória (cruzamento clássico)
-        const standingsPerGroup = current.groups.map((group, index) =>
-          groupStandings(
-            group,
-            games.filter((game) => game.groupIndex === index),
-          ),
-        );
-        appendKnockout(buildKnockoutBracket(standingsPerGroup));
-      } else if (knockout.length) {
-        const lastPhase = knockoutPhases[knockoutPhases.length - 1];
-        const lastRound = games.filter((game) => game.phase === lastPhase);
-        if (lastRound.every((game) => game.status === "finalizado")) {
-          if (lastPhase === "Final") {
-            // TASK-54.6 — classificação final automática
-            standings = computeFinalStandings({
-              games,
-              groups: current.groups,
-            });
-            status = "finalizado";
-          } else {
-            appendKnockout(nextKnockoutRound(lastRound));
-          }
-        }
-      }
-      const tournament = await tournaments.update(id, {
-        games,
-        standings,
-        status,
-      });
-      let achievementsUnlocked = [];
-      if (status === "finalizado") {
-        const participantIds = current.registrations.flatMap((registration) =>
-          registration.players.map((player) => player.id).filter(Boolean),
-        );
-        const byPlayer = await achievementsEngine.verifyPlayers(participantIds);
-        achievementsUnlocked.push(...Object.values(byPlayer).flat());
-        const winningPair = standings?.[0]
-          ? current.pairs.find((pair) => pair.id === standings[0].pairId)
-          : null;
-        achievementsUnlocked.push(
-          ...(await achievementsEngine.awardChampionTitle({
-            competition: tournament,
-            competitionType: "tournament",
-            winnerIds: winningPair?.players.map((player) => player.id) ?? [],
-          })),
-        );
-      }
-      await auditLog.record({
-        actorId: user.id,
-        action: "tournament.game_result",
-        resourceType: "tournament",
-        resourceId: id,
-        before: null,
-        after: { gameId, score },
-        requestId: request.requestId,
-      });
-      sendData(response, 200, {
-        tournament: tournamentView(tournament),
-        achievementsUnlocked,
-      });
-      return true;
-    }
-
-    // TASK-55 — lado do jogador
-    if (
-      pathname === "/api/v1/players/tournaments/mine" &&
-      request.method === "GET"
-    ) {
-      const user = requireUser(request, "player");
-      const mine = tournaments
-        .listAll()
-        .filter((tournament) => tournamentHasPlayer(tournament, user.id))
-        .sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        )
-        .map((tournament) => ({
-          ...tournamentView(tournament),
-          clubName: clubs.findById(tournament.clubId)?.name ?? "Clube",
-        }));
-      sendData(response, 200, { tournaments: mine });
-      return true;
-    }
-
-    if (
-      pathname === "/api/v1/players/tournaments/open" &&
-      request.method === "GET"
-    ) {
-      const user = requireUser(request, "player");
-      // só torneios compatíveis com gênero e faixa de nível do jogador
-      const open = tournaments
-        .listAll()
-        .filter(
-          (tournament) =>
-            tournament.status === "inscricoes_abertas" &&
-            tournamentPlayerEligible(tournament, user),
-        )
-        .map((tournament) => ({
-          id: tournament.id,
-          name: tournament.name,
-          date: tournament.date,
-          registrationType: tournament.registrationType,
-          genderCategory: tournament.genderCategory,
-          levelMin: tournament.levelMin,
-          levelMax: tournament.levelMax,
-          clubName: clubs.findById(tournament.clubId)?.name ?? "Clube",
-          registrationsCount: tournament.registrations.length,
-          alreadyJoined: tournamentHasPlayer(tournament, user.id),
-        }));
-      sendData(response, 200, { tournaments: open });
-      return true;
-    }
-
-    const tournamentRegisterRoute = pathname.match(
-      /^\/api\/v1\/players\/tournaments\/([^/]+)\/register$/,
-    );
-    if (tournamentRegisterRoute && request.method === "POST") {
-      assertSameOrigin(request);
-      const user = requireUser(request, "player");
-      const id = decodeURIComponent(tournamentRegisterRoute[1]);
-      const current = tournaments.findById(id);
-      if (!current || current.status !== "inscricoes_abertas") {
-        throw new ApiError(
-          404,
-          "tournament_not_open",
-          "Este torneio não está com inscrições abertas.",
-        );
-      }
-      if (!tournamentPlayerEligible(current, user)) {
-        throw new ApiError(
-          403,
-          "tournament_not_eligible",
-          "Seu nível ou categoria de gênero não é compatível com este torneio.",
-        );
-      }
-      if (tournamentHasPlayer(current, user.id)) {
-        throw new ApiError(
-          409,
-          "tournament_already_joined",
-          "Você já está inscrito neste torneio.",
-        );
-      }
-      const meEntry = {
-        id: user.id,
-        name: displayName(user),
-        level: Number(user.profile?.level) || 0,
-        gender: user.profile?.gender ?? null,
-      };
-      let players = [meEntry];
-      if (current.registrationType === "dupla") {
-        const body = await readJson(request);
-        const partnerId = String(body?.partnerId ?? "").trim();
-        const partner = partnerId ? users.findById(partnerId) : null;
-        if (!partner || partner.role !== "player") {
-          throw new ApiError(
-            422,
-            "validation_failed",
-            "Inscrição em dupla: informe o parceiro (jogador da plataforma).",
-            { field: "partnerId" },
-          );
-        }
-        if (partner.id === user.id) {
-          throw new ApiError(
-            422,
-            "validation_failed",
-            "Escolha um parceiro diferente de você.",
-            { field: "partnerId" },
-          );
-        }
-        if (!tournamentPlayerEligible(current, partner)) {
-          throw new ApiError(
-            409,
-            "tournament_not_eligible",
-            "O parceiro escolhido não é compatível com a faixa de nível/categoria do torneio.",
-          );
-        }
-        if (tournamentHasPlayer(current, partner.id)) {
-          throw new ApiError(
-            409,
-            "tournament_already_joined",
-            "O parceiro escolhido já está inscrito neste torneio.",
-          );
-        }
-        if (current.genderCategory === "mixed") {
-          const genders = [user.profile?.gender, partner.profile?.gender];
-          if (
-            !(genders.includes("female") && genders.includes("male"))
-          ) {
-            throw new ApiError(
-              409,
-              "gender_mix_required",
-              "Torneio misto: a dupla precisa ter um homem e uma mulher.",
-            );
-          }
-        }
-        players.push({
-          id: partner.id,
-          name: displayName(partner),
-          level: Number(partner.profile?.level) || 0,
-          gender: partner.profile?.gender ?? null,
-        });
-      }
-      const tournament = await tournaments.update(id, {
-        registrations: [...current.registrations, { players }],
-      });
-      sendData(response, 200, {
-        tournament: {
-          id: tournament.id,
-          name: tournament.name,
-          registrationsCount: tournament.registrations.length,
-        },
       });
       return true;
     }

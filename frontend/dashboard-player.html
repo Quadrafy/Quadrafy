@@ -30,21 +30,24 @@
           />
         </span>
       </a>
-      <nav class="app-tabs" aria-label="Área do jogador">
-        <button class="active" type="button" data-player-tab="clubs">
-          Clubes
-        </button>
-        <button type="button" data-player-tab="bookings">
-          Reservas
-          <span class="nav-count hidden" data-booking-count></span>
-        </button>
-        <button type="button" data-player-tab="matches">
+      <nav class="app-tabs app-tabs--matches-first" aria-label="Área do jogador">
+        <button class="active" type="button" data-player-tab="matches">
           Jogos abertos
           <span
             class="nav-count hidden"
             data-match-unread-count
             aria-label="Mensagens não lidas"
           ></span>
+        </button>
+        <button type="button" data-player-tab="bookings">
+          Meus jogos
+          <span class="nav-count hidden" data-booking-count></span>
+        </button>
+        <button type="button" data-player-tab="clubs">
+          Clubes
+        </button>
+        <button type="button" data-player-tab="super8">
+          Super 8
         </button>
         <button type="button" data-player-tab="history">
           Histórico
@@ -53,12 +56,6 @@
             data-history-count
             aria-label="Partidas aguardando lançamento de resultado"
           ></span>
-        </button>
-        <button type="button" data-player-tab="super8">
-          Super 8
-        </button>
-        <button type="button" data-player-tab="tournaments">
-          Torneios
         </button>
         <button type="button" data-player-tab="ranking">Ranking</button>
         <button type="button" data-player-tab="profile">Perfil</button>
@@ -96,7 +93,7 @@
     </header>
 
     <main class="app-main">
-      <section class="app-view active" data-player-view="clubs">
+      <section class="app-view" data-player-view="clubs">
         <div class="app-container">
           <div class="app-heading reveal">
             <div>
@@ -205,14 +202,15 @@
                   <small>Quadra</small><strong data-summary-court>—</strong>
                 </div>
                 <div class="summary-price">
-                  <span>Total</span><strong data-summary-price>—</strong>
+                  <span>Preço de referência</span
+                  ><strong data-summary-price>—</strong>
                 </div>
                 <button
                   class="button button-primary button-block shine"
                   type="button"
                   data-open-booking
                 >
-                  Continuar reserva
+                  Criar jogo
                 </button>
               </div>
             </aside>
@@ -225,13 +223,13 @@
           <div class="app-heading">
             <div>
               <p class="eyebrow dark">Sua agenda</p>
-              <h1>Minhas <em>reservas.</em></h1>
+              <h1>Meus <em>jogos.</em></h1>
             </div>
             <a
               class="button button-primary"
               href="#"
               data-player-tab-link="clubs"
-              >Nova reserva <span>+</span></a
+              >Criar jogo <span>+</span></a
             >
           </div>
           <div class="segment-tabs" data-booking-segments>
@@ -244,20 +242,20 @@
         </div>
       </section>
 
-      <section class="app-view" data-player-view="matches">
+      <section class="app-view active" data-player-view="matches">
         <div class="app-container">
           <div class="app-heading">
             <div>
               <p class="eyebrow dark">Jogue com gente nova</p>
-              <h1>Partidas <em>abertas.</em></h1>
-              <p>Encontre uma partida compatível com o seu nível.</p>
+              <h1>Jogos <em>abertos.</em></h1>
+              <p>Encontre jogos do seu nível, rápido e fácil.</p>
             </div>
             <button
               class="button button-primary shine"
               type="button"
               data-create-match
             >
-              + Criar partida
+              + Criar jogo
             </button>
           </div>
           <div
@@ -332,33 +330,6 @@
         </div>
       </section>
 
-      <section class="app-view" data-player-view="tournaments">
-        <div class="app-container">
-          <div class="app-heading">
-            <div>
-              <p class="eyebrow dark">Competições do seu clube</p>
-              <h1>Seus <em>torneios.</em></h1>
-              <p>
-                Inscreva-se e acompanhe seus torneios com grupos e
-                mata-mata.
-              </p>
-            </div>
-          </div>
-          <div class="super8-section">
-            <p class="micro-label">Meus torneios</p>
-            <div data-tournament-mine-list>
-              <p class="profile-data-note">Carregando…</p>
-            </div>
-          </div>
-          <div class="super8-section">
-            <p class="micro-label">Abertos para inscrição</p>
-            <div data-tournament-open-list>
-              <p class="profile-data-note">Carregando…</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section class="app-view" data-player-view="ranking">
         <div class="app-container narrow-app">
           <div class="app-heading">
@@ -384,7 +355,14 @@
               <h1 data-user-name>Carregando</h1>
               <p>
                 <span data-user-city data-profile-city>—</span> · Membro do
-                Quadrafy
+                Quadrafy ·
+                <button
+                  class="profile-inline-link"
+                  type="button"
+                  data-achievements-open
+                >
+                  Ver conquistas
+                </button>
               </p>
             </div>
             <button
@@ -447,13 +425,6 @@
                 data-level-info-open
               >
                 Entenda seu nível
-              </button>
-              <button
-                class="button button-outline"
-                type="button"
-                data-achievements-open
-              >
-                Ver conquistas
               </button>
             </section>
             <section
@@ -626,8 +597,8 @@
         >
           ×
         </button>
-        <p class="eyebrow dark">Último passo</p>
-        <h2 id="booking-title">Confirme sua reserva.</h2>
+        <p class="eyebrow dark">Você já reservou por fora?</p>
+        <h2 id="booking-title">Criar jogo.</h2>
         <div class="modal-booking-info">
           <div>
             <small data-modal-club>Clube</small
@@ -644,7 +615,7 @@
               <input type="radio" name="visibility" value="private" checked />
               <span>
                 <strong>Jogo privado</strong>
-                <small>Sua reserva fica visível apenas para você.</small>
+                <small>Só você (e quem você convidar) vê este jogo.</small>
               </span>
               <i></i>
             </label>
@@ -728,41 +699,23 @@
             jogadores.
           </p>
         </div>
-        <fieldset class="payment-options">
-          <legend>Como você quer pagar?</legend>
-          <label class="active"
-            ><input type="radio" name="payment" value="pix" checked /><span
-              data-icon="pix"
-            ></span
-            ><b>Pix<small>Aprovação imediata</small></b
-            ><i></i></label
-          ><label
-            ><input type="radio" name="payment" value="card" /><span
-              data-icon="card"
-            ></span
-            ><b>Cartão<small>Crédito ou débito</small></b
-            ><i></i></label
-          ><label
-            ><input type="radio" name="payment" value="venue" /><span
-              data-icon="wallet"
-            ></span
-            ><b>Pagar na hora<small>Direto no clube</small></b
-            ><i></i
-          ></label>
-        </fieldset>
         <div class="modal-total">
-          <span>Total</span><strong data-modal-price>—</strong>
+          <span>Preço de referência da quadra</span
+          ><strong data-modal-price>—</strong>
         </div>
+        <p class="profile-data-note">
+          O Quadrafy não processa a reserva nem o pagamento da quadra — isso
+          continua sendo feito direto com o clube, do jeito que você já faz.
+          Este valor é só uma referência.
+        </p>
         <button
           class="button button-primary button-block shine"
           type="button"
           data-confirm-booking
         >
-          Confirmar reserva
+          Criar jogo
         </button>
-        <p class="secure-note">
-          Ambiente seguro. Cancelamento grátis até 6h antes.
-        </p>
+        <p class="secure-note">Cancelar o jogo é simples, sem taxas ou prazo.</p>
       </div>
     </div>
 
@@ -1089,12 +1042,12 @@
           class="modal-close"
           type="button"
           data-modal-close
-          aria-label="Fechar detalhes da reserva"
+          aria-label="Fechar detalhes do jogo"
         >
           ×
         </button>
-        <p class="eyebrow dark">Detalhes da reserva</p>
-        <h2 id="booking-detail-title" data-booking-detail-title>Reserva</h2>
+        <p class="eyebrow dark">Detalhes do jogo</p>
+        <h2 id="booking-detail-title" data-booking-detail-title>Jogo</h2>
         <div class="match-detail-summary" data-booking-detail-summary></div>
         <form data-booking-detail-form>
           <fieldset class="booking-visibility" data-booking-detail-visibility>
@@ -1144,7 +1097,7 @@
                 step="0.01"
                 value="0.5"
                 data-booking-detail-level-min
-                aria-label="Nível mínimo da reserva"
+                aria-label="Nível mínimo do jogo"
               />
             </label>
             <label class="input-group">
@@ -1159,7 +1112,7 @@
                 step="0.01"
                 value="7"
                 data-booking-detail-level-max
-                aria-label="Nível máximo da reserva"
+                aria-label="Nível máximo do jogo"
               />
             </label>
           </div>
@@ -1180,7 +1133,7 @@
             type="button"
             data-booking-cancel
           >
-            Cancelar reserva
+            Cancelar jogo
           </button>
         </form>
       </div>

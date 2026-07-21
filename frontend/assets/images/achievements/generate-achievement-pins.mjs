@@ -13,7 +13,7 @@ const pins = [
   ["pin-torneios-bronze", "events", "bronze"], ["pin-torneios-prata", "events", "prata"], ["pin-torneios-ouro", "events", "ouro"],
   ["pin-nivel-bronze", "level", "bronze"], ["pin-nivel-prata", "level", "prata"], ["pin-nivel-ouro", "level", "ouro"], ["pin-nivel-diamante", "level", "diamante"],
   ["pin-social-parceiros-bronze", "social", "bronze"], ["pin-social-rivais-prata", "social", "prata"],
-  ["pin-campeao-super8", "champion", "champion"], ["pin-campeao-torneio", "champion", "champion"],
+  ["pin-campeao-super8", "champion", "champion"],
 ];
 const tiers = { bronze: "#b47a3b", prata: "#cbd3df", ouro: "#e8b84b", diamante: "#8ed3e8", elite: "#f5d16b", champion: "#e8b84b" };
 const svgIcons = {
