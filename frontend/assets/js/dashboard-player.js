@@ -1342,21 +1342,11 @@
   // listagem normal de jogos disponíveis, sem duplicar.
   function renderMatches() {
     const myId = state.session?.user?.id;
-    const mine = state.matches.filter((match) =>
-      (match.participantIds ?? []).includes(myId),
-    );
     const available = applyMatchFilters(
       state.matches.filter(
         (match) => !(match.participantIds ?? []).includes(myId),
       ),
     );
-    const mySection = $("[data-my-matches-section]");
-    const myGrid = $("[data-my-matches-grid]");
-    if (mySection && myGrid) {
-      mySection.classList.toggle("hidden", !mine.length);
-      myGrid.innerHTML = mine.map(matchCard).join("");
-      wireMatchCards(myGrid);
-    }
     const grid = $("[data-match-grid]");
     grid.innerHTML = available.length
       ? available.map(matchCard).join("")
