@@ -5265,8 +5265,8 @@ button.match-player-row:focus-visible strong {
   }
   .match-grid {
     grid-template-columns: 1fr;
-    max-width: 55%;
-    margin-inline: auto;
+    max-width: 100%;
+    margin-inline: 0;
   }
   .profile-header {
     grid-template-columns: auto 1fr;
