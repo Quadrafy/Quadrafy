@@ -4501,34 +4501,44 @@ button.match-player-row:focus-visible strong {
 }
 .match-card .match-top {
   margin: 0;
-  padding: 12px 14px 8px;
+  padding: 12px 14px 10px;
   border-top: 3px solid var(--coral);
+}
+.match-day-line {
+  display: block;
+  font: 600 10px/1.2 var(--sans);
+  text-transform: capitalize;
+  color: var(--ink-soft);
+  margin-bottom: 4px;
+  letter-spacing: 0.01em;
+}
+.match-time-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.match-time-range {
+  font: 700 15px/1.2 var(--mono);
+  color: var(--ink);
+}
+.match-duration-pill {
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: rgba(255, 107, 74, 0.13);
+  color: var(--coral-dark);
+  font: 700 10px/1.5 var(--mono);
 }
 .match-card .status-badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-}
-.match-card .status-badge::before {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--green);
-  content: "";
-}
-.match-card h3,
-.match-card > .match-location {
-  margin-inline: 18px;
-}
-.match-card h3 {
-  font-family: var(--sans);
-  font-weight: 800;
-  letter-spacing: -0.025em;
+  font-size: 10px;
 }
 .match-card .match-player-list {
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 5px;
-  margin: 22px 14px 18px;
+  margin: 16px 14px 0;
 }
 .match-card .match-team {
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4591,38 +4601,73 @@ button.match-player-row:focus-visible strong {
   margin-top: 2px;
   font: 500 11px/1.3 var(--mono);
 }
-.match-card .status-badge {
-  font-size: 10px;
-}
-.match-card .match-detail {
-  margin: auto 0 0;
+/* info strip — club + court + "Ver detalhes" */
+.match-info-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 14px;
   padding: 10px 14px;
-  border-bottom: 0;
-  background: rgba(246, 244, 239, 0.65);
-}
-.match-card .match-detail > div:last-child {
-  padding-left: 10px;
-  border-left: 1px solid var(--line);
-}
-.match-card .match-players {
-  margin: 0;
-  padding: 8px 14px;
+  background: rgba(246, 244, 239, 0.7);
   border-top: 1px solid var(--line);
+}
+.match-club-info {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  flex: 1;
+  color: var(--ink-soft);
+}
+.match-club-info svg {
+  flex-shrink: 0;
+}
+.match-club-info > div {
+  min-width: 0;
+}
+.match-club-info strong {
+  display: block;
+  font: 600 11px/1.3 var(--sans);
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.match-club-info small {
+  display: block;
+  font: 500 10px/1.2 var(--mono);
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.match-detail-btn {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border-radius: 20px;
+  border: 1.5px solid var(--coral);
+  background: transparent;
+  color: var(--coral);
+  font: 600 10px/1.3 var(--sans);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.match-detail-btn:hover {
+  background: rgba(255, 107, 74, 0.07);
 }
 .match-card > .button {
   margin: 10px 14px 14px;
 }
 .match-card-actions {
   display: flex;
-  gap: 8px;
-  justify-content: center;
   padding: 10px 14px 14px;
-  border-top: 1px solid var(--line);
+  border-top: 0;
 }
 .match-card-actions .button {
   flex: 1;
-  max-width: 160px;
-  padding: 8px 10px;
+  padding: 9px 10px;
   font-size: 12px;
 }
 .match-card-actions .match-join-btn {

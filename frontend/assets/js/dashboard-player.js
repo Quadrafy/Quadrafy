@@ -1162,6 +1162,17 @@
     return `${dayLabel} | ${formatDate(date, { hour: "2-digit", minute: "2-digit" })}`;
   }
 
+  function matchDayStr(startAt) {
+    const date = new Date(startAt);
+    const today = localDateKey(new Date());
+    const tomorrowDate = new Date();
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+    const key = localDateKey(date);
+    if (key === today) return "Hoje";
+    if (key === localDateKey(tomorrowDate)) return "Amanhã";
+    return formatDate(date, { weekday: "short", day: "2-digit", month: "short" });
+  }
+
   function matchStatus(match) {
     if (match.isFull || Number(match.availableSpots) === 0) return "Confirmado";
     if (Number(match.availableSpots) === 1) return "Falta 1 jogador";
@@ -1212,25 +1223,43 @@
 
   function matchCard(match) {
     const unread = state.unreadByMatch.get(match.id) || 0;
-    const status = matchStatus(match);
     const isParticipant = (match.participantIds ?? []).includes(
       state.session?.user?.id,
     );
     const canJoin = !isParticipant && playerCanJoin(match);
     const joinBlocked = !isParticipant && !canJoin;
+    const catStr = formatLevelCategoriesShort(match);
+    const catBadge =
+      catStr !== "Todas"
+        ? `<span class="status-badge cat-badge">${escapeHTML(catStr)}</span>`
+        : "";
     const joinBtn = isParticipant
       ? ""
       : `<button class="button match-join-btn${joinBlocked ? " match-join-blocked" : ""}" data-match-quick-join ${joinBlocked ? 'disabled title="Você não se enquadra nos requisitos deste jogo"' : ""} type="button">Participe</button>`;
+    const unreadBadge = unread
+      ? `&nbsp;<span class="nav-count" aria-label="${unread} mensagens não lidas">${unread}</span>`
+      : "";
     return `<article class="match-card card-hover" data-match-id="${escapeHTML(match.id)}" tabindex="0" role="button" aria-label="Ver detalhes do jogo em ${escapeHTML(match.clubName)}">
-      <div class="match-top"><span class="match-date"><span class="match-date-text">${escapeHTML(matchDateLabel(match.startAt))}</span><span class="match-date-duration">${escapeHTML(formatDuration(match.slotDuration))}</span></span><span class="match-card-badges">${genderCategoryBadge(match)}<span class="status-badge">Quadra reservada</span></span></div>
-      <h3>${escapeHTML(match.clubName)}</h3>
-      <span class="match-location">${escapeHTML(matchLocation(match))}</span>
-      <div class="match-player-list" aria-label="Jogadores e vagas">${matchPlayerSlots(match)}</div>
-      <div class="match-detail"><div><small>Categoria</small><strong>${escapeHTML(formatLevelCategoriesShort(match))}</strong></div><div><small>Status</small><strong>${escapeHTML(status)}</strong></div></div>
-      <div class="match-card-actions">
-        ${joinBtn}
-        <button class="button button-outline match-detail-btn" data-match-open-detail type="button">Ver detalhes${unread ? `&nbsp;<span class="nav-count" aria-label="${unread} mensagens não lidas">${unread}</span>` : ""}</button>
+      <div class="match-top">
+        <span class="match-day-line">${escapeHTML(matchDayStr(match.startAt))}</span>
+        <div class="match-time-row">
+          <span class="match-time-range">${escapeHTML(slotTimeRange(match.startAt, match.slotDuration))}</span>
+          <span class="match-duration-pill">${escapeHTML(formatDuration(match.slotDuration))}</span>
+        </div>
+        <div class="match-card-badges">${genderCategoryBadge(match)}${catBadge}</div>
       </div>
+      <div class="match-player-list" aria-label="Jogadores e vagas">${matchPlayerSlots(match)}</div>
+      <div class="match-info-strip">
+        <div class="match-club-info">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21V11h6v10"/></svg>
+          <div>
+            <strong>${escapeHTML(match.clubName)}</strong>
+            <small>${escapeHTML(match.courtName || "")}</small>
+          </div>
+        </div>
+        <button class="match-detail-btn" data-match-open-detail type="button">Ver detalhes${unreadBadge}</button>
+      </div>
+      ${joinBtn ? `<div class="match-card-actions">${joinBtn}</div>` : ""}
     </article>`;
   }
 
