@@ -1923,8 +1923,8 @@ em {
 /* Player club cards */
 .club-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
 }
 .club-card {
   overflow: hidden;
@@ -1935,7 +1935,7 @@ em {
 }
 .club-cover {
   position: relative;
-  height: 205px;
+  height: 150px;
   overflow: hidden;
   background: var(--indigo);
 }
@@ -2600,20 +2600,20 @@ em {
 }
 .match-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
 }
 .match-card {
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 20px;
+  padding: 14px;
   background: rgba(255, 255, 255, 0.5);
 }
 .match-top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 25px;
+  margin-bottom: 14px;
 }
 .match-level {
   padding: 6px 8px;
@@ -2629,28 +2629,28 @@ em {
 }
 .match-date-text {
   color: var(--ink);
-  font: 700 15px/1.2 var(--mono);
+  font: 700 13px/1.2 var(--mono);
   letter-spacing: -0.01em;
 }
 .match-date-duration {
   color: var(--coral);
-  font: 700 12px/1 var(--mono);
+  font: 700 11px/1 var(--mono);
 }
 .match-card h3 {
-  margin: 0 0 7px;
+  margin: 0 0 4px;
   font-family: var(--serif);
-  font-size: 21px;
+  font-size: 16px;
 }
 .match-location {
   color: var(--ink-soft);
-  font-size: 11px;
+  font-size: 10px;
 }
 .match-detail {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin: 17px 0;
-  padding: 14px 0;
+  gap: 8px;
+  margin: 10px 0;
+  padding: 10px 0;
   border-block: 1px solid var(--line);
 }
 .match-detail small {
@@ -4501,7 +4501,7 @@ button.match-player-row:focus-visible strong {
 }
 .match-card .match-top {
   margin: 0;
-  padding: 17px 18px 12px;
+  padding: 12px 14px 8px;
   border-top: 3px solid var(--coral);
 }
 .match-card .status-badge {
@@ -4596,34 +4596,34 @@ button.match-player-row:focus-visible strong {
 }
 .match-card .match-detail {
   margin: auto 0 0;
-  padding: 14px 18px;
+  padding: 10px 14px;
   border-bottom: 0;
   background: rgba(246, 244, 239, 0.65);
 }
 .match-card .match-detail > div:last-child {
-  padding-left: 12px;
+  padding-left: 10px;
   border-left: 1px solid var(--line);
 }
 .match-card .match-players {
   margin: 0;
-  padding: 11px 18px;
+  padding: 8px 14px;
   border-top: 1px solid var(--line);
 }
 .match-card > .button {
-  margin: 14px 18px 18px;
+  margin: 10px 14px 14px;
 }
 .match-card-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   justify-content: center;
-  padding: 14px 18px 18px;
+  padding: 10px 14px 14px;
   border-top: 1px solid var(--line);
 }
 .match-card-actions .button {
   flex: 1;
   max-width: 160px;
-  padding: 10px 14px;
-  font-size: 13px;
+  padding: 8px 10px;
+  font-size: 12px;
 }
 .match-card-actions .match-join-btn {
   background: var(--coral);
@@ -5163,7 +5163,7 @@ button.match-player-row:focus-visible strong {
     display: none;
   }
   .club-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
   }
   .club-cover {
     height: 190px;
@@ -5217,7 +5217,7 @@ button.match-player-row:focus-visible strong {
     grid-column: auto;
   }
   .match-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
   }
   .profile-header {
     grid-template-columns: auto 1fr;

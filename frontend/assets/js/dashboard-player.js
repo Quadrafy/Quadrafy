@@ -2621,7 +2621,6 @@
     );
     $("[data-profile-info-empty]").classList.toggle("hidden", hasPreferences);
     applyPlayerIdentity();
-    renderLevelBanner(profile);
   }
 
   // TASK-23/25 — dados que dependem do histórico de partidas confirmadas.
