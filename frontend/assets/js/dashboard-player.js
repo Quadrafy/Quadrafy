@@ -895,6 +895,28 @@
       .join(", ");
   }
 
+  const LEVEL_BAND_MAP = {
+    "Iniciante":                { min: 0,   max: 1   },
+    "Iniciante Intermediário":  { min: 1,   max: 2   },
+    "Intermediário":            { min: 2,   max: 3.5 },
+    "Intermediário Avançado":   { min: 3.5, max: 5.5 },
+    "Avançado":                 { min: 5.5, max: 6.5 },
+    "Avançado Elevado":         { min: 6.5, max: 6.8 },
+    "Elite":                    { min: 6.8, max: 7   },
+  };
+
+  function formatLevelRange(record) {
+    if (!record.levelCategories?.length) return "";
+    let min = Infinity, max = -Infinity;
+    for (const cat of record.levelCategories) {
+      const band = LEVEL_BAND_MAP[cat];
+      if (band) { min = Math.min(min, band.min); max = Math.max(max, band.max); }
+    }
+    if (!Number.isFinite(min)) return "";
+    const fmt = (n) => (n % 1 === 0 ? String(n) : String(n).replace(".", ","));
+    return `${fmt(min)}–${fmt(max)}`;
+  }
+
   function renderBookingDetail(booking) {
     const modal = $("[data-booking-detail-modal]");
     const startTime = new Date(booking.startAt).getTime();
@@ -1625,11 +1647,12 @@
     const content = $("[data-match-detail-content]");
     const participant = matchParticipant(match);
     const unread = state.unreadByMatch.get(match.id) || 0;
-    const unreadBadge = unread
-      ? `<span class="chat-badge">${unread}</span>`
-      : "";
+    const unreadBadge = unread ? `<span class="chat-badge">${unread}</span>` : "";
     const genderLabel = GENDER_CATEGORY_LABELS[match.genderCategory] || "Todos";
-    const levelLabel = formatLevelCategories(match);
+    const levelCatStr = match.levelCategories?.length
+      ? match.levelCategories.join(", ")
+      : "Todas";
+    const levelRange = formatLevelRange(match);
     const playerCount = Math.min(
       match.participantIds?.length || match.players?.length || 0,
       4,
@@ -1639,14 +1662,6 @@
       catStr !== "Todas"
         ? `<span class="status-badge cat-badge">${escapeHTML(catStr)}</span>`
         : "";
-    const chatSection = participant
-      ? `<button class="button button-primary button-block match-chat-toggle" type="button" data-match-chat-toggle>Chat${unreadBadge}</button>
-         <section class="info-card hidden" data-match-chat-section aria-labelledby="match-chat-title">
-           <div class="panel-heading"><div><p class="micro-label">Somente participantes</p><h3 id="match-chat-title">Chat da partida</h3></div><span class="status-badge" data-chat-status>Atualizando</span></div>
-           <div class="match-chat-list" data-match-messages role="log" aria-live="polite" aria-relevant="additions" tabindex="0"><p class="profile-data-note">Carregando mensagens…</p></div>
-           <form data-match-chat-form><label class="input-group"><span>Mensagem</span><textarea name="content" rows="2" maxlength="500" placeholder="Escreva para os jogadores" required></textarea></label><button class="button button-primary button-block" type="submit" data-chat-send>Enviar mensagem</button></form>
-         </section>`
-      : "";
     content.innerHTML = `
       <div class="match-detail-header">
         <div class="match-detail-title-row">
@@ -1658,26 +1673,28 @@
       </div>
       <div class="match-detail-info-row">
         <div><small>Gênero</small><strong>${escapeHTML(genderLabel)}</strong></div>
-        <div><small>Nível</small><strong>${escapeHTML(levelLabel)}</strong></div>
+        <div><small>Categoria</small><strong>${escapeHTML(levelCatStr)}</strong>${levelRange ? `<small class="level-range-label">${escapeHTML(levelRange)}</small>` : ""}</div>
         <div><small>Jogadores</small><strong>${playerCount}/4</strong></div>
       </div>
       <h3>Jogadores</h3>
       ${match.isOrganizer ? '<p class="match-organizer-note">Como organizador, use o seletor de cada jogador para trocar as posições.</p>' : ""}
       <div class="match-player-list">${matchPlayerSlots(match, { interactive: true })}</div>
       ${participant ? matchResultSection(match) : ""}
-      ${chatSection}
+      ${participant ? `<button class="button button-primary button-block match-chat-toggle" type="button" data-match-chat-toggle>Chat${unreadBadge}</button>` : ""}
       ${participant && !match.isOrganizer ? '<button class="button button-outline button-block" type="button" data-match-leave>Sair do jogo</button>' : ""}`;
 
     const joinButton = $("[data-match-detail-join]");
     joinButton.classList.add("hidden");
     joinButton.disabled = true;
     if (participant) {
-      $("[data-match-chat-form]")?.addEventListener("submit", sendChatMessage);
       $("[data-match-leave]")?.addEventListener("click", leaveCurrentMatch);
       $("[data-open-result-form]")?.addEventListener("click", openResultForm);
       $("[data-confirm-result]")?.addEventListener("click", confirmMatchResult);
       $("[data-match-chat-toggle]")?.addEventListener("click", () => {
-        $("[data-match-chat-section]")?.classList.toggle("hidden");
+        openAccessibleModal(
+          $("[data-match-chat-popup]"),
+          "[data-match-chat-form] textarea",
+        );
       });
     }
   }
@@ -2414,6 +2431,15 @@
 
   function setupMatches() {
     $("[data-match-detail-join]")?.addEventListener("click", joinCurrentMatch);
+    $("[data-match-chat-form]")?.addEventListener("submit", sendChatMessage);
+    // Close chat popup when the match detail modal closes
+    const detailModal = $("[data-match-detail-modal]");
+    const chatPopup = $("[data-match-chat-popup]");
+    if (detailModal && chatPopup) {
+      new MutationObserver(() => {
+        if (!detailModal.classList.contains("open")) closeModal(chatPopup);
+      }).observe(detailModal, { attributes: true, attributeFilter: ["class"] });
+    }
     document.addEventListener("click", (event) => {
       const removeButton = event.target.closest("[data-remove-player]");
       if (removeButton) {
@@ -3311,7 +3337,7 @@
 
   function setupModalFocusRestore() {
     $$(
-      "[data-profile-edit-modal] [data-modal-close], [data-booking-detail-modal] [data-modal-close], [data-match-detail-modal] [data-modal-close], [data-level-test-modal] [data-modal-close]",
+      "[data-profile-edit-modal] [data-modal-close], [data-booking-detail-modal] [data-modal-close], [data-match-detail-modal] [data-modal-close], [data-match-chat-popup] [data-modal-close], [data-level-test-modal] [data-modal-close]",
     ).forEach((button) => button.addEventListener("click", restoreModalFocus));
   }
 

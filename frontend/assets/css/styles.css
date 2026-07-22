@@ -3979,6 +3979,40 @@ em {
 .match-detail-modal {
   width: min(620px, 100%);
 }
+.match-chat-popup-card {
+  display: flex;
+  width: min(480px, 100%);
+  max-height: min(600px, 90vh);
+  flex-direction: column;
+  gap: 14px;
+}
+.match-chat-popup-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.match-chat-popup-header > div {
+  flex: 1;
+}
+.match-chat-popup-header h3 {
+  margin: 4px 0 0;
+}
+.match-chat-popup-header .modal-close {
+  position: static;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+[data-match-chat-popup] [data-match-messages] {
+  flex: 1;
+  max-height: none;
+}
+.level-range-label {
+  margin-top: 3px;
+  color: var(--ink-soft);
+  font-size: 10px;
+}
 .match-detail-header {
   padding-bottom: 16px;
   border-bottom: 1px solid var(--line);

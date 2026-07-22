@@ -711,6 +711,34 @@
       </div>
     </div>
 
+    <div class="modal-backdrop" data-match-chat-popup aria-hidden="true">
+      <div
+        class="modal-card match-chat-popup-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="match-chat-popup-title"
+      >
+        <div class="match-chat-popup-header">
+          <div>
+            <p class="micro-label">Somente participantes</p>
+            <h3 id="match-chat-popup-title">Chat da partida</h3>
+          </div>
+          <span class="status-badge" data-chat-status>Atualizando</span>
+          <button class="modal-close" type="button" data-modal-close aria-label="Fechar">×</button>
+        </div>
+        <div class="match-chat-list" data-match-messages role="log" aria-live="polite" aria-relevant="additions" tabindex="0">
+          <p class="profile-data-note">Carregando mensagens…</p>
+        </div>
+        <form data-match-chat-form>
+          <label class="input-group">
+            <span class="sr-only">Mensagem</span>
+            <textarea name="content" rows="2" maxlength="500" placeholder="Escreva para os jogadores" required></textarea>
+          </label>
+          <button class="button button-primary button-block" type="submit" data-chat-send>Enviar mensagem</button>
+        </form>
+      </div>
+    </div>
+
     <div
       class="modal-backdrop"
       data-super8-player-detail-modal
