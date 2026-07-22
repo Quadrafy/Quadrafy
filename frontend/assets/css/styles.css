@@ -2298,11 +2298,12 @@ em {
 }
 .time-slot {
   display: flex;
-  min-height: 68px;
+  min-height: 92px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 0;
+  padding: 14px 8px 10px;
   border: 1px solid rgba(43, 130, 101, 0.3);
   border-radius: 9px;
   background: rgba(43, 130, 101, 0.05);
@@ -2316,7 +2317,7 @@ em {
 .slot-duration {
   color: var(--coral);
   font: 700 11px/1 var(--mono);
-  margin-top: 3px;
+  margin-top: 11px;
 }
 .time-slot.selected .slot-duration {
   color: rgba(255, 255, 255, 0.9);
@@ -3808,16 +3809,30 @@ em {
 }
 .open-match-fields {
   display: grid;
-  grid-template-columns: 1.35fr 0.65fr;
-  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 20px;
   margin-top: 10px;
   border-left: 3px solid var(--coral);
   border-radius: 5px 9px 9px 5px;
-  padding: 14px;
+  padding: 16px;
   background: rgba(255, 107, 74, 0.055);
 }
 .open-match-fields .input-group {
   margin: 0;
+}
+.open-match-fields > .invite-players-block,
+.open-match-fields > .secure-note {
+  grid-column: 1 / -1;
+}
+[data-booking-categories-grid] {
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+[data-booking-categories-grid] label {
+  justify-content: center;
+  padding: 10px 4px;
+  font: 700 12px/1 var(--mono);
+  text-align: center;
 }
 .modal-total {
   display: flex;
