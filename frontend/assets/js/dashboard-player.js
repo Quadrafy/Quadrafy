@@ -157,6 +157,16 @@
     return remainder ? `${hours}h${String(remainder).padStart(2, "0")}` : `${hours}h`;
   }
 
+  // Faixa de horário do slot no formato "das 15:00 às 16:00", calculando o
+  // fim a partir do início (startAt) mais a duração do slot.
+  function slotTimeRange(startAt, durationMinutes) {
+    const start = new Date(startAt);
+    const end = new Date(start.getTime() + (Number(durationMinutes) || 0) * 60000);
+    const time = (value) =>
+      formatDate(value, { hour: "2-digit", minute: "2-digit" });
+    return `das ${time(start)} às ${time(end)}`;
+  }
+
   function courtSlotDuration(court) {
     return Number(court?.slotDuration || court?.slotDurationMinutes || 90);
   }
@@ -248,7 +258,6 @@
       if (state.bookingSegment === "history") loadHistory();
     }
     if (name === "matches") loadMatches();
-    if (name === "ranking") loadRanking();
     if (name === "super8") openSuper8Screen();
     if (name === "profile") loadProfileExtras();
   }
@@ -462,7 +471,7 @@
             const selected =
               state.selectedSlot?.startAt === slot.startAt &&
               state.selectedSlot?.courtId === slot.courtId;
-            return `<button class="time-slot${selected ? " selected" : ""}" type="button" data-slot-start="${slot.startAt}" data-slot-court="${escapeHTML(slot.courtId)}"><strong>${escapeHTML(slot.time)} · ${escapeHTML(formatDuration(slot.slotDuration))}</strong><small>${escapeHTML(slot.courtName)}</small></button>`;
+            return `<button class="time-slot${selected ? " selected" : ""}" type="button" data-slot-start="${slot.startAt}" data-slot-court="${escapeHTML(slot.courtId)}"><strong>${escapeHTML(slotTimeRange(slot.startAt, slot.slotDuration))}</strong><small>${escapeHTML(slot.courtName)}</small></button>`;
           })
           .join("")
       : emptyState(
@@ -497,10 +506,7 @@
       day: "2-digit",
       month: "short",
     });
-    const timeLabel = formatDate(selected.startAt, {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const timeLabel = slotTimeRange(selected.startAt, selected.slotDuration);
     $("[data-summary-club]").textContent = state.selectedClub.club.name;
     $("[data-summary-date]").textContent = dateLabel;
     $("[data-summary-time]").textContent = timeLabel;
@@ -2083,68 +2089,6 @@
       updateUnreadBadge();
     } finally {
       state.refreshingUnread = false;
-    }
-  }
-
-  // TASK-14: Ranking de nível.
-  function rankingRow(player, isMe) {
-    const name = player.displayName || "Jogador";
-    const photoUrl = safePhotoUrl(player.photoUrl);
-    const avatar = photoUrl
-      ? `<span class="ranking-avatar"><img src="${escapeHTML(photoUrl)}" alt="" /></span>`
-      : `<span class="ranking-avatar" aria-hidden="true">${escapeHTML(initialsFor(name) || "—")}</span>`;
-    const details = [player.levelCategory, player.city]
-      .filter(Boolean)
-      .join(" · ");
-    return `<button class="ranking-row${isMe ? " ranking-row-me" : ""}" type="button" data-public-player="${escapeHTML(player.id)}" aria-label="Ver perfil de ${escapeHTML(name)}">
-      <span class="ranking-position">#${player.rank}</span>
-      ${avatar}
-      <span class="ranking-info"><strong>${escapeHTML(name)}${isMe ? " (você)" : ""}</strong><small>${escapeHTML(details || "—")}</small></span>
-      <span class="ranking-level"><strong>${escapeHTML(formatLevel(player.level))}</strong><small>Nível</small></span>
-    </button>`;
-  }
-
-  async function loadRanking() {
-    const list = $("[data-ranking-list]");
-    const meBanner = $("[data-ranking-me]");
-    if (!list) return;
-    try {
-      const data = await apiRequest("/api/v1/players/ranking");
-      const myId = state.session?.user?.id;
-      const myGroup = data.me?.technical ?? null;
-      const groupsWithPlayers = (data.groups || []).filter(
-        (group) => group.players.length,
-      );
-      // TASK-31: seções por categoria (accordion); a categoria do próprio
-      // jogador abre expandida por padrão.
-      list.innerHTML = groupsWithPlayers.length
-        ? groupsWithPlayers
-            .map((group) => {
-              const isMine = group.technical === myGroup;
-              const rows = group.players
-                .map((player) => rankingRow(player, player.id === myId))
-                .join("");
-              return `<details class="ranking-category${isMine ? " ranking-category-mine" : ""}"${isMine ? " open" : ""}><summary><span class="ranking-category-title">${escapeHTML(group.label)}</span><span class="ranking-category-meta">${group.players.length} ${group.players.length === 1 ? "jogador" : "jogadores"}${isMine ? " · sua categoria" : ""}</span></summary><div class="ranking-list">${rows}</div></details>`;
-            })
-            .join("")
-        : emptyState(
-            "Ainda não há jogadores no ranking.",
-            "Complete seu teste de nível para aparecer aqui.",
-          );
-      if (data.me) {
-        meBanner.innerHTML = `Você está em <strong>#${data.me.rank}º lugar</strong> de ${data.me.groupTotal} na categoria <strong>${escapeHTML(data.me.technical)} · ${escapeHTML(data.me.category)}</strong>, com nível <strong>${escapeHTML(formatLevel(data.me.level))}</strong>.`;
-        meBanner.classList.remove("hidden");
-      } else {
-        meBanner.innerHTML =
-          "Você ainda não aparece no ranking. Complete o teste de nível no seu perfil.";
-        meBanner.classList.remove("hidden");
-      }
-    } catch (error) {
-      list.innerHTML = emptyState(
-        "Não foi possível carregar o ranking.",
-        error.message,
-      );
-      meBanner.classList.add("hidden");
     }
   }
 
