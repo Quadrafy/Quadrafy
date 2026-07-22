@@ -392,13 +392,21 @@
     const detailArtwork = featuredPhoto
       ? `<img class="court-detail-photo" src="${escapeHTML(featuredPhoto)}" alt="${escapeHTML(club.photoUrl ? club.name : featuredCourt.name)}" />`
       : '<div class="club-cover-art"></div>';
+    const courtTags = club.courts
+      .map((court) => {
+        const photoUrl = safePhotoUrl(court.photoUrl);
+        return `<span>${photoUrl ? `<img src="${escapeHTML(photoUrl)}" alt="" />` : ""}${escapeHTML(court.name)}</span>`;
+      })
+      .join("");
     $("[data-club-detail]").innerHTML =
-      `<div class="detail-art">${detailArtwork}</div><div class="detail-info"><span>${club.courtCount} ${club.courtCount === 1 ? "quadra cadastrada" : "quadras cadastradas"}</span><h1>${escapeHTML(club.name)}</h1><p>${escapeHTML(club.address || "Endereço ainda não informado")}</p><div class="detail-tags">${club.courts
-        .map((court) => {
-          const photoUrl = safePhotoUrl(court.photoUrl);
-          return `<span>${photoUrl ? `<img src="${escapeHTML(photoUrl)}" alt="" />` : ""}${escapeHTML(court.name)}</span>`;
-        })
-        .join("")}</div></div>`;
+      `<div class="detail-art">${detailArtwork}</div><div class="detail-info"><h1>${escapeHTML(club.name)}</h1><p>${escapeHTML(club.address || "Endereço ainda não informado")}</p><div class="detail-tags">${courtTags}</div></div>`;
+    // Update open-matches badge on segment tab
+    const clubMatchCount = state.matches.filter((m) => m.clubId === club.id).length;
+    const matchesBadge = $("[data-club-matches-badge]");
+    if (matchesBadge) {
+      matchesBadge.textContent = clubMatchCount || "";
+      matchesBadge.classList.toggle("hidden", !clubMatchCount);
+    }
     renderDateStrip();
     // TASK-98 — a escolha da quadra é a decisão mais importante desta tela
     // (não existe opção "Todas"), então o seletor ganha um ícone em destaque.

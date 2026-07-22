@@ -2114,7 +2114,7 @@ em {
 .club-detail-hero {
   display: grid;
   grid-template-columns: 1fr 1.4fr;
-  align-items: end;
+  align-items: center;
   gap: 30px;
   margin: 28px 0 40px;
   padding: 28px;
@@ -2137,14 +2137,21 @@ em {
   height: 100%;
   object-fit: cover;
 }
+.detail-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
 .detail-info h1 {
-  margin: 10px 0;
+  margin: 0 0 8px;
   font-family: var(--serif);
   font-size: 44px;
   letter-spacing: -0.045em;
+  line-height: 1.05;
 }
 .detail-info > p {
   color: rgba(255, 255, 255, 0.55);
+  margin: 0;
 }
 .detail-tags {
   display: flex;
@@ -2486,6 +2493,11 @@ em {
   margin-left: 4px;
   background: var(--paper-2);
   font: 600 8px/1 var(--mono);
+}
+[data-club-matches-badge] {
+  background: var(--coral);
+  color: #fff;
+  padding: 0 3px;
 }
 .booking-list {
   display: flex;
