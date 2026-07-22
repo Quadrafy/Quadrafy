@@ -569,21 +569,64 @@
     });
   }
 
+  function getMyLevelCategory() {
+    return state.session?.user?.profile?.levelCategory ?? null;
+  }
+
+  function updateBookingCatsSummary() {
+    const checkedInputs = $$("[data-booking-categories-grid] input:checked");
+    const allCheckbox = $("[data-booking-categories-all]");
+    const label = $("[data-booking-cats-label]");
+    if (!checkedInputs.length) {
+      if (allCheckbox) allCheckbox.checked = true;
+      if (label) label.textContent = "Todas as categorias";
+    } else {
+      if (allCheckbox) allCheckbox.checked = false;
+      const names = checkedInputs.map((input) => {
+        const span = input.parentElement?.querySelector("span");
+        return span?.childNodes[0]?.textContent?.trim() || input.value;
+      });
+      if (label) label.textContent = names.join(", ");
+    }
+  }
+
+  function resetBookingCategories() {
+    const cat = getMyLevelCategory();
+    $$("[data-booking-categories-grid] input").forEach((input) => {
+      input.checked = Boolean(cat) && input.value === cat;
+    });
+    const panel = $("[data-booking-cats-panel]");
+    if (cat) {
+      panel?.classList.remove("hidden");
+    } else {
+      panel?.classList.add("hidden");
+    }
+    updateBookingCatsSummary();
+  }
+
+  function setupBookingCategorySelector() {
+    $("[data-booking-cats-toggle]")?.addEventListener("click", () => {
+      $("[data-booking-cats-panel]")?.classList.toggle("hidden");
+    });
+    $("[data-booking-cats-ok]")?.addEventListener("click", () => {
+      $("[data-booking-cats-panel]")?.classList.add("hidden");
+    });
+    $$("[data-booking-categories-grid] input").forEach((input) => {
+      input.addEventListener("change", updateBookingCatsSummary);
+    });
+  }
+
   function setupBookingModal() {
     $("[data-open-booking]")?.addEventListener("click", () => {
-      // TASK-60: limpa convidados de aberturas anteriores do modal
       resetInvitePlayers();
+      resetBookingCategories();
       openAccessibleModal(
         $("[data-booking-modal]"),
-        "[data-booking-categories-all]",
+        "[data-booking-cats-toggle]",
       );
     });
-    // TASK-60: busca de jogadores para preencher vagas na criação
     setupInviteSearch();
-    setupCategorySelector(
-      "[data-booking-categories-all]",
-      "[data-booking-categories-grid]",
-    );
+    setupBookingCategorySelector();
     $("[data-confirm-booking]")?.addEventListener("click", confirmBooking);
   }
 

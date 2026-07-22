@@ -543,10 +543,9 @@
         </div>
         <div class="open-match-fields" data-open-match-fields>
           <div class="invite-players-block">
-            <p class="micro-label">Adicionar jogadores agora (opcional)</p>
-            <p class="profile-data-note">
-              Preencha até 3 vagas com jogadores da plataforma — eles entram
-              confirmados. As vagas restantes continuam abertas.
+            <p class="booking-invite-label">
+              Adicionar jogadores
+              <span class="booking-invite-opt">(opcional)</span>
             </p>
             <div class="super8-add-row">
               <label class="input-group">
@@ -576,63 +575,69 @@
           </label>
           <fieldset class="super8-fieldset">
             <legend>Categorias permitidas</legend>
-            <label class="super8-category-all">
-              <input type="checkbox" data-booking-categories-all checked />
-              <span>Todas</span>
-            </label>
-            <div
-              class="super8-categories-grid hidden"
-              data-booking-categories-grid
-            >
-              <label title="7ª Categoria — Iniciante"
-                ><input
-                  type="checkbox"
-                  name="levelCategories"
-                  value="Iniciante"
-                /><span>7ª</span></label
+            <input type="checkbox" class="hidden" data-booking-categories-all checked />
+            <div class="booking-cats-row">
+              <span class="booking-cats-label" data-booking-cats-label>Todas as categorias</span>
+              <button type="button" class="booking-cats-toggle" data-booking-cats-toggle>Editar</button>
+            </div>
+            <div class="booking-cats-panel hidden" data-booking-cats-panel>
+              <div class="booking-cats-ok-bar">
+                <button type="button" class="booking-cats-ok-btn" data-booking-cats-ok>OK</button>
+              </div>
+              <div
+                class="super8-categories-grid"
+                data-booking-categories-grid
               >
-              <label title="6ª Categoria — Iniciante Intermediário"
-                ><input
-                  type="checkbox"
-                  name="levelCategories"
-                  value="Iniciante Intermediário"
-                /><span>6ª</span></label
-              >
-              <label title="5ª Categoria — Intermediário"
-                ><input
-                  type="checkbox"
-                  name="levelCategories"
-                  value="Intermediário"
-                /><span>5ª</span></label
-              >
-              <label title="4ª Categoria — Intermediário Avançado"
-                ><input
-                  type="checkbox"
-                  name="levelCategories"
-                  value="Intermediário Avançado"
-                /><span>4ª</span></label
-              >
-              <label title="3ª Categoria — Avançado"
-                ><input
-                  type="checkbox"
-                  name="levelCategories"
-                  value="Avançado"
-                /><span>3ª</span></label
-              >
-              <label title="2ª Categoria — Avançado Elevado"
-                ><input
-                  type="checkbox"
-                  name="levelCategories"
-                  value="Avançado Elevado"
-                /><span>2ª</span></label
-              >
-              <label title="Categoria Open — Elite"
-                ><input
-                  type="checkbox"
-                  name="levelCategories"
-                  value="Elite"
-                /><span>Open</span></label
-              >
+                <label title="7ª Categoria — Iniciante"
+                  ><input
+                    type="checkbox"
+                    name="levelCategories"
+                    value="Iniciante"
+                  /><span>7ª<small>0 – 1</small></span></label
+                >
+                <label title="6ª Categoria — Iniciante Intermediário"
+                  ><input
+                    type="checkbox"
+                    name="levelCategories"
+                    value="Iniciante Intermediário"
+                  /><span>6ª<small>1 – 2</small></span></label
+                >
+                <label title="5ª Categoria — Intermediário"
+                  ><input
+                    type="checkbox"
+                    name="levelCategories"
+                    value="Intermediário"
+                  /><span>5ª<small>2 – 3,5</small></span></label
+                >
+                <label title="4ª Categoria — Intermediário Avançado"
+                  ><input
+                    type="checkbox"
+                    name="levelCategories"
+                    value="Intermediário Avançado"
+                  /><span>4ª<small>3,5 – 5,5</small></span></label
+                >
+                <label title="3ª Categoria — Avançado"
+                  ><input
+                    type="checkbox"
+                    name="levelCategories"
+                    value="Avançado"
+                  /><span>3ª<small>5,5 – 6,5</small></span></label
+                >
+                <label title="2ª Categoria — Avançado Elevado"
+                  ><input
+                    type="checkbox"
+                    name="levelCategories"
+                    value="Avançado Elevado"
+                  /><span>2ª<small>6,5 – 6,8</small></span></label
+                >
+                <label title="Categoria Open — Elite"
+                  ><input
+                    type="checkbox"
+                    name="levelCategories"
+                    value="Elite"
+                  /><span>Open<small>6,8+</small></span></label
+                >
+              </div>
             </div>
           </fieldset>
           <p class="secure-note">

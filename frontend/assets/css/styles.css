@@ -3837,16 +3837,73 @@ em {
 .modal-total {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 19px;
-  padding-top: 15px;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 8px 0;
   border-top: 1px solid var(--line);
 }
 .modal-total span {
-  font-size: 10px;
+  font-size: 9px;
+  color: var(--ink-soft);
 }
 .modal-total strong {
-  font: 600 21px/1 var(--mono);
+  font: 600 13px/1 var(--mono);
+}
+.booking-invite-label {
+  font: 700 15px/1.2 var(--serif);
+  margin: 0 0 12px;
+}
+.booking-invite-opt {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+.booking-cats-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+.booking-cats-label {
+  font-size: 12px;
+  color: var(--ink);
+}
+.booking-cats-toggle {
+  font: 700 10px/1 var(--sans);
+  color: var(--coral);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.booking-cats-panel {
+  margin-top: 10px;
+}
+.booking-cats-ok-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+.booking-cats-ok-btn {
+  padding: 5px 14px;
+  border: 1px solid var(--coral);
+  border-radius: 6px;
+  background: var(--coral);
+  color: #fff;
+  font: 700 11px/1 var(--sans);
+  cursor: pointer;
+}
+[data-booking-categories-grid] label span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+[data-booking-categories-grid] label span small {
+  font: normal 9px/1 var(--mono);
+  opacity: 0.6;
 }
 .secure-note {
   margin: 12px 0 0;
@@ -5915,7 +5972,8 @@ button.match-player-row:focus-visible strong {
   gap: 10px;
   padding: 0 6px;
   color: var(--ink-soft);
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 700;
 }
 .super8-count {
   padding: 2px 8px;
