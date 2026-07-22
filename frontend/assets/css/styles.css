@@ -2495,7 +2495,7 @@ em {
   background: var(--paper-2);
   font: 600 8px/1 var(--mono);
 }
-[data-club-matches-badge],
+.segment-tabs [data-club-matches-badge],
 .orange-badge {
   background: var(--orange);
   color: #fff;
