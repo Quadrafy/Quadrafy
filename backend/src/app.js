@@ -3415,6 +3415,52 @@ export async function createApp(overrides = {}) {
       return true;
     }
 
+    // TASK-104 — jogador sai de um Super 8 com inscrições abertas.
+    const super8LeaveRoute = pathname.match(
+      /^\/api\/v1\/players\/super8\/([^/]+)\/leave$/,
+    );
+    if (super8LeaveRoute && request.method === "POST") {
+      assertSameOrigin(request);
+      const user = requireUser(request, "player");
+      const tournamentId = decodeURIComponent(super8LeaveRoute[1]);
+      const current = super8.findById(tournamentId);
+      if (!current || current.status !== "inscricoes_abertas") {
+        throw new ApiError(
+          404,
+          "super8_not_open",
+          "Este torneio não está com inscrições abertas.",
+        );
+      }
+      const myEntry = current.players.find((p) => p.id === user.id);
+      if (!myEntry) {
+        throw new ApiError(
+          409,
+          "super8_not_enrolled",
+          "Você não está inscrito neste torneio.",
+        );
+      }
+      let updatedPlayers = current.players.filter((p) => p.id !== user.id);
+      // If player had a partner, set that partner back to solo (partnerId = null)
+      if (myEntry.partnerId) {
+        updatedPlayers = updatedPlayers.map((p) =>
+          p.id === myEntry.partnerId ? { ...p, partnerId: null } : p,
+        );
+      }
+      const tournament = await super8.update(tournamentId, current.clubId, {
+        players: updatedPlayers,
+      });
+      sendData(response, 200, {
+        tournament: {
+          id: tournament.id,
+          name: tournament.name,
+          players: tournament.players.length,
+          size: tournament.size,
+          status: tournament.status,
+        },
+      });
+      return true;
+    }
+
     // TASKS-12 / TASK-47 / TASK-76 / TASK-77 — torneios com inscrições
     // abertas (qualquer clube), já com os dados completos para a tela de
     // detalhe e filtrados pela categoria de nível do próprio jogador.

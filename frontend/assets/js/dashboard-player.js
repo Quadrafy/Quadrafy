@@ -1987,8 +1987,11 @@
     area.innerHTML = "";
 
     if (tournament.mode !== "duplas_fixas") {
-      // Rotação: simple join button
-      if (tournament.alreadyJoined) return;
+      // Rotação
+      if (tournament.alreadyJoined) {
+        appendLeaveButton(area, tournament);
+        return;
+      }
       const btn = document.createElement("button");
       btn.className = "button button-primary button-block shine";
       btn.type = "button";
@@ -2000,16 +2003,18 @@
 
     // Duplas fixas
     if (tournament.alreadyJoined && !tournament.alreadySolo) {
-      // Already paired — no action needed
+      // Already paired
+      appendLeaveButton(area, tournament);
       return;
     }
     if (tournament.alreadySolo) {
-      // Already registered solo — waiting for a partner
+      // Enrolled solo — waiting for partner
       const note = document.createElement("p");
       note.className = "profile-data-note";
       note.textContent =
         'Você está inscrito(a) aguardando um parceiro. Use o botão "Ser parceiro(a)" ao lado de outro jogador solo para formar uma dupla.';
       area.appendChild(note);
+      appendLeaveButton(area, tournament);
       return;
     }
     // Not enrolled: show pair/solo options
@@ -2127,6 +2132,40 @@
       if (selectedPartnerId)
         joinSuper8WithPartner(confirmBtn, tournament.id, selectedPartnerId);
     });
+  }
+
+  function appendLeaveButton(area, tournament) {
+    const btn = document.createElement("button");
+    btn.className = "button button-ghost button-block";
+    btn.type = "button";
+    btn.textContent = "Sair do torneio";
+    btn.style.marginTop = "10px";
+    btn.onclick = () => leaveSuper8(btn, tournament.id, tournament.name);
+    area.appendChild(btn);
+  }
+
+  async function leaveSuper8(button, tournamentId, tournamentName) {
+    const confirmed = await confirmAction({
+      eyebrow: "Super 8",
+      title: "Sair do torneio?",
+      message: `Você será removido(a) de "${tournamentName}". Se tiver um parceiro confirmado, ele(a) voltará a ser solo.`,
+      confirmLabel: "Sair",
+      cancelLabel: "Cancelar",
+    });
+    if (!confirmed) return;
+    setBusy(button, true, "Saindo…");
+    try {
+      await apiRequest(
+        `/api/v1/players/super8/${encodeURIComponent(tournamentId)}/leave`,
+        { method: "POST" },
+      );
+      showToast("Você saiu do torneio.");
+      closeModal($("[data-super8-player-detail-modal]"));
+      openSuper8Screen();
+    } catch (error) {
+      showToast(error.message);
+      if (button.isConnected) setBusy(button, false);
+    }
   }
 
   async function joinSuper8Simple(button, tournamentId) {
