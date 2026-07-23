@@ -1805,46 +1805,53 @@
         apiRequest("/api/v1/players/super8/mine"),
         apiRequest("/api/v1/players/super8/open"),
       ]);
-      const mine = mineData.tournaments?.length ?? 0;
-      const openJoined = (openData.tournaments ?? []).filter(
-        (t) => t.alreadyJoined,
+      const active = (mineData.tournaments ?? []).filter(
+        (t) => t.status !== "finalizado",
       ).length;
-      updateSuper8NavCount(mine, openJoined);
-      // Cache open list so first visit to the tab doesn't need an extra fetch
+      const openCount = openData.tournaments?.length ?? 0;
+      updateSuper8NavCount(active, openCount);
       if (openData.tournaments?.length) {
         state.super8Open = openData.tournaments;
       }
     } catch {}
   }
 
-  function updateSuper8NavCount(mineCount, openJoinedCount) {
+  function updateSuper8NavCount(activeCount, openCount) {
     const badge = $("[data-super8-count]");
     if (!badge) return;
-    const total = (mineCount ?? 0) + (openJoinedCount ?? 0);
+    const total = (activeCount ?? 0) + (openCount ?? 0);
     badge.textContent = String(total);
     badge.classList.toggle("hidden", total === 0);
+  }
+
+  function super8PlayerCard(tournament, myId, index) {
+    const myGames = tournament.games.filter((game) =>
+      [...game.team1, ...game.team2].some((player) => player.id === myId),
+    );
+    return `<details class="ranking-category super8-player-card"${index === 0 ? " open" : ""}><summary><span class="ranking-category-title">${escapeHTML(tournament.name)}</span><span class="ranking-category-meta">${escapeHTML(tournament.clubName)} · ${escapeHTML(super8DateTimeLabel(tournament))} · ${tournament.gamesFinished}/${tournament.gamesTotal} jogos · ${tournament.status === "finalizado" ? "Finalizado" : "Em andamento"}</span></summary>${super8StandingsTable(tournament)}<div class="super8-games">${myGames.map((game) => super8MyGameCard(game, myId)).join("")}</div></details>`;
   }
 
   async function openSuper8Screen() {
     const myId = state.session?.user?.id;
     const mineList = $("[data-super8-mine-list]");
+    const historyList = $("[data-super8-history-list]");
+    const historySection = $("[data-super8-history-section]");
     const openList = $("[data-super8-open-list]");
-    let mineCount = 0;
+    let activeCount = 0;
     try {
       const { tournaments } = await apiRequest("/api/v1/players/super8/mine");
-      mineList.innerHTML = tournaments?.length
-        ? tournaments
-            .map((tournament, index) => {
-              const myGames = tournament.games.filter((game) =>
-                [...game.team1, ...game.team2].some(
-                  (player) => player.id === myId,
-                ),
-              );
-              return `<details class="ranking-category super8-player-card"${index === 0 ? " open" : ""}><summary><span class="ranking-category-title">${escapeHTML(tournament.name)}</span><span class="ranking-category-meta">${escapeHTML(tournament.clubName)} · ${escapeHTML(super8DateTimeLabel(tournament))} · ${tournament.gamesFinished}/${tournament.gamesTotal} jogos · ${tournament.status === "finalizado" ? "Finalizado" : "Em andamento"}</span></summary>${super8StandingsTable(tournament)}<div class="super8-games">${myGames.map((game) => super8MyGameCard(game, myId)).join("")}</div></details>`;
-            })
-            .join("")
-        : '<p class="profile-data-note">Você ainda não participa de nenhum Super 8.</p>';
-      mineCount = tournaments?.length ?? 0;
+      const active = (tournaments ?? []).filter((t) => t.status !== "finalizado");
+      const history = (tournaments ?? []).filter((t) => t.status === "finalizado");
+      activeCount = active.length;
+      mineList.innerHTML = active.length
+        ? active.map((t, i) => super8PlayerCard(t, myId, i)).join("")
+        : '<p class="profile-data-note">Nenhum Super 8 em andamento.</p>';
+      if (historyList) {
+        historyList.innerHTML = history.length
+          ? history.map((t, i) => super8PlayerCard(t, myId, i)).join("")
+          : '<p class="profile-data-note">Nenhum Super 8 finalizado ainda.</p>';
+      }
+      if (historySection) historySection.classList.toggle("hidden", history.length === 0);
     } catch (error) {
       mineList.innerHTML = `<p class="profile-data-note">${escapeHTML(error.message)}</p>`;
     }
@@ -1853,8 +1860,7 @@
     try {
       const { tournaments } = await apiRequest("/api/v1/players/super8/open");
       state.super8Open = tournaments || [];
-      const openJoined = state.super8Open.filter((t) => t.alreadyJoined).length;
-      updateSuper8NavCount(mineCount, openJoined);
+      updateSuper8NavCount(activeCount, state.super8Open.length);
       openList.innerHTML = state.super8Open.length
         ? state.super8Open.map(super8OpenCard).join("")
         : '<p class="profile-data-note">Nenhum Super 8 com inscrições abertas no momento.</p>';
