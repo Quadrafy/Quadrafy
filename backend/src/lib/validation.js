@@ -50,6 +50,41 @@ function parseSuper8Date(rawDate, field = "date") {
   return raw;
 }
 
+function brazilToday() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date());
+}
+
+function assertSuper8FutureDateTime(date, startTime) {
+  if (!date) return;
+  const today = brazilToday();
+  if (date < today) {
+    throw new ApiError(
+      422,
+      "validation_failed",
+      "A data do torneio não pode ser no passado.",
+      { field: "date" },
+    );
+  }
+  if (date === today && startTime) {
+    const nowTime = new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(new Date());
+    if (startTime <= nowTime) {
+      throw new ApiError(
+        422,
+        "validation_failed",
+        "O horário de início não pode estar no passado.",
+        { field: "startTime" },
+      );
+    }
+  }
+}
+
 const MAX_BOOKING_HORIZON_MS = 90 * 24 * 60 * 60 * 1_000;
 // TASK-26 — questionário determinístico: 6 perguntas, cada resposta vale
 // de 1 a 4 pontos (pontuação total 6–24).
@@ -260,6 +295,7 @@ export function validateSuper8(body) {
     }
     startTime = raw;
   }
+  assertSuper8FutureDateTime(date, startTime);
   // TASK-74: as duplas só são exigidas já na criação quando o quadro
   // completo (as `size` vagas) já está definido; com vagas em aberto, as
   // duplas são definidas depois, quando o quadro completar (ver
@@ -337,6 +373,12 @@ export function validateSuper8Update(body) {
       );
     }
     update.genderCategory = normalized;
+  }
+  if (update.date !== undefined || update.startTime !== undefined) {
+    assertSuper8FutureDateTime(
+      update.date ?? null,
+      update.startTime ?? null,
+    );
   }
   return update;
 }
