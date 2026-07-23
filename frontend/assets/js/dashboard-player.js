@@ -2008,7 +2008,7 @@
       const note = document.createElement("p");
       note.className = "profile-data-note";
       note.textContent =
-        "Você está inscrito(a) aguardando um parceiro. Use o botão "Ser parceiro(a)" ao lado de outro jogador solo para formar uma dupla.";
+        'Você está inscrito(a) aguardando um parceiro. Use o botão "Ser parceiro(a)" ao lado de outro jogador solo para formar uma dupla.';
       area.appendChild(note);
       return;
     }
