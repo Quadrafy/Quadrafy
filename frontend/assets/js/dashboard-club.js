@@ -255,6 +255,14 @@
     try {
       const data = await apiRequest("/api/v1/club/super8");
       super8State.tournaments = data.tournaments;
+      const activeCount = data.tournaments.filter(
+        (t) => t.status !== "finalizado",
+      ).length;
+      const navBadge = $("[data-super8-nav-count]");
+      if (navBadge) {
+        navBadge.textContent = String(activeCount);
+        navBadge.classList.toggle("hidden", activeCount === 0);
+      }
       grid.innerHTML = data.tournaments.length
         ? data.tournaments.map(super8Card).join("")
         : `<p class="profile-data-note">Nenhum Super 8 criado ainda. Clique em "Criar novo Super 8" para montar o primeiro torneio.</p>`;

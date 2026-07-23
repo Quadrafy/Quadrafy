@@ -1799,10 +1799,37 @@
     return `<div class="super8-standings"><p class="micro-label">Tabela final</p><div class="super8-grid-scroll"><table class="level-bands-table super8-table"><thead><tr><th scope="col">Pos.</th><th scope="col">${tournament.mode === "duplas_fixas" ? "Dupla" : "Jogador"}</th><th scope="col">Vitórias</th><th scope="col">Jogos</th><th scope="col">Saldo</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
   }
 
+  async function loadSuper8Count() {
+    try {
+      const [mineData, openData] = await Promise.all([
+        apiRequest("/api/v1/players/super8/mine"),
+        apiRequest("/api/v1/players/super8/open"),
+      ]);
+      const mine = mineData.tournaments?.length ?? 0;
+      const openJoined = (openData.tournaments ?? []).filter(
+        (t) => t.alreadyJoined,
+      ).length;
+      updateSuper8NavCount(mine, openJoined);
+      // Cache open list so first visit to the tab doesn't need an extra fetch
+      if (openData.tournaments?.length) {
+        state.super8Open = openData.tournaments;
+      }
+    } catch {}
+  }
+
+  function updateSuper8NavCount(mineCount, openJoinedCount) {
+    const badge = $("[data-super8-count]");
+    if (!badge) return;
+    const total = (mineCount ?? 0) + (openJoinedCount ?? 0);
+    badge.textContent = String(total);
+    badge.classList.toggle("hidden", total === 0);
+  }
+
   async function openSuper8Screen() {
     const myId = state.session?.user?.id;
     const mineList = $("[data-super8-mine-list]");
     const openList = $("[data-super8-open-list]");
+    let mineCount = 0;
     try {
       const { tournaments } = await apiRequest("/api/v1/players/super8/mine");
       mineList.innerHTML = tournaments?.length
@@ -1817,6 +1844,7 @@
             })
             .join("")
         : '<p class="profile-data-note">Você ainda não participa de nenhum Super 8.</p>';
+      mineCount = tournaments?.length ?? 0;
     } catch (error) {
       mineList.innerHTML = `<p class="profile-data-note">${escapeHTML(error.message)}</p>`;
     }
@@ -1825,6 +1853,8 @@
     try {
       const { tournaments } = await apiRequest("/api/v1/players/super8/open");
       state.super8Open = tournaments || [];
+      const openJoined = state.super8Open.filter((t) => t.alreadyJoined).length;
+      updateSuper8NavCount(mineCount, openJoined);
       openList.innerHTML = state.super8Open.length
         ? state.super8Open.map(super8OpenCard).join("")
         : '<p class="profile-data-note">Nenhum Super 8 com inscrições abertas no momento.</p>';
@@ -3985,7 +4015,7 @@
     if (!state.session.user.profile?.levelAssessmentCompleted) {
       openLevelTest(true);
     }
-    await Promise.all([loadClubs(), loadBookings(), loadMatches()]);
+    await Promise.all([loadClubs(), loadBookings(), loadMatches(), loadSuper8Count()]);
     loadProfileExtras();
     hydrateIcons();
   }
