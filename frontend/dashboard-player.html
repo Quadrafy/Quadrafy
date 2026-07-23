@@ -283,20 +283,35 @@
               <p>Inscreva-se e acompanhe seus torneios de rotação Super 8.</p>
             </div>
           </div>
-          <div class="super8-section">
-            <p class="micro-label">Em andamento</p>
-            <div data-super8-mine-list>
+          <div class="segment-tabs" data-super8-segments>
+            <button class="active" type="button" data-super8-segment="all">
+              Todos</button
+            ><button type="button" data-super8-segment="mine">
+              Em andamento</button
+            ><button type="button" data-super8-segment="history">
+              Histórico</button
+            >
+          </div>
+          <div data-super8-all-view>
+            <div class="super8-section">
+              <p class="micro-label">Em andamento</p>
+              <div data-super8-mine-list>
+                <p class="profile-data-note">Carregando…</p>
+              </div>
+            </div>
+            <div class="super8-section">
+              <p class="micro-label">Abertos para inscrição</p>
+              <div class="super8-grid" data-super8-open-list>
+                <p class="profile-data-note">Carregando…</p>
+              </div>
+            </div>
+          </div>
+          <div class="hidden" data-super8-mine-view>
+            <div data-super8-active-list>
               <p class="profile-data-note">Carregando…</p>
             </div>
           </div>
-          <div class="super8-section">
-            <p class="micro-label">Abertos para inscrição</p>
-            <div class="super8-grid" data-super8-open-list>
-              <p class="profile-data-note">Carregando…</p>
-            </div>
-          </div>
-          <div class="super8-section" data-super8-history-section>
-            <p class="micro-label">Histórico</p>
+          <div class="hidden" data-super8-history-view>
             <div data-super8-history-list>
               <p class="profile-data-note">Carregando…</p>
             </div>

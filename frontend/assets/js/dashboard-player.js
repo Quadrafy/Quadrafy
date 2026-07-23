@@ -1831,11 +1831,26 @@
     return `<details class="ranking-category super8-player-card"${index === 0 ? " open" : ""}><summary><span class="ranking-category-title">${escapeHTML(tournament.name)}</span><span class="ranking-category-meta">${escapeHTML(tournament.clubName)} · ${escapeHTML(super8DateTimeLabel(tournament))} · ${tournament.gamesFinished}/${tournament.gamesTotal} jogos · ${tournament.status === "finalizado" ? "Finalizado" : "Em andamento"}</span></summary>${super8StandingsTable(tournament)}<div class="super8-games">${myGames.map((game) => super8MyGameCard(game, myId)).join("")}</div></details>`;
   }
 
+  function switchSuper8Segment(seg) {
+    $$("[data-super8-segment]").forEach((btn) =>
+      btn.classList.toggle("active", btn.dataset.super8Segment === seg),
+    );
+    $("[data-super8-all-view]")?.classList.toggle("hidden", seg !== "all");
+    $("[data-super8-mine-view]")?.classList.toggle("hidden", seg !== "mine");
+    $("[data-super8-history-view]")?.classList.toggle("hidden", seg !== "history");
+  }
+
+  function setupSuper8Segments() {
+    $$("[data-super8-segment]").forEach((btn) =>
+      btn.addEventListener("click", () => switchSuper8Segment(btn.dataset.super8Segment)),
+    );
+  }
+
   async function openSuper8Screen() {
     const myId = state.session?.user?.id;
     const mineList = $("[data-super8-mine-list]");
+    const activeList = $("[data-super8-active-list]");
     const historyList = $("[data-super8-history-list]");
-    const historySection = $("[data-super8-history-section]");
     const openList = $("[data-super8-open-list]");
     let activeCount = 0;
     try {
@@ -1843,17 +1858,17 @@
       const active = (tournaments ?? []).filter((t) => t.status !== "finalizado");
       const history = (tournaments ?? []).filter((t) => t.status === "finalizado");
       activeCount = active.length;
-      mineList.innerHTML = active.length
+      const activeHTML = active.length
         ? active.map((t, i) => super8PlayerCard(t, myId, i)).join("")
         : '<p class="profile-data-note">Nenhum Super 8 em andamento.</p>';
-      if (historyList) {
-        historyList.innerHTML = history.length
-          ? history.map((t, i) => super8PlayerCard(t, myId, i)).join("")
-          : '<p class="profile-data-note">Nenhum Super 8 finalizado ainda.</p>';
-      }
-      if (historySection) historySection.classList.toggle("hidden", history.length === 0);
+      const historyHTML = history.length
+        ? history.map((t, i) => super8PlayerCard(t, myId, i)).join("")
+        : '<p class="profile-data-note">Nenhum Super 8 finalizado ainda.</p>';
+      if (mineList) mineList.innerHTML = activeHTML;
+      if (activeList) activeList.innerHTML = activeHTML;
+      if (historyList) historyList.innerHTML = historyHTML;
     } catch (error) {
-      mineList.innerHTML = `<p class="profile-data-note">${escapeHTML(error.message)}</p>`;
+      if (mineList) mineList.innerHTML = `<p class="profile-data-note">${escapeHTML(error.message)}</p>`;
     }
     // TASK-76: o botão de inscrição só aparece dentro da tela de detalhe —
     // a listagem é só um resumo clicável.
@@ -4010,6 +4025,7 @@
     setupClubFilters();
     setupBookingModal();
     setupBookingSegments();
+    setupSuper8Segments();
     setupBookingDetail();
     setupMatches();
     setupProfile();
