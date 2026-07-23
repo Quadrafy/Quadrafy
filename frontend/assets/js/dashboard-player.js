@@ -407,6 +407,13 @@
       matchesBadge.textContent = clubMatchCount || "";
       matchesBadge.classList.toggle("hidden", !clubMatchCount);
     }
+    // Update Super 8 badge
+    const clubSuper8Count = state.super8Open.filter((t) => t.clubId === club.id).length;
+    const super8Badge = $("[data-club-super8-badge]");
+    if (super8Badge) {
+      super8Badge.textContent = clubSuper8Count || "";
+      super8Badge.classList.toggle("hidden", !clubSuper8Count);
+    }
     renderDateStrip();
     // TASK-98 — a escolha da quadra é a decisão mais importante desta tela
     // (não existe opção "Todas"), então o seletor ganha um ícone em destaque.
@@ -434,18 +441,22 @@
       );
     } else renderSlots();
     updateSelection();
-    // Wire segment tabs (Horários / Jogos em aberto)
+    // Wire segment tabs (Horários / Jogos em aberto / Super 8)
     $$("[data-club-segment]").forEach((button) =>
       button.addEventListener("click", () => {
         const seg = button.dataset.clubSegment;
         $$("[data-club-segment]").forEach((b) =>
           b.classList.toggle("active", b === button),
         );
+        const isSlots = seg === "slots";
         const isMatches = seg === "matches";
-        $("[data-club-slots-view]")?.classList.toggle("hidden", isMatches);
+        const isSuper8 = seg === "super8";
+        $("[data-club-slots-view]")?.classList.toggle("hidden", !isSlots);
         $("[data-club-matches-view]")?.classList.toggle("hidden", !isMatches);
-        $("[data-inline-selection]")?.classList.toggle("hidden", isMatches || !state.selectedSlot);
+        $("[data-club-super8-view]")?.classList.toggle("hidden", !isSuper8);
+        $("[data-inline-selection]")?.classList.toggle("hidden", !isSlots || !state.selectedSlot);
         if (isMatches) renderClubMatches();
+        if (isSuper8) renderClubSuper8();
       }),
     );
   }
@@ -527,6 +538,45 @@
           "Crie um jogo para jogar aqui.",
         );
     wireMatchCards(grid);
+  }
+
+  async function renderClubSuper8() {
+    const grid = $("[data-club-super8-grid]");
+    if (!grid) return;
+    const clubId = state.selectedClub?.club?.id;
+    if (!clubId) return;
+    // Use cached list if already loaded; otherwise fetch now.
+    if (!state.super8Open.length) {
+      try {
+        const { tournaments } = await apiRequest("/api/v1/players/super8/open");
+        state.super8Open = tournaments || [];
+      } catch {
+        grid.innerHTML = emptyState("Erro ao carregar Super 8.", "Tente novamente.");
+        return;
+      }
+    }
+    const clubTournaments = state.super8Open.filter((t) => t.clubId === clubId);
+    grid.innerHTML = clubTournaments.length
+      ? clubTournaments.map(super8OpenCard).join("")
+      : emptyState(
+          "Nenhum Super 8 com inscrições abertas neste clube.",
+          "Verifique outros clubes ou volte mais tarde.",
+        );
+    $$("[data-super8-open-row]", grid).forEach((row) => {
+      const open = () => {
+        const tournament = state.super8Open.find(
+          (item) => item.id === row.dataset.super8OpenRow,
+        );
+        if (tournament) openSuper8PlayerDetail(tournament);
+      };
+      row.addEventListener("click", open);
+      row.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          open();
+        }
+      });
+    });
   }
 
   function updateSelection() {

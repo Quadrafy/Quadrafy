@@ -3234,6 +3234,7 @@ export async function createApp(overrides = {}) {
             startTime: tournament.startTime ?? null,
             levelCategories: tournament.levelCategories ?? null,
             genderCategory: tournament.genderCategory ?? "all",
+            clubId: tournament.clubId,
             clubName: club?.name ?? "Clube",
             clubAddress: club?.address ?? "",
             players: tournament.players.map(playerWithProfile),
