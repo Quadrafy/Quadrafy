@@ -2072,8 +2072,11 @@
           const data = await apiRequest(
             `/api/v1/players/search?q=${encodeURIComponent(q)}`,
           );
+          const enrolledIds = new Set(
+            (tournament.players ?? []).map((p) => p.id),
+          );
           const players = (data.players ?? []).filter(
-            (p) => p.id !== (state.user?.id),
+            (p) => !enrolledIds.has(p.id),
           );
           if (!players.length) {
             results.innerHTML =
