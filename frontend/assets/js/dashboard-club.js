@@ -135,15 +135,21 @@
   };
 
   // TASK-95 — data + horário do torneio, formatados para exibição.
+  const SUPER8_GENDER_LABELS = {
+    women_only: "Só mulheres",
+    men_only: "Só homens",
+    mixed: "Misto obrigatório",
+  };
+
   function super8DateTimeLabel(tournament) {
     const parts = [];
     if (tournament.date) {
-      parts.push(
-        formatDate(`${tournament.date}T12:00:00-03:00`, {
-          day: "2-digit",
-          month: "short",
-        }),
-      );
+      const iso = `${tournament.date}T12:00:00-03:00`;
+      const dateStr = formatDate(iso, { day: "numeric", month: "numeric" });
+      const weekdayRaw = formatDate(iso, { weekday: "short" });
+      const weekday = weekdayRaw.replace(/\.$/, "");
+      const weekdayCap = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+      parts.push(`${dateStr} · ${weekdayCap}`);
     }
     if (tournament.startTime) parts.push(tournament.startTime);
     return parts.length ? parts.join(" · ") : "Data a definir";
@@ -488,6 +494,7 @@
           startTime: form.elements.startTime.value || null,
           // TASK-77: categorias de nível permitidas (null = todas)
           levelCategories: readSuper8LevelCategories(form),
+          genderCategory: form.elements.genderCategory?.value || "all",
         },
       });
       await apiRequest(
@@ -622,15 +629,19 @@
     const categoriesLabel = tournament.levelCategories
       ? tournament.levelCategories.join(", ")
       : "Todas as categorias";
+    const genderLabel = SUPER8_GENDER_LABELS[tournament.genderCategory] ?? "Todos";
     // TASK-76 — quadras do torneio, visíveis também para o clube conferir
     // o que os jogadores estão vendo.
     const courtsLabel = tournament.courts?.length
       ? tournament.courts.map((court) => escapeHTML(court.name)).join(", ")
       : "A definir";
+    const dateLabel = tournament.date
+      ? escapeHTML(super8DateTimeLabel({ date: tournament.date, startTime: null }))
+      : "A definir";
 
     $("[data-super8-detail-content]").innerHTML = `
-      <div class="super8-datetime-highlight"><div><small>Data</small><strong>${tournament.date ? escapeHTML(formatDate(`${tournament.date}T12:00:00-03:00`, { weekday: "short", day: "2-digit", month: "short" })) : "A definir"}</strong></div><div><small>Horário de início</small><strong>${tournament.startTime ? escapeHTML(tournament.startTime) : "A definir"}</strong></div></div>
-      <div class="match-detail super8-meta"><div><small>Status</small><strong>${escapeHTML(statusLabel)}</strong></div><div><small>Formato</small><strong>Super ${tournament.size}</strong></div><div><small>Modalidade</small><strong>${escapeHTML(modeLabel)}</strong></div><div><small>Jogadores</small><strong>${tournament.players.length}/${tournament.size}</strong></div><div><small>Categorias permitidas</small><strong>${escapeHTML(categoriesLabel)}</strong></div><div><small>Quadras</small><strong>${courtsLabel}</strong></div></div>
+      <div class="super8-datetime-highlight"><div><small>Data</small><strong>${dateLabel}</strong></div><div><small>Horário de início</small><strong>${tournament.startTime ? escapeHTML(tournament.startTime) : "A definir"}</strong></div></div>
+      <div class="match-detail super8-meta"><div><small>Status</small><strong>${escapeHTML(statusLabel)}</strong></div><div><small>Formato</small><strong>Super ${tournament.size}</strong></div><div><small>Modalidade</small><strong>${escapeHTML(modeLabel)}</strong></div><div><small>Gênero</small><strong>${escapeHTML(genderLabel)}</strong></div><div><small>Jogadores</small><strong>${tournament.players.length}/${tournament.size}</strong></div><div><small>Categorias</small><strong>${escapeHTML(categoriesLabel)}</strong></div><div><small>Quadras</small><strong>${courtsLabel}</strong></div></div>
       ${rosterPanel}
       ${pairsPanel}
       ${games.length ? `<div class="super8-progress"><div class="super8-progress-head"><span>${finished.length} de ${games.length} jogos finalizados</span><strong>${progressPercent}%</strong></div><div class="confidence-bar" aria-hidden="true"><span style="width:${progressPercent}%"></span></div></div>` : ""}
@@ -1038,6 +1049,8 @@
     form.elements.name.value = tournament.name;
     $("[data-super8-edit-date]").value = tournament.date || "";
     $("[data-super8-edit-start-time]").value = tournament.startTime || "";
+    const editGender = $("[data-super8-edit-gender]");
+    if (editGender) editGender.value = tournament.genderCategory ?? "all";
     setSuper8EditLevelCategories(tournament.levelCategories);
     showFormFeedback("[data-super8-edit-feedback]", "");
     $("[data-super8-edit-confirm]").classList.add("hidden");
@@ -1072,6 +1085,7 @@
     if (!locked) {
       body.size = Number($("[data-super8-edit-size]").value);
       body.levelCategories = readSuper8EditLevelCategories();
+      body.genderCategory = $("[data-super8-edit-gender]")?.value || "all";
     }
     if (onIneligiblePlayers) body.onIneligiblePlayers = onIneligiblePlayers;
     button.disabled = true;

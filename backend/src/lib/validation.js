@@ -268,7 +268,20 @@ export function validateSuper8(body) {
     mode === "duplas_fixas" && players.length === size
       ? validateSuper8Pairs(body?.pairs, size)
       : null;
-  return { name, size, mode, players, pairs, date, startTime, levelCategories };
+  let genderCategory = "all";
+  if (body?.genderCategory !== undefined && body?.genderCategory !== null) {
+    const normalized = String(body.genderCategory).trim();
+    if (!GENDER_CATEGORIES.has(normalized)) {
+      throw new ApiError(
+        422,
+        "validation_failed",
+        "Gênero inválido. Use: all, women_only, men_only ou mixed.",
+        { field: "genderCategory" },
+      );
+    }
+    genderCategory = normalized;
+  }
+  return { name, size, mode, players, pairs, date, startTime, levelCategories, genderCategory };
 }
 
 // TASK-90 — edição parcial do Super 8 (nome, horário, categorias e tamanho),
@@ -312,6 +325,18 @@ export function validateSuper8Update(body) {
       }
       update.startTime = raw;
     }
+  }
+  if (body?.genderCategory !== undefined && body?.genderCategory !== null) {
+    const normalized = String(body.genderCategory).trim();
+    if (!GENDER_CATEGORIES.has(normalized)) {
+      throw new ApiError(
+        422,
+        "validation_failed",
+        "Gênero inválido. Use: all, women_only, men_only ou mixed.",
+        { field: "genderCategory" },
+      );
+    }
+    update.genderCategory = normalized;
   }
   return update;
 }

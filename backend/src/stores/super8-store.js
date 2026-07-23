@@ -25,6 +25,7 @@ export class Super8Store {
       // definida (o clube pode preencher depois pela edição).
       this.tournaments = parsed.map((tournament) => ({
         date: null,
+        genderCategory: "all",
         ...tournament,
       }));
     } catch (error) {
@@ -86,6 +87,7 @@ export class Super8Store {
     date,
     startTime,
     levelCategories,
+    genderCategory,
   }) {
     return this.enqueueWrite(async () => {
       const now = new Date().toISOString();
@@ -103,6 +105,7 @@ export class Super8Store {
         startTime: startTime ?? null,
         // TASK-77: categorias de nível permitidas ou null = todas
         levelCategories: levelCategories ?? null,
+        genderCategory: genderCategory ?? "all",
         courtIds: [],
         // TASK-43: jogos são apenas confrontos, sem horário.
         games: [],

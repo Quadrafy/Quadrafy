@@ -2519,6 +2519,7 @@ export async function createApp(overrides = {}) {
         startTime: tournament.startTime ?? null,
         // TASK-77
         levelCategories: tournament.levelCategories ?? null,
+        genderCategory: tournament.genderCategory ?? "all",
         courtIds: tournament.courtIds,
         // TASK-76 — nomes das quadras, prontos para exibição.
         courts: (tournament.courtIds ?? [])
@@ -2591,6 +2592,7 @@ export async function createApp(overrides = {}) {
         date: input.date,
         startTime: input.startTime,
         levelCategories: input.levelCategories,
+        genderCategory: input.genderCategory,
       });
       await auditLog.record({
         actorId: user.id,
@@ -3231,6 +3233,7 @@ export async function createApp(overrides = {}) {
             date: tournament.date ?? null,
             startTime: tournament.startTime ?? null,
             levelCategories: tournament.levelCategories ?? null,
+            genderCategory: tournament.genderCategory ?? "all",
             clubName: club?.name ?? "Clube",
             clubAddress: club?.address ?? "",
             players: tournament.players.map(playerWithProfile),

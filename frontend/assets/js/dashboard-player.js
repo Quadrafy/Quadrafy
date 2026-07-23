@@ -1672,12 +1672,12 @@
   function super8DateTimeLabel(tournament) {
     const parts = [];
     if (tournament.date) {
-      parts.push(
-        formatDate(`${tournament.date}T12:00:00-03:00`, {
-          day: "2-digit",
-          month: "short",
-        }),
-      );
+      const iso = `${tournament.date}T12:00:00-03:00`;
+      const dateStr = formatDate(iso, { day: "numeric", month: "numeric" });
+      const weekdayRaw = formatDate(iso, { weekday: "short" });
+      const weekday = weekdayRaw.replace(/\.$/, "");
+      const weekdayCap = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+      parts.push(`${dateStr} · ${weekdayCap}`);
     }
     if (tournament.startTime) parts.push(tournament.startTime);
     return parts.length ? parts.join(" · ") : "Data a definir";
@@ -1687,6 +1687,13 @@
     const count = tournament.courts?.length || 0;
     if (!count) return "Quadra a definir";
     return count === 1 ? tournament.courts[0].name : `${count} quadras`;
+  }
+
+  function super8GenderChip(tournament) {
+    const label = GENDER_CATEGORY_LABELS[tournament.genderCategory];
+    return label
+      ? `<span class="super8-level-chip gender-chip gender-${escapeHTML(tournament.genderCategory)}">${label}</span>`
+      : "";
   }
 
   function super8OpenCard(tournament) {
@@ -1699,6 +1706,7 @@
             .split(", ")
             .map((c) => `<span class="super8-level-chip">${escapeHTML(c)}</span>`)
             .join("");
+    const genderChip = super8GenderChip(tournament);
     const players = tournament.players || [];
     const visiblePlayers = players.slice(0, 4);
     const overflow = players.length - 4;
@@ -1725,7 +1733,7 @@
       <p class="super8-card-format">${escapeHTML(formatLabel)}</p>
       <h3>${escapeHTML(tournament.name)}</h3>
       <div class="super8-card-meta">
-        <div class="super8-level-chips">${levelChips}</div>
+        <div class="super8-level-chips">${levelChips}${genderChip}</div>
         <div class="super8-card-players">${playerBubbles}${overflowBubble}<span class="super8-players-count">${enrollCount}/${tournament.size}</span></div>
       </div>
       <div class="super8-card-footer">
@@ -1810,6 +1818,8 @@
 
   function openSuper8PlayerDetail(tournament) {
     const modal = $("[data-super8-player-detail-modal]");
+    const eyebrow = $("[data-super8-player-detail-eyebrow]");
+    if (eyebrow) eyebrow.textContent = `Super ${tournament.size}`;
     $("[data-super8-player-detail-title]").textContent = tournament.name;
     const modeLabel =
       tournament.mode === "duplas_fixas"
@@ -1821,13 +1831,18 @@
     const courtsLabel = tournament.courts?.length
       ? tournament.courts.map((court) => escapeHTML(court.name)).join(", ")
       : "A definir";
+    const genderLabel = GENDER_CATEGORY_LABELS[tournament.genderCategory] ?? "Todos";
+    const dateLabel = tournament.date
+      ? escapeHTML(super8DateTimeLabel({ date: tournament.date, startTime: null }))
+      : "A definir";
     $("[data-super8-player-detail-content]").innerHTML = `
       <p class="super8-start-time">${escapeHTML(tournament.clubName)}${tournament.clubAddress ? ` · ${escapeHTML(tournament.clubAddress)}` : ""}</p>
-      <div class="super8-datetime-highlight"><div><small>Data</small><strong>${tournament.date ? escapeHTML(formatDate(`${tournament.date}T12:00:00-03:00`, { weekday: "short", day: "2-digit", month: "short" })) : "A definir"}</strong></div><div><small>Horário de início</small><strong>${tournament.startTime ? escapeHTML(tournament.startTime) : "A definir"}</strong></div></div>
+      <div class="super8-datetime-highlight"><div><small>Data</small><strong>${dateLabel}</strong></div><div><small>Horário de início</small><strong>${tournament.startTime ? escapeHTML(tournament.startTime) : "A definir"}</strong></div></div>
       <div class="match-detail super8-meta">
         <div><small>Vagas</small><strong>${tournament.enrolled}/${tournament.size}</strong></div>
         <div><small>Modalidade</small><strong>${escapeHTML(modeLabel)}</strong></div>
-        <div><small>Categorias permitidas</small><strong>${escapeHTML(categoriesLabel)}</strong></div>
+        <div><small>Gênero</small><strong>${escapeHTML(genderLabel)}</strong></div>
+        <div><small>Categorias</small><strong>${escapeHTML(categoriesLabel)}</strong></div>
         <div><small>Quadras</small><strong>${courtsLabel}</strong></div>
       </div>
       <div class="super8-section"><p class="micro-label">Jogadores confirmados (${tournament.players.length}/${tournament.size})</p>${
