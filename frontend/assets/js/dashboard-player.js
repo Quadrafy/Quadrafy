@@ -823,7 +823,6 @@
       .filter(
         (match) =>
           (match.participantIds ?? []).includes(myId) &&
-          !match.isFull &&
           new Date(match.startAt).getTime() >= now,
       )
       .sort((a, b) => new Date(a.startAt) - new Date(b.startAt));
@@ -847,7 +846,11 @@
   function renderPendingResults() {
     const myId = state.session?.user?.id;
     const pending = state.matches
-      .filter((match) => (match.participantIds ?? []).includes(myId) && match.isFull)
+      .filter((match) =>
+        (match.participantIds ?? []).includes(myId) &&
+        match.isFull &&
+        new Date(match.startAt).getTime() < Date.now(),
+      )
       .sort((a, b) => new Date(a.startAt) - new Date(b.startAt));
     const badge = $("[data-pending-results-count]");
     if (badge) {
