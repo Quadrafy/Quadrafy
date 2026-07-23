@@ -652,6 +652,143 @@
     updateLevelRangeFill();
   }
 
+  function updateEditLevelRangeFill() {
+    const minInput = $("[data-edit-level-range-min]");
+    const maxInput = $("[data-edit-level-range-max]");
+    if (!minInput || !maxInput) return;
+    const min = parseFloat(minInput.value);
+    const max = parseFloat(maxInput.value);
+    const fill = $("[data-edit-level-range-fill]");
+    if (fill) {
+      fill.style.left = (min / 7 * 100) + "%";
+      fill.style.right = ((7 - max) / 7 * 100) + "%";
+    }
+    const display = $("[data-edit-level-range-display]");
+    if (display) {
+      const fmt = (n) => (n % 1 === 0 ? String(n) : String(n).replace(".", ","));
+      display.textContent = (min === 0 && max === 7) ? "Todas" : `${fmt(min)} – ${fmt(max)}`;
+    }
+  }
+
+  function setupEditLevelRangeSlider() {
+    const minInput = $("[data-edit-level-range-min]");
+    const maxInput = $("[data-edit-level-range-max]");
+    if (!minInput || !maxInput) return;
+    minInput.addEventListener("input", () => {
+      if (parseFloat(minInput.value) >= parseFloat(maxInput.value))
+        minInput.value = parseFloat(maxInput.value) - 0.5;
+      updateEditLevelRangeFill();
+    });
+    maxInput.addEventListener("input", () => {
+      if (parseFloat(maxInput.value) <= parseFloat(minInput.value))
+        maxInput.value = parseFloat(minInput.value) + 0.5;
+      updateEditLevelRangeFill();
+    });
+    updateEditLevelRangeFill();
+  }
+
+  function levelCategoriesToRange(cats) {
+    if (!cats?.length) return { min: 0, max: 7 };
+    let min = Infinity, max = -Infinity;
+    for (const cat of cats) {
+      const band = LEVEL_BAND_MAP[cat];
+      if (band) { min = Math.min(min, band.min); max = Math.max(max, band.max); }
+    }
+    return Number.isFinite(min) ? { min, max } : { min: 0, max: 7 };
+  }
+
+  function renderEditMatchPlayers(match) {
+    const container = $("[data-match-edit-players]");
+    if (!container) return;
+    container.innerHTML = matchPlayerSlots(match, { interactive: false, reorganizable: true });
+  }
+
+  function openMatchEdit(match) {
+    state.currentMatch = match;
+    const modal = $("[data-match-edit-modal]");
+    if (!modal) return;
+    const info = $("[data-match-edit-info]");
+    if (info) {
+      info.innerHTML = `
+        <div><small>${escapeHTML(match.clubName)}</small><strong>${match.courtName ? escapeHTML(match.courtName) : "—"}</strong></div>
+        <div><small>${escapeHTML(matchDayStr(match.startAt))}</small><strong>${escapeHTML(slotTimeRange(match.startAt, match.slotDuration))}</strong></div>`;
+    }
+    renderEditMatchPlayers(match);
+    const { min, max } = levelCategoriesToRange(match.levelCategories);
+    const minInput = $("[data-edit-level-range-min]");
+    const maxInput = $("[data-edit-level-range-max]");
+    if (minInput) minInput.value = min;
+    if (maxInput) maxInput.value = max;
+    updateEditLevelRangeFill();
+    const cancelBtn = $("[data-match-edit-cancel]");
+    if (cancelBtn) {
+      const started = matchStarted(match);
+      cancelBtn.classList.toggle("hidden", started);
+      cancelBtn.disabled = started;
+    }
+    openAccessibleModal(modal, "[data-edit-level-range-min]");
+  }
+
+  function openMatchEditById(id) {
+    const match = state.matches.find((m) => m.id === id);
+    if (match) openMatchEdit(match);
+  }
+
+  async function saveMatchEdit(event) {
+    event.preventDefault();
+    if (!state.currentMatch?.id) return;
+    const button = $("[data-match-edit-save]");
+    const levelCategories = levelRangeToCategories(
+      parseFloat($("[data-edit-level-range-min]")?.value ?? 0),
+      parseFloat($("[data-edit-level-range-max]")?.value ?? 7),
+    );
+    setBusy(button, true, "Salvando…");
+    try {
+      await apiRequest(
+        `/api/v1/player/bookings/${encodeURIComponent(state.currentMatch.id)}`,
+        { method: "PATCH", body: { levelCategories } },
+      );
+      closeModal($("[data-match-edit-modal]"));
+      await Promise.all([loadMatches(), loadBookings()]);
+      showToast("Jogo atualizado.");
+    } catch (error) {
+      showToast(error.message);
+    } finally {
+      setBusy(button, false);
+    }
+  }
+
+  async function cancelCurrentMatch(event) {
+    if (!state.currentMatch?.id) return;
+    const button = event.currentTarget;
+    const participantCount = state.currentMatch.participantIds?.length || 1;
+    const openWithOthers = participantCount > 1;
+    const confirmed = await confirmAction({
+      eyebrow: "Cancelar jogo",
+      title: openWithOthers ? "Cancelar o jogo para todos?" : "Cancelar este jogo?",
+      message: openWithOthers
+        ? `Esta partida tem ${participantCount} jogadores confirmados. Cancelar remove o jogo para todos os participantes. Esta ação não pode ser desfeita.`
+        : "Tem certeza que deseja cancelar este jogo? Esta ação não pode ser desfeita.",
+      confirmLabel: "Confirmar cancelamento",
+      cancelLabel: "Voltar",
+    });
+    if (!confirmed) return;
+    setBusy(button, true, "Cancelando…");
+    try {
+      await apiRequest(
+        `/api/v1/player/bookings/${encodeURIComponent(state.currentMatch.id)}`,
+        { method: "PATCH", body: { status: "cancelled" } },
+      );
+      closeModal($("[data-match-edit-modal]"));
+      await Promise.all([loadMatches(), loadBookings()]);
+      showToast("Jogo cancelado.");
+    } catch (error) {
+      showToast(error.message);
+    } finally {
+      setBusy(button, false);
+    }
+  }
+
   function setupBookingModal() {
     $("[data-open-booking]")?.addEventListener("click", () => {
       closeModal($("[data-slot-selection-modal]"));
@@ -1155,7 +1292,7 @@
       .join("");
   }
 
-  function matchPosition(match, team, slot, player, { interactive }) {
+  function matchPosition(match, team, slot, player, { interactive, reorganizable = false }) {
     const participant = matchParticipant(match);
     if (!player) {
       // TASK-12: quem já participa também pode clicar numa vaga vazia para
@@ -1199,19 +1336,19 @@
       ? `<button class="match-remove-player" type="button" data-remove-player="${escapeHTML(player.id)}" data-player-name="${escapeHTML(name)}" aria-label="Remover ${escapeHTML(name)} desta partida">×</button>`
       : "";
     const organizerControl =
-      interactive && match.isOrganizer
+      reorganizable && match.isOrganizer
         ? `<label class="match-position-control"><span>Posição</span><select data-reorganize-player data-source-team="${team}" data-source-slot="${slot}" aria-label="Mover ${escapeHTML(name)}">${teamPositionOptions(team, slot)}</select></label>`
         : "";
     return `<div class="match-position"><${playerTag} class="match-player-row"${playerAttributes}>${avatar}<div><strong>${escapeHTML(name)}</strong><small>${escapeHTML(level)}</small></div></${playerTag}>${removeControl}${organizerControl}</div>`;
   }
 
-  function matchPlayerSlots(match, { interactive = false } = {}) {
+  function matchPlayerSlots(match, { interactive = false, reorganizable = false } = {}) {
     const teams = normalizedMatchTeams(match);
     return ["team1", "team2"]
       .map((team, teamIndex) => {
         const positions = teams[team]
           .map((player, slot) =>
-            matchPosition(match, team, slot, player, { interactive }),
+            matchPosition(match, team, slot, player, { interactive, reorganizable }),
           )
           .join("");
         return `${teamIndex ? '<span class="match-versus" aria-hidden="true">x</span>' : ""}<div class="match-team"><span class="match-team-label">Dupla ${teamIndex + 1}</span>${positions}</div>`;
@@ -1376,7 +1513,7 @@
       if (editBtn) {
         editBtn.addEventListener("click", (e) => {
           e.stopPropagation();
-          openBookingDetail(matchId);
+          openMatchEditById(matchId);
         });
       }
     });
@@ -1739,15 +1876,21 @@
         <div><small>Jogadores</small><strong>${playerCount}/4</strong></div>
       </div>
       <h3>Jogadores</h3>
-      ${match.isOrganizer ? '<p class="match-organizer-note">Como organizador, use o seletor de cada jogador para trocar as posições.</p>' : ""}
       <div class="match-player-list">${matchPlayerSlots(match, { interactive: true })}</div>
       ${participant ? matchResultSection(match) : ""}
+      ${match.isOrganizer && !matchStarted(match) ? '<button class="button button-outline button-block" type="button" data-match-edit-open>Editar jogo</button>' : ""}
       ${participant && !matchStarted(match) ? `<button class="button button-primary button-block match-chat-toggle" type="button" data-match-chat-toggle>Chat${unreadBadge}</button>` : ""}
       ${participant && !match.isOrganizer && !matchStarted(match) ? '<button class="button button-outline button-block" type="button" data-match-leave>Sair do jogo</button>' : ""}`;
 
     const joinButton = $("[data-match-detail-join]");
     joinButton.classList.add("hidden");
     joinButton.disabled = true;
+    if (match.isOrganizer && !matchStarted(match)) {
+      $("[data-match-edit-open]")?.addEventListener("click", () => {
+        closeModal($("[data-match-detail-modal]"));
+        openMatchEdit(match);
+      });
+    }
     if (participant) {
       $("[data-match-leave]")?.addEventListener("click", leaveCurrentMatch);
       $("[data-open-result-form]")?.addEventListener("click", openResultForm);
@@ -2205,12 +2348,14 @@
       );
       state.currentMatch = match;
       renderMatchDetail(match);
+      renderEditMatchPlayers(match);
       await Promise.all([loadMatches(), loadBookings()]);
       if (matchParticipant(match)) await loadChatMessages(false);
       showToast("Duplas reorganizadas.");
     } catch (error) {
       showToast(error.message);
       renderMatchDetail(state.currentMatch);
+      renderEditMatchPlayers(state.currentMatch);
       if (matchParticipant(state.currentMatch)) await loadChatMessages(false);
     }
   }
@@ -2494,6 +2639,9 @@
   function setupMatches() {
     $("[data-match-detail-join]")?.addEventListener("click", joinCurrentMatch);
     $("[data-match-chat-form]")?.addEventListener("submit", sendChatMessage);
+    $("[data-match-edit-form]")?.addEventListener("submit", saveMatchEdit);
+    $("[data-match-edit-cancel]")?.addEventListener("click", cancelCurrentMatch);
+    setupEditLevelRangeSlider();
     // Close chat popup when the match detail modal closes
     const detailModal = $("[data-match-detail-modal]");
     const chatPopup = $("[data-match-chat-popup]");

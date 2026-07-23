@@ -673,6 +673,71 @@
       </div>
     </div>
 
+    <div class="modal-backdrop" data-match-edit-modal aria-hidden="true">
+      <div
+        class="modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="match-edit-title"
+      >
+        <button
+          class="modal-close"
+          type="button"
+          data-modal-close
+          aria-label="Fechar"
+        >
+          ×
+        </button>
+        <p class="eyebrow dark">Jogo</p>
+        <h2 id="match-edit-title">Editar jogo.</h2>
+        <div class="modal-booking-info" data-match-edit-info></div>
+        <h3 class="match-edit-teams-title">Duplas</h3>
+        <div class="match-player-list" data-match-edit-players></div>
+        <form data-match-edit-form>
+          <div class="level-range-field">
+            <div class="level-range-header">
+              <span class="level-range-label-text">Categorias de nível</span>
+              <span class="level-range-display" data-edit-level-range-display>Todas</span>
+            </div>
+            <div class="level-range-wrap">
+              <div class="level-range-track">
+                <div class="level-range-fill" data-edit-level-range-fill></div>
+              </div>
+              <input class="level-range-input level-range-input--min" type="range"
+                     data-edit-level-range-min min="0" max="7" step="0.5" value="0"
+                     aria-label="Nível mínimo" />
+              <input class="level-range-input level-range-input--max" type="range"
+                     data-edit-level-range-max min="0" max="7" step="0.5" value="7"
+                     aria-label="Nível máximo" />
+            </div>
+            <div class="level-range-cats" aria-hidden="true">
+              <span style="left:0%">7ª</span>
+              <span style="left:14.29%">6ª</span>
+              <span style="left:28.57%">5ª</span>
+              <span style="left:50%">4ª</span>
+              <span style="left:78.57%">3ª</span>
+              <span style="left:92.86%">2ª</span>
+              <span style="left:97.14%">Open</span>
+            </div>
+          </div>
+          <button
+            class="button button-primary button-block shine"
+            type="submit"
+            data-match-edit-save
+          >
+            Salvar alterações
+          </button>
+        </form>
+        <button
+          class="button button-outline button-block"
+          type="button"
+          data-match-edit-cancel
+        >
+          Cancelar jogo
+        </button>
+      </div>
+    </div>
+
     <div class="modal-backdrop" data-match-chat-popup aria-hidden="true">
       <div
         class="modal-card match-chat-popup-card"

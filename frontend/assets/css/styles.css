@@ -4323,6 +4323,16 @@ button.match-position-empty {
   color: var(--ink);
   font-size: 9px;
 }
+.match-edit-teams-title {
+  margin: 12px 0 6px;
+  font-size: 13px;
+}
+.match-edit-teams-title + .match-player-list {
+  margin-bottom: 16px;
+}
+.match-edit-modal [data-match-edit-cancel] {
+  margin-top: 8px;
+}
 .match-organizer-note {
   margin: -4px 0 8px;
   color: var(--ink-soft);
