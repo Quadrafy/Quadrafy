@@ -518,6 +518,9 @@ export class BookingStore {
           );
         }
         booking.levelCategories = update.levelCategories;
+        if (update.genderCategory !== undefined) {
+          booking.genderCategory = update.genderCategory;
+        }
         booking.maxPlayers = update.maxPlayers;
         ensureTeams(booking);
         syncOpenSpots(booking);

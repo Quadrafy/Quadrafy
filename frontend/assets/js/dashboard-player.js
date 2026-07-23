@@ -700,7 +700,7 @@
   function renderEditMatchPlayers(match) {
     const container = $("[data-match-edit-players]");
     if (!container) return;
-    container.innerHTML = matchPlayerSlots(match, { interactive: false, reorganizable: true });
+    container.innerHTML = matchPlayerSlots(match, { interactive: false, reorganizable: true, removable: true });
   }
 
   function openMatchEdit(match) {
@@ -714,6 +714,8 @@
         <div><small>${escapeHTML(matchDayStr(match.startAt))}</small><strong>${escapeHTML(slotTimeRange(match.startAt, match.slotDuration))}</strong></div>`;
     }
     renderEditMatchPlayers(match);
+    const genderSelect = $("[data-edit-gender-category]");
+    if (genderSelect) genderSelect.value = match.genderCategory ?? "all";
     const { min, max } = levelCategoriesToRange(match.levelCategories);
     const minInput = $("[data-edit-level-range-min]");
     const maxInput = $("[data-edit-level-range-max]");
@@ -726,7 +728,7 @@
       cancelBtn.classList.toggle("hidden", started);
       cancelBtn.disabled = started;
     }
-    openAccessibleModal(modal, "[data-edit-level-range-min]");
+    openAccessibleModal(modal, "[data-edit-gender-category]");
   }
 
   function openMatchEditById(id) {
@@ -742,11 +744,12 @@
       parseFloat($("[data-edit-level-range-min]")?.value ?? 0),
       parseFloat($("[data-edit-level-range-max]")?.value ?? 7),
     );
+    const genderCategory = $("[data-edit-gender-category]")?.value ?? "all";
     setBusy(button, true, "Salvando…");
     try {
       await apiRequest(
         `/api/v1/player/bookings/${encodeURIComponent(state.currentMatch.id)}`,
-        { method: "PATCH", body: { levelCategories } },
+        { method: "PATCH", body: { levelCategories, genderCategory } },
       );
       closeModal($("[data-match-edit-modal]"));
       await Promise.all([loadMatches(), loadBookings()]);
@@ -1292,7 +1295,7 @@
       .join("");
   }
 
-  function matchPosition(match, team, slot, player, { interactive, reorganizable = false }) {
+  function matchPosition(match, team, slot, player, { interactive, reorganizable = false, removable = false }) {
     const participant = matchParticipant(match);
     if (!player) {
       // TASK-12: quem já participa também pode clicar numa vaga vazia para
@@ -1328,7 +1331,7 @@
     // TASK-32: o organizador pode remover qualquer outro jogador
     // posicionado (nunca a si mesmo — para isso existe o cancelamento).
     const canRemove =
-      interactive &&
+      (interactive || removable) &&
       match.isOrganizer &&
       player.id &&
       player.id !== state.session?.user?.id;
@@ -1342,13 +1345,13 @@
     return `<div class="match-position"><${playerTag} class="match-player-row"${playerAttributes}>${avatar}<div><strong>${escapeHTML(name)}</strong><small>${escapeHTML(level)}</small></div></${playerTag}>${removeControl}${organizerControl}</div>`;
   }
 
-  function matchPlayerSlots(match, { interactive = false, reorganizable = false } = {}) {
+  function matchPlayerSlots(match, { interactive = false, reorganizable = false, removable = false } = {}) {
     const teams = normalizedMatchTeams(match);
     return ["team1", "team2"]
       .map((team, teamIndex) => {
         const positions = teams[team]
           .map((player, slot) =>
-            matchPosition(match, team, slot, player, { interactive, reorganizable }),
+            matchPosition(match, team, slot, player, { interactive, reorganizable, removable }),
           )
           .join("");
         return `${teamIndex ? '<span class="match-versus" aria-hidden="true">x</span>' : ""}<div class="match-team"><span class="match-team-label">Dupla ${teamIndex + 1}</span>${positions}</div>`;

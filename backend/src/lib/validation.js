@@ -782,8 +782,22 @@ export function validateMatchMessage(body) {
 
 export function validateBookingUpdate(body) {
   if (body.status === "cancelled") return { status: "cancelled" };
+  let genderCategory = "all";
+  if (body.genderCategory !== undefined && body.genderCategory !== null) {
+    const normalized = String(body.genderCategory).trim();
+    if (!GENDER_CATEGORIES.has(normalized)) {
+      throw new ApiError(
+        422,
+        "validation_failed",
+        "Escolha uma categoria de gênero válida.",
+        { field: "genderCategory" },
+      );
+    }
+    genderCategory = normalized;
+  }
   return {
     levelCategories: parseLevelCategories(body.levelCategories),
+    genderCategory,
     maxPlayers: 4,
   };
 }
