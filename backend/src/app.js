@@ -3297,6 +3297,30 @@ export async function createApp(overrides = {}) {
       return true;
     }
 
+    // Clube cancela um torneio ainda não finalizado.
+    const super8CancelRoute = pathname.match(
+      /^\/api\/v1\/club\/super8\/([^/]+)\/cancel$/,
+    );
+    if (super8CancelRoute && request.method === "POST") {
+      assertSameOrigin(request);
+      const user = requireUser(request, "club");
+      const club = await clubs.ensureForUser(user);
+      const tournamentId = decodeURIComponent(super8CancelRoute[1]);
+      const current = super8.requireOwned(tournamentId, club.id);
+      if (["finalizado", "cancelado"].includes(current.status)) {
+        throw new ApiError(
+          409,
+          "super8_already_finished",
+          "Este torneio já foi finalizado ou cancelado.",
+        );
+      }
+      const tournament = await super8.update(tournamentId, club.id, {
+        status: "cancelado",
+      });
+      sendData(response, 200, { tournament: super8View(tournament) });
+      return true;
+    }
+
     // TASKS-12 / TASK-47 — jogador se inscreve num torneio com vagas.
     const super8JoinRoute = pathname.match(
       /^\/api\/v1\/players\/super8\/([^/]+)\/join$/,

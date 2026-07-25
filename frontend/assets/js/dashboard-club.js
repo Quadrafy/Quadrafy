@@ -667,7 +667,10 @@
           ? "confirmed"
           : "open";
     switchSuper8Tab(tabForStatus);
+    const isHistory = ["finalizado", "cancelado"].includes(tournament.status);
     $("[data-super8-detail-title]").textContent = tournament.name;
+    // Editar: visível fora do histórico. Cancelar: idem.
+    $("[data-super8-edit-open]").classList.toggle("hidden", isHistory);
     const statusLabel =
       SUPER8_STATUS_LABELS[tournament.status] || tournament.status;
     const modeLabel =
@@ -748,7 +751,8 @@
       ${super8StandingsTable(tournament)}
       ${waiting.length ? `<div class="super8-section"><p class="micro-label">Aguardando resultado (${waiting.length})</p><div class="super8-games">${waiting.map((game) => super8GameCard(game, tournament)).join("")}</div></div>` : ""}
       ${finished.length ? `<div class="super8-section"><p class="micro-label">Finalizados (${finished.length})</p><div class="super8-games">${finished.map((game) => super8GameCard(game, tournament)).join("")}</div></div>` : ""}
-      ${primaryAction}`;
+      ${primaryAction}
+      ${!isHistory ? `<button class="button button-danger button-block" style="margin-top:8px" type="button" data-super8-cancel>Cancelar torneio</button>` : ""}`;
 
     $("[data-super8-publish]")?.addEventListener("click", publishSuper8);
     $("[data-super8-finalize]")?.addEventListener("click", finalizeSuper8);
@@ -757,6 +761,7 @@
       "click",
       openSuper8Registrations,
     );
+    $("[data-super8-cancel]")?.addEventListener("click", cancelSuper8);
     $$("[data-super8-result]").forEach((button) =>
       button.addEventListener("click", () =>
         openSuper8ResultForm(button.dataset.super8Result),
@@ -885,6 +890,21 @@
     }
   }
 
+  async function cancelSuper8() {
+    if (!confirm("Tem certeza que deseja cancelar este torneio? Ele irá para o histórico como cancelado.")) return;
+    try {
+      await apiRequest(
+        `/api/v1/club/super8/${encodeURIComponent(super8State.current.id)}/cancel`,
+        { method: "POST" },
+      );
+      showToast("Torneio cancelado.");
+      closeModal($("[data-super8-detail-modal]"));
+      await loadSuper8();
+    } catch (error) {
+      showToast(error.message);
+    }
+  }
+
   // TASK-44 — placar em games corridos, editável enquanto o torneio não é
   // finalizado (correções de digitação são comuns em torneios presenciais).
   function openSuper8ResultForm(gameId) {
@@ -1005,6 +1025,14 @@
 
   // TASK-90 — edição do torneio já publicado/com inscrições abertas.
   const SUPER8_LOCKED_STATUSES = ["gerado", "em_andamento", "finalizado"];
+  // Confirmado = bracket gerado (ou quadro completo): só data e hora editáveis.
+  function isSuper8Confirmed(tournament) {
+    return (
+      ["gerado", "em_andamento"].includes(tournament.status) ||
+      (tournament.status === "em_configuracao" &&
+        tournament.players.length >= tournament.size)
+    );
+  }
 
   function populateSuper8EditTimeOptions() {
     const select = $("[data-super8-edit-start-time]");
@@ -1155,14 +1183,20 @@
     showFormFeedback("[data-super8-edit-feedback]", "");
     $("[data-super8-edit-confirm]").classList.add("hidden");
 
-    const locked = SUPER8_LOCKED_STATUSES.includes(tournament.status);
-    $("[data-super8-edit-locked-note]").hidden = !locked;
+    const confirmed = isSuper8Confirmed(tournament);
+    const locked = confirmed || SUPER8_LOCKED_STATUSES.includes(tournament.status);
+    const nameInput = $("[data-super8-edit-form] [name='name']");
+    const nameField = nameInput?.closest(".input-group");
+    const genderField = $("[data-super8-edit-gender]")?.closest(".input-group");
+    if (nameField) nameField.classList.toggle("hidden", confirmed);
+    if (genderField) genderField.classList.toggle("hidden", locked);
+    $("[data-super8-edit-locked-note]").hidden = !confirmed;
+    $("[data-super8-edit-locked-note]").textContent = confirmed
+      ? "Torneio confirmado — apenas data e horário de início podem ser alterados."
+      : "";
     $("[data-super8-edit-size]").value = String(tournament.size);
     $("[data-super8-edit-size]").disabled = locked;
-    $("[data-super8-edit-categories-field]").classList.toggle(
-      "hidden",
-      locked,
-    );
+    $("[data-super8-edit-categories-field]").classList.toggle("hidden", locked);
     $("[data-super8-edit-players-field]").classList.toggle("hidden", locked);
     renderSuper8EditSearchResults([]);
     $("[data-super8-edit-search]").value = "";
@@ -1176,12 +1210,13 @@
     if (!tournament) return;
     const form = $("[data-super8-edit-form]");
     const button = $("[data-super8-edit-save]");
-    const locked = SUPER8_LOCKED_STATUSES.includes(tournament.status);
+    const confirmed = isSuper8Confirmed(tournament);
+    const locked = confirmed || SUPER8_LOCKED_STATUSES.includes(tournament.status);
     const body = {
-      name: form.elements.name.value.trim(),
       date: $("[data-super8-edit-date]").value || null,
       startTime: $("[data-super8-edit-start-time]").value || null,
     };
+    if (!confirmed) body.name = form.elements.name.value.trim();
     if (!locked) {
       body.size = Number($("[data-super8-edit-size]").value);
       body.levelCategories = readSuper8EditLevelCategories();
