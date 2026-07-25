@@ -468,11 +468,15 @@
     block.classList.toggle("hidden", !isFixed);
     if (!isFixed) return;
     const size = super8Size();
+    const playerCount = super8State.players.length;
     const container = $("[data-super8-pairs]");
-    if (super8State.players.length !== size) {
-      container.innerHTML = `<p class="profile-data-note">Complete os ${size} jogadores para montar as duplas.</p>`;
+    if (playerCount < 2) {
+      container.innerHTML = `<p class="profile-data-note">Adicione ao menos 2 jogadores para montar as duplas.</p>`;
       return;
     }
+    // Preserve existing pair selections before re-rendering.
+    const prevValues = $$("[data-super8-pair-slot]").map((s) => Number(s.value));
+    const pairCount = Math.floor(playerCount / 2);
     const options = (selected) =>
       super8State.players
         .map(
@@ -480,19 +484,33 @@
             `<option value="${index}"${index === selected ? " selected" : ""}>${escapeHTML(player.name)}</option>`,
         )
         .join("");
-    container.innerHTML = Array.from({ length: size / 2 }, (_, pairIndex) => {
-      const a = pairIndex * 2;
-      const b = pairIndex * 2 + 1;
-      return `<div class="super8-pair-row"><span class="result-set-label">Dupla ${pairIndex + 1}</span><select data-super8-pair-slot>${options(a)}</select><span class="result-set-x" aria-hidden="true">+</span><select data-super8-pair-slot>${options(b)}</select></div>`;
+    let html = Array.from({ length: pairCount }, (_, pairIndex) => {
+      const defaultA = pairIndex * 2;
+      const defaultB = pairIndex * 2 + 1;
+      const prevA = prevValues[pairIndex * 2];
+      const prevB = prevValues[pairIndex * 2 + 1];
+      const selA = prevA !== undefined && prevA < playerCount ? prevA : defaultA;
+      const selB = prevB !== undefined && prevB < playerCount ? prevB : defaultB;
+      return `<div class="super8-pair-row"><span class="result-set-label">Dupla ${pairIndex + 1}</span><select data-super8-pair-slot>${options(selA)}</select><span class="result-set-x" aria-hidden="true">+</span><select data-super8-pair-slot>${options(selB)}</select></div>`;
     }).join("");
+    if (playerCount % 2 !== 0) {
+      html += `<p class="profile-data-note">Adicione mais 1 jogador para completar a próxima dupla.</p>`;
+    }
+    if (playerCount < size) {
+      const remaining = size - playerCount;
+      html += `<p class="profile-data-note">Faltam ${remaining} jogador${remaining !== 1 ? "es" : ""} — as duplas restantes serão definidas depois.</p>`;
+    }
+    container.innerHTML = html;
   }
 
   function shuffleSuper8Pairs() {
-    if (super8State.players.length !== super8Size()) {
-      showToast("Complete os jogadores antes de sortear as duplas.");
+    const playerCount = super8State.players.length;
+    if (playerCount < 2) {
+      showToast("Adicione ao menos 2 jogadores para sortear duplas.");
       return;
     }
-    const indexes = super8State.players.map((_, index) => index);
+    const usable = playerCount % 2 === 0 ? playerCount : playerCount - 1;
+    const indexes = Array.from({ length: usable }, (_, i) => i);
     for (let i = indexes.length - 1; i > 0; i -= 1) {
       const j = Math.floor(Math.random() * (i + 1));
       [indexes[i], indexes[j]] = [indexes[j], indexes[i]];
