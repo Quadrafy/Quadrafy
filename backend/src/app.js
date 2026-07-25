@@ -2908,9 +2908,31 @@ export async function createApp(overrides = {}) {
         );
       }
       const players = [...current.players, ...newPlayers];
-      const tournament = await super8.update(tournamentId, club.id, {
-        players,
-      });
+      const clubChanges = { players };
+      // Auto-generate bracket when club fills the last spot (same logic as player join).
+      if (players.length >= current.size && current.courtIds.length > 0 && current.mode === "rotacao") {
+        const tournamentCourts = current.courtIds
+          .map((courtId) => courts.findById(courtId))
+          .filter(Boolean)
+          .map((court) => ({ id: court.id, name: court.name }));
+        if (tournamentCourts.length > 0) {
+          const autoGames = generateSuper8Games({
+            mode: current.mode,
+            players,
+            pairs: [],
+            courts: tournamentCourts,
+          }).map((game) => ({
+            id: createId(),
+            ...game,
+            status: "aguardando",
+            score: null,
+          }));
+          clubChanges.games = autoGames;
+          clubChanges.standings = null;
+          clubChanges.status = "gerado";
+        }
+      }
+      const tournament = await super8.update(tournamentId, club.id, clubChanges);
       await auditLog.record({
         actorId: user.id,
         action: "super8.players_added",

@@ -321,12 +321,16 @@
     try {
       const data = await apiRequest("/api/v1/club/super8");
       super8State.tournaments = data.tournaments;
-      const openList = data.tournaments.filter((t) =>
-        ["em_configuracao", "inscricoes_abertas"].includes(t.status),
-      );
-      const confirmedList = data.tournaments.filter((t) =>
-        ["gerado", "em_andamento"].includes(t.status),
-      );
+      const openList = data.tournaments.filter((t) => {
+        if (t.status === "inscricoes_abertas") return true;
+        if (t.status === "em_configuracao") return t.players.length < t.size;
+        return false;
+      });
+      const confirmedList = data.tournaments.filter((t) => {
+        if (["gerado", "em_andamento"].includes(t.status)) return true;
+        if (t.status === "em_configuracao") return t.players.length >= t.size;
+        return false;
+      });
       const historyList = data.tournaments.filter((t) =>
         ["finalizado", "cancelado"].includes(t.status),
       );
@@ -654,11 +658,14 @@
       fresh || super8State.tournaments.find((item) => item.id === id) || null;
     if (!tournament) return;
     super8State.current = tournament;
-    const tabForStatus = ["gerado", "em_andamento"].includes(tournament.status)
-      ? "confirmed"
-      : ["finalizado", "cancelado"].includes(tournament.status)
+    const tabForStatus =
+      ["finalizado", "cancelado"].includes(tournament.status)
         ? "history"
-        : "open";
+        : ["gerado", "em_andamento"].includes(tournament.status) ||
+            (tournament.status === "em_configuracao" &&
+              tournament.players.length >= tournament.size)
+          ? "confirmed"
+          : "open";
     switchSuper8Tab(tabForStatus);
     $("[data-super8-detail-title]").textContent = tournament.name;
     const statusLabel =
