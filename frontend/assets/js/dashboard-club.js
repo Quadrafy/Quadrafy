@@ -74,15 +74,17 @@
   function safePhotoUrl(value) {
     const url = String(value || "").trim();
     if (!url) return "";
-    if (
-      /^\/(?:assets\/[a-z0-9/_\-.]+|uploads\/(?:players|clubs|courts)\/[a-f0-9-]+\.(?:jpe?g|png|webp))$/i.test(
-        url,
-      )
-    ) {
-      return url;
-    }
+    const uploadedImage =
+      /^\/uploads\/(?:players|clubs|courts)\/[a-f0-9-]+\.(?:jpe?g|png|webp)$/i;
+    if (/^\/assets\/[a-z0-9/_\-.]+$/i.test(url)) return url;
     try {
       const parsed = new URL(url, location.origin);
+      if (
+        parsed.origin === location.origin &&
+        uploadedImage.test(parsed.pathname)
+      ) {
+        return `${parsed.pathname}${parsed.search}`;
+      }
       return parsed.protocol === "https:" ? parsed.href : "";
     } catch {
       return "";
@@ -1887,7 +1889,7 @@
     });
   }
 
-  function scheduleCell(slot) {
+  function scheduleCell(court, slot) {
     if (!slot) {
       return '<span class="schedule-cell blocked" aria-label="Fora da grade"><span>—</span></span>';
     }
@@ -1904,6 +1906,13 @@
       booked: "booked",
       blocked: "blocked booked",
     }[status];
+    const canToggle =
+      status === "available" || (status === "blocked" && slot.blocked);
+    if (canToggle) {
+      const nextBlocked = status === "available";
+      const action = nextBlocked ? "Bloquear" : "Liberar";
+      return `<button class="schedule-cell schedule-cell-action ${compatibilityClass}" type="button" data-schedule-status="${status}" data-schedule-toggle data-schedule-court-id="${escapeHTML(court.courtId)}" data-schedule-start-at="${escapeHTML(slot.startAt)}" data-schedule-blocked="${String(nextBlocked)}" aria-label="${action} ${escapeHTML(slot.time)} da ${escapeHTML(court.courtName)}"><span>${escapeHTML(labels[status])}<small>${action}</small></span></button>`;
+    }
     return `<span class="schedule-cell ${compatibilityClass}" data-schedule-status="${status}"><span>${escapeHTML(labels[status])}</span></span>`;
   }
 
@@ -1992,7 +2001,7 @@
         const slot = (court.slots || []).find(
           (item) => slotTime(item) === time,
         );
-        html += scheduleCell(slot);
+        html += scheduleCell(court, slot);
       });
     });
     html += "</div>";
@@ -2175,6 +2184,25 @@
     });
   }
 
+  async function toggleScheduleSlot(target) {
+    const blocked = target.dataset.scheduleBlocked === "true";
+    target.disabled = true;
+    try {
+      await apiRequest(
+        `/api/v1/club/courts/${encodeURIComponent(target.dataset.scheduleCourtId)}/blocks`,
+        {
+          method: "PATCH",
+          body: { startAt: target.dataset.scheduleStartAt, blocked },
+        },
+      );
+      showToast(blocked ? "Horário bloqueado." : "Horário liberado.");
+      await loadSchedule();
+    } catch (error) {
+      showToast(error.message);
+      target.disabled = false;
+    }
+  }
+
   function setupSecondaryActions() {
     $("[data-preview-arena]")?.addEventListener("click", () =>
       showGenericModal({
@@ -2196,6 +2224,11 @@
       }),
     );
     $("[data-owner-schedule]")?.addEventListener("click", (event) => {
+      const slot = event.target.closest("[data-schedule-toggle]");
+      if (slot) {
+        toggleScheduleSlot(slot);
+        return;
+      }
       const target = event.target.closest("[data-week-date]");
       if (!target) return;
       state.scheduleDate = target.dataset.weekDate;

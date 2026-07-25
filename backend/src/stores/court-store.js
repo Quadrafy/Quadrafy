@@ -22,6 +22,14 @@ export class CourtStore {
         const closeTime = court.closeTime ?? court.closesAt;
         const slotDuration =
           court.slotDuration ?? court.slotDurationMinutes ?? 90;
+        const blockedSlots = [
+          ...new Set(
+            (Array.isArray(court.blockedSlots) ? court.blockedSlots : []).filter(
+              (startAt) =>
+                typeof startAt === "string" && !Number.isNaN(Date.parse(startAt)),
+            ),
+          ),
+        ];
         // TASK-99 — quadras não distinguem mais coberta/descoberta.
         const { type, ...rest } = court;
         return {
@@ -32,6 +40,7 @@ export class CourtStore {
           opensAt: openTime,
           closesAt: closeTime,
           slotDurationMinutes: slotDuration,
+          blockedSlots,
         };
       });
     } catch (error) {
@@ -77,6 +86,7 @@ export class CourtStore {
         closeTime,
         slotDuration,
         photoUrl,
+        blockedSlots: [],
         // TASK-51: null = arena principal do clube
         arenaId: arenaId || null,
         opensAt: openTime,
@@ -116,6 +126,22 @@ export class CourtStore {
         slotDurationMinutes: update.slotDuration,
         updatedAt: new Date().toISOString(),
       });
+      await this.persist();
+      return court;
+    });
+  }
+
+  async setSlotBlocked(courtId, startAt, blocked) {
+    return this.enqueueWrite(async () => {
+      const court = this.findById(courtId);
+      if (!court) {
+        throw new ApiError(404, "court_not_found", "Quadra não encontrada.");
+      }
+      const current = new Set(court.blockedSlots ?? []);
+      if (blocked) current.add(startAt);
+      else current.delete(startAt);
+      court.blockedSlots = [...current].sort();
+      court.updatedAt = new Date().toISOString();
       await this.persist();
       return court;
     });

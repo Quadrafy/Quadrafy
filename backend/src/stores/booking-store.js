@@ -149,6 +149,27 @@ export class BookingStore {
     return this.bookings.filter((booking) => booking.status === "confirmed");
   }
 
+  async cancelStartedIncomplete(now = Date.now()) {
+    return this.enqueueWrite(async () => {
+      const cancelledAt = new Date(now).toISOString();
+      const affected = this.bookings.filter(
+        (booking) =>
+          booking.status === "confirmed" &&
+          new Date(booking.startAt).getTime() <= now &&
+          (booking.participantIds?.length ?? 0) < booking.maxPlayers,
+      );
+      affected.forEach((booking) => {
+        booking.status = "cancelled";
+        booking.cancelledAt = cancelledAt;
+        booking.cancelledBy = "system";
+        booking.cancellationReason = "insufficient_players";
+        booking.updatedAt = cancelledAt;
+      });
+      if (affected.length) await this.persist();
+      return affected;
+    });
+  }
+
   listFutureConfirmedByCourt(courtId, now = Date.now()) {
     return this.bookings.filter(
       (booking) =>

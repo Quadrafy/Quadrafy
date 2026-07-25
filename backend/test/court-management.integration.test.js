@@ -95,6 +95,15 @@ function futureStart(days = 30) {
   return new Date(`${key}T19:00:00-03:00`).toISOString();
 }
 
+function brazilDateKey(value) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(value));
+}
+
 test("club edits every public court field including its uploaded photo", async () => {
   const owner = await register("club", "edit");
   await api("/api/v1/club/dashboard", { cookie: owner.cookie });
@@ -215,4 +224,73 @@ test("court deletion reports and cancels future bookings after explicit confirma
     (await playerBookings.json()).data.bookings[0].status,
     "cancelled",
   );
+});
+
+test("club blocks a schedule slot and players cannot create a match there", async () => {
+  const owner = await register("club", "slot-block");
+  const dashboard = await api("/api/v1/club/dashboard", {
+    cookie: owner.cookie,
+  });
+  const club = (await dashboard.json()).data.club;
+  const created = await api("/api/v1/club/courts", {
+    method: "POST",
+    cookie: owner.cookie,
+    body: {
+      name: "Quadra bloqueável",
+      price: 120,
+      openTime: "07:00",
+      closeTime: "22:00",
+      slotDuration: 60,
+    },
+  });
+  const court = (await created.json()).data.court;
+  const startAt = futureStart();
+
+  const block = await api(`/api/v1/club/courts/${court.id}/blocks`, {
+    method: "PATCH",
+    cookie: owner.cookie,
+    body: { startAt, blocked: true },
+  });
+  assert.equal(block.status, 200);
+  assert.equal((await block.json()).data.blocked, true);
+
+  const schedule = await api(
+    `/api/v1/club/schedule?date=${brazilDateKey(startAt)}`,
+    { cookie: owner.cookie },
+  );
+  const scheduleCourt = (await schedule.json()).data.courts.find(
+    (entry) => entry.courtId === court.id,
+  );
+  const slot = scheduleCourt.slots.find((entry) => entry.startAt === startAt);
+  assert.equal(slot.status, "blocked");
+  assert.equal(slot.blocked, true);
+
+  const player = await register("player", "slot-block");
+  await api("/api/v1/player/level-test", {
+    method: "POST",
+    cookie: player.cookie,
+    body: {
+      tempo_pratica: 2,
+      frequencia_semanal: 2,
+      experiencia_esportes_raquete: 2,
+      autoavaliacao_golpes: 2,
+      experiencia_competicoes: 2,
+      tatica_posicionamento: 2,
+    },
+  });
+  const rejected = await api("/api/v1/player/bookings", {
+    method: "POST",
+    cookie: player.cookie,
+    body: { clubId: club.id, courtId: court.id, startAt, levelCategories: null },
+  });
+  assert.equal(rejected.status, 409);
+  assert.equal((await rejected.json()).error.code, "slot_blocked");
+
+  const unblock = await api(`/api/v1/club/courts/${court.id}/blocks`, {
+    method: "PATCH",
+    cookie: owner.cookie,
+    body: { startAt, blocked: false },
+  });
+  assert.equal(unblock.status, 200);
+  assert.equal((await unblock.json()).data.blocked, false);
 });

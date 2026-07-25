@@ -32,6 +32,7 @@
     clubs: [],
     bookings: [],
     matches: [],
+    pendingMatches: [],
     selectedClub: null,
     selectedDate: null,
     selectedCourt: null,
@@ -258,6 +259,7 @@
       loadBookings();
       loadMatches();
       if (state.bookingSegment === "history") loadHistory();
+      if (state.bookingSegment === "results") loadPendingResults();
     }
     if (name === "matches") loadMatches();
     if (name === "super8") openSuper8Screen();
@@ -1090,7 +1092,7 @@
 
   function renderPendingResults() {
     const myId = state.session?.user?.id;
-    const pending = state.matches
+    const pending = state.pendingMatches
       .filter((match) =>
         (match.participantIds ?? []).includes(myId) &&
         match.isFull &&
@@ -1139,7 +1141,7 @@
         $("[data-pending-results-grid]").classList.toggle("hidden", state.bookingSegment !== "results");
         $("[data-history-grid]").classList.toggle("hidden", state.bookingSegment !== "history");
         if (state.bookingSegment === "history") loadHistory();
-        else if (state.bookingSegment === "results") renderPendingResults();
+        else if (state.bookingSegment === "results") loadPendingResults();
         else renderBookings();
       }),
     );
@@ -1494,8 +1496,13 @@
     return formatDate(date, { weekday: "short", day: "2-digit", month: "short" });
   }
 
-  function matchStatus(match) {
-    if (match.isFull || Number(match.availableSpots) === 0) return "Confirmado";
+ function matchStatus(match) {
+    if (match.status === "cancelled") {
+      return match.cancellationReason === "insufficient_players"
+        ? "Cancelada · faltaram jogadores"
+        : "Cancelada";
+    }
+   if (match.isFull || Number(match.availableSpots) === 0) return "Confirmado";
     if (Number(match.availableSpots) === 1) return "Falta 1 jogador";
     return `Aberto · ${Number(match.availableSpots) || 0} vagas`;
   }
@@ -1710,7 +1717,7 @@
       renderPendingResultsBadge(data.pendingResults);
       renderMatches();
       renderBookings();
-      renderPendingResults();
+      if (state.bookingSegment === "results") await loadPendingResults();
       renderProfile();
       refreshUnreadCounts();
     } catch (error) {
@@ -1722,6 +1729,22 @@
   }
 
   // TASK-33 — partidas cujo horário de início já passou.
+  async function loadPendingResults() {
+    const grid = $("[data-pending-results-grid]");
+    if (!grid) return;
+    try {
+      const data = await apiRequest("/api/v1/matches?scope=results");
+      state.pendingMatches = data.matches;
+      renderPendingResultsBadge(data.pendingResults);
+      renderPendingResults();
+    } catch (error) {
+      grid.innerHTML = emptyState(
+        "Não foi possível carregar os resultados.",
+        error.message,
+      );
+    }
+  }
+
   async function loadHistory() {
     const grid = $("[data-history-grid]");
     if (!grid) return;
@@ -2595,7 +2618,7 @@
       closeModal($("[data-match-result-modal]"));
       renderMatchDetail(state.currentMatch);
       if (matchParticipant(state.currentMatch)) await loadChatMessages(false);
-      loadHistory();
+      await Promise.all([loadPendingResults(), loadHistory()]);
       showToast(
         "Resultado lançado. Um jogador da dupla adversária precisa confirmar.",
       );
@@ -2626,7 +2649,7 @@
       );
       state.currentMatchResult = result;
       renderMatchDetail(state.currentMatch);
-      loadHistory();
+      await Promise.all([loadPendingResults(), loadHistory()]);
       const myChange = levelChanges?.[state.session?.user?.id];
       if (achievementsUnlocked.length) {
         showToast(`🏆 Nova conquista desbloqueada: ${achievementsUnlocked[0].name}!`);

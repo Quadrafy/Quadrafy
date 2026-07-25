@@ -472,6 +472,8 @@ export async function createApp(overrides = {}) {
   function bookingAuditSnapshot(booking) {
     return {
       status: booking.status,
+      cancelledAt: booking.cancelledAt ?? null,
+      cancellationReason: booking.cancellationReason ?? null,
       levelCategories: booking.levelCategories ?? null,
     };
   }
@@ -549,6 +551,8 @@ export async function createApp(overrides = {}) {
       teams: booking.teams ?? null,
       slotDuration: court?.slotDuration ?? court?.slotDurationMinutes ?? null,
       status: booking.status,
+      cancelledAt: booking.cancelledAt ?? null,
+      cancellationReason: booking.cancellationReason ?? null,
       // TASK-79 — cancelar um jogo é uma ação simples, sem prazo/reembolso.
       canCancel: booking.status === "confirmed",
       createdAt: booking.createdAt,
@@ -591,6 +595,7 @@ export async function createApp(overrides = {}) {
       teamIds,
       slotDuration: base.slotDuration,
       status: base.status,
+      cancellationReason: base.cancellationReason,
       createdAt: base.createdAt,
       players,
       availableSpots: Math.max(0, booking.maxPlayers - players.length),
@@ -673,14 +678,17 @@ export async function createApp(overrides = {}) {
         .map((booking) => `${booking.courtId}:${booking.startAt}`),
     );
     return activeCourts.map((court) => {
+      const blockedStarts = new Set(court.blockedSlots ?? []);
       const slots = slotTimesFor(court).map(({ time, dayOffset }) => {
         const startAt = new Date(
           `${shiftDateKey(date, dayOffset)}T${time}:00-03:00`,
         ).toISOString();
+        const blocked = blockedStarts.has(startAt);
         return {
           startAt,
           time,
-          available: !reservedStarts.has(`${court.id}:${startAt}`),
+          blocked,
+          available: !blocked && !reservedStarts.has(`${court.id}:${startAt}`),
         };
       });
       return {
@@ -706,6 +714,7 @@ export async function createApp(overrides = {}) {
       date,
       courts: courts.listByClub(club.id).map((court) => {
         const active = court.active === true;
+        const blockedStarts = new Set(court.blockedSlots ?? []);
         const slots = slotTimesFor(court).map(({ time, dayOffset }) => {
           const startAt = new Date(
             `${shiftDateKey(date, dayOffset)}T${time}:00-03:00`,
@@ -713,12 +722,14 @@ export async function createApp(overrides = {}) {
           const booking = dateBookings.find(
             (entry) => entry.courtId === court.id && entry.startAt === startAt,
           );
-          let status = active ? "available" : "blocked";
+          const blocked = blockedStarts.has(startAt);
+          let status = active && !blocked ? "available" : "blocked";
           if (booking) status = "booked";
           return {
             startAt,
             time,
             status,
+            blocked,
             ...(booking ? { booking: bookingView(booking) } : {}),
           };
         });
@@ -1392,6 +1403,63 @@ export async function createApp(overrides = {}) {
       return true;
     }
 
+    const ownerCourtBlockRoute = pathname.match(
+      /^\/api\/v1\/club\/courts\/([^/]+)\/blocks$/,
+    );
+    if (ownerCourtBlockRoute && request.method === "PATCH") {
+      assertSameOrigin(request);
+      const user = requireUser(request, "club");
+      const club = await clubs.ensureForUser(user);
+      const courtId = decodeURIComponent(ownerCourtBlockRoute[1]);
+      const court = courts.findById(courtId);
+      if (!court || court.clubId !== club.id) {
+        throw new ApiError(404, "court_not_found", "Quadra não encontrada.");
+      }
+      const body = await readJson(request);
+      const startAt = String(body.startAt ?? "");
+      if (Number.isNaN(Date.parse(startAt)) || typeof body.blocked !== "boolean") {
+        throw new ApiError(
+          422,
+          "validation_failed",
+          "Informe um horário e uma ação de bloqueio válidos.",
+        );
+      }
+      const slot = findSlotForCourt(club, court, startAt);
+      if (!slot) {
+        throw new ApiError(
+          422,
+          "invalid_slot",
+          "O horário selecionado não pertence à grade desta quadra.",
+        );
+      }
+      const before = courtView(court);
+      const updated = await withAgendaLock(async () => {
+        if (body.blocked && bookings.hasConflict(courtId, startAt)) {
+          throw new ApiError(
+            409,
+            "slot_has_booking",
+            "Não é possível bloquear um horário que já possui jogo.",
+          );
+        }
+        return courts.setSlotBlocked(courtId, startAt, body.blocked);
+      });
+      await auditLog.record({
+        actorId: user.id,
+        action: body.blocked ? "court.slot_blocked" : "court.slot_unblocked",
+        resourceType: "court",
+        resourceId: courtId,
+        before,
+        after: { ...courtView(updated), startAt, blocked: body.blocked },
+        requestId: request.requestId,
+      });
+      sendData(response, 200, {
+        court: courtView(updated),
+        startAt,
+        blocked: body.blocked,
+      });
+      return true;
+    }
+
     const ownerCourtRoute = pathname.match(
       /^\/api\/v1\/club\/courts\/([^/]+)$/,
     );
@@ -1687,6 +1755,14 @@ export async function createApp(overrides = {}) {
       }
       const booking = await withAgendaLock(async () => {
         const selectedSlot = findSlotForCourt(club, court, input.startAt);
+        if (selectedSlot?.blocked) {
+          throw new ApiError(
+            409,
+            "slot_blocked",
+            "Este horário foi bloqueado pela arena.",
+            { courtId: court.id, startAt: input.startAt },
+          );
+        }
         if (!selectedSlot) {
           throw new ApiError(
             422,
@@ -1751,6 +1827,15 @@ export async function createApp(overrides = {}) {
       const user = requireUser(request, "player");
       const now = Date.now();
       const scope = url.searchParams.get("scope") ?? "open";
+      if (!["open", "results", "history"].includes(scope)) {
+        throw new ApiError(
+          422,
+          "validation_failed",
+          "Informe uma visualização de partidas válida.",
+          { field: "scope" },
+        );
+      }
+      await bookings.cancelStartedIncomplete(now);
       const openBookings = bookings.listOpen();
       // TASK-33: o corte é o horário de início — antes dele o jogo fica em
       // "Jogos abertos"; a partir dele passa para o "Histórico" do jogador.
@@ -1759,15 +1844,30 @@ export async function createApp(overrides = {}) {
       // TASK-35: partidas do histórico do jogador ainda sem resultado
       // confirmado (sem lançamento OU aguardando confirmação — nos dois
       // casos falta ação de algum jogador).
-      const historyBookings = openBookings.filter(
+      const startedByPlayer = openBookings.filter(
         (booking) =>
           started(booking) &&
           (booking.participantIds ?? []).includes(user.id),
       );
-      const pendingResults = historyBookings.filter(
+      const isFull = (booking) =>
+        (booking.participantIds?.length ?? 0) >= booking.maxPlayers;
+      const resultBookings = startedByPlayer.filter(
         (booking) =>
+          isFull(booking) &&
           matchResults.findByMatch(booking.id)?.status !== "confirmed",
-      ).length;
+      );
+      const cancelledBookings = bookings
+        .listByPlayer(user.id)
+        .filter((booking) => booking.status === "cancelled");
+      const historyBookings = [
+        ...startedByPlayer.filter(
+          (booking) =>
+            isFull(booking) &&
+            matchResults.findByMatch(booking.id)?.status === "confirmed",
+        ),
+        ...cancelledBookings,
+      ];
+      const pendingResults = resultBookings.length;
       // TASK-50 — filtro opcional por categoria de gênero.
       const genderFilter = url.searchParams.get("genderCategory");
       const matchesGenderFilter = (booking) =>
@@ -1781,6 +1881,8 @@ export async function createApp(overrides = {}) {
       const selected =
         scope === "history"
           ? historyBookings
+          : scope === "results"
+            ? resultBookings
           : openBookings.filter(
               (booking) =>
                 !started(booking) &&
@@ -1790,7 +1892,7 @@ export async function createApp(overrides = {}) {
       const matches = selected
         .sort(
           (a, b) =>
-            scope === "history"
+            scope === "history" || scope === "results"
               ? new Date(b.startAt).getTime() - new Date(a.startAt).getTime()
               : new Date(a.startAt).getTime() - new Date(b.startAt).getTime(),
         )

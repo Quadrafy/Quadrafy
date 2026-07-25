@@ -260,11 +260,14 @@ test("TASK-33/34/35: start time splits open vs history, gates result reporting a
     open = (await (await api("/api/v1/matches", { cookie: organizer.cookie })).json()).data;
     assert.ok(!open.matches.some((match) => match.id === matchId));
     assert.equal(open.pendingResults, 1);
+    let results = (
+      await (
+        await api("/api/v1/matches?scope=results", { cookie: organizer.cookie })
+      ).json()
+    ).data;
+    assert.deepEqual(results.matches.map((match) => match.id), [matchId]);
     history = (await (await api("/api/v1/matches?scope=history", { cookie: organizer.cookie })).json()).data;
-    assert.deepEqual(
-      history.matches.map((match) => match.id),
-      [matchId],
-    );
+    assert.equal(history.matches.length, 0);
     assert.equal(history.pendingResults, 1);
 
     // não-participante não vê a partida no próprio histórico
@@ -290,8 +293,13 @@ test("TASK-33/34/35: start time splits open vs history, gates result reporting a
       },
     });
     assert.equal(report.status, 201);
-    history = (await (await api("/api/v1/matches?scope=history", { cookie: organizer.cookie })).json()).data;
-    assert.equal(history.pendingResults, 1);
+    results = (
+      await (
+        await api("/api/v1/matches?scope=results", { cookie: organizer.cookie })
+      ).json()
+    ).data;
+    assert.equal(results.pendingResults, 1);
+    assert.deepEqual(results.matches.map((match) => match.id), [matchId]);
 
     // TASK-36: confirmação zera a pendência e persiste o ΔNível dos 4
     const confirm = await api(`/api/v1/matches/${matchId}/result/confirm`, {
@@ -301,6 +309,13 @@ test("TASK-33/34/35: start time splits open vs history, gates result reporting a
     assert.equal(confirm.status, 200);
     history = (await (await api("/api/v1/matches?scope=history", { cookie: organizer.cookie })).json()).data;
     assert.equal(history.pendingResults, 0);
+    results = (
+      await (
+        await api("/api/v1/matches?scope=results", { cookie: organizer.cookie })
+      ).json()
+    ).data;
+    assert.equal(results.matches.length, 0);
+    assert.deepEqual(history.matches.map((match) => match.id), [matchId]);
 
     const view = (
       await (
@@ -329,5 +344,33 @@ test("TASK-33/34/35: start time splits open vs history, gates result reporting a
     assert.equal(levelHistory.length, 2);
     assert.equal(levelHistory[0].levelConfidence, 35);
     assert.ok(levelHistory[1].levelConfidence > 35);
+  });
+});
+
+test("incomplete started matches are cancelled instead of waiting in results", async () => {
+  await withTestServer(async ({ api, app }) => {
+    const { matchId, organizer } = await createOpenMatch(api);
+    await startMatchInThePast(app, matchId);
+
+    const results = (
+      await (
+        await api("/api/v1/matches?scope=results", { cookie: organizer.cookie })
+      ).json()
+    ).data;
+    assert.equal(results.matches.length, 0);
+    assert.equal(results.pendingResults, 0);
+
+    const history = (
+      await (
+        await api("/api/v1/matches?scope=history", { cookie: organizer.cookie })
+      ).json()
+    ).data;
+    assert.equal(history.matches.length, 1);
+    assert.equal(history.matches[0].id, matchId);
+    assert.equal(history.matches[0].status, "cancelled");
+    assert.equal(
+      history.matches[0].cancellationReason,
+      "insufficient_players",
+    );
   });
 });
