@@ -412,9 +412,16 @@
               + Criar novo Super 8
             </button>
           </div>
-          <div class="super8-grid" data-super8-grid>
+          <nav class="segment-tabs" aria-label="Abas dos torneios Super 8">
+            <button class="active" type="button" data-s8tab="open">Em Aberto <span class="nav-count hidden" data-s8-open-count></span></button
+            ><button type="button" data-s8tab="confirmed">Confirmado <span class="nav-count hidden" data-s8-confirmed-count></span></button
+            ><button type="button" data-s8tab="history">Histórico</button>
+          </nav>
+          <div class="super8-grid" data-super8-grid data-s8view="open">
             <p class="profile-data-note">Carregando torneios…</p>
           </div>
+          <div class="super8-grid hidden" data-super8-confirmed-grid data-s8view="confirmed"></div>
+          <div class="super8-grid hidden" data-super8-history-grid data-s8view="history"></div>
         </div>
       </section>
 

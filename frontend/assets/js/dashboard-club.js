@@ -291,40 +291,75 @@
     }
   }
 
+  function switchSuper8Tab(tab) {
+    $$("[data-s8tab]").forEach((btn) =>
+      btn.classList.toggle("active", btn.dataset.s8tab === tab),
+    );
+    $$("[data-s8view]").forEach((view) =>
+      view.classList.toggle("hidden", view.dataset.s8view !== tab),
+    );
+  }
+
+  function wireSuper8Cards(container) {
+    $$("[data-super8-open]", container).forEach((card) => {
+      const open = () => openSuper8Detail(card.dataset.super8Open);
+      card.addEventListener("click", open);
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          open();
+        }
+      });
+    });
+  }
+
   async function loadSuper8() {
-    const grid = $("[data-super8-grid]");
-    if (!grid) return;
+    const openGrid = $("[data-super8-grid]");
+    const confirmedGrid = $("[data-super8-confirmed-grid]");
+    const historyGrid = $("[data-super8-history-grid]");
+    if (!openGrid) return;
     try {
       const data = await apiRequest("/api/v1/club/super8");
       super8State.tournaments = data.tournaments;
-      const isArchived = (t) => t.status === "finalizado" || t.status === "cancelado";
-      const active = data.tournaments.filter((t) => !isArchived(t));
-      const history = data.tournaments.filter(isArchived);
-      const activeCount = active.length;
+      const openList = data.tournaments.filter((t) =>
+        ["em_configuracao", "inscricoes_abertas"].includes(t.status),
+      );
+      const confirmedList = data.tournaments.filter((t) =>
+        ["gerado", "em_andamento"].includes(t.status),
+      );
+      const historyList = data.tournaments.filter((t) =>
+        ["finalizado", "cancelado"].includes(t.status),
+      );
       const navBadge = $("[data-super8-nav-count]");
+      const totalActive = openList.length + confirmedList.length;
       if (navBadge) {
-        navBadge.textContent = String(activeCount);
-        navBadge.classList.toggle("hidden", activeCount === 0);
+        navBadge.textContent = String(totalActive);
+        navBadge.classList.toggle("hidden", totalActive === 0);
       }
-      const activeHTML = active.length
-        ? active.map(super8Card).join("")
-        : `<p class="profile-data-note">Nenhum Super 8 ativo. Clique em "Criar novo Super 8" para montar o primeiro torneio.</p>`;
-      const historyHTML = history.length
-        ? `<div class="super8-history-section"><p class="eyebrow dark">Histórico</p><div class="super8-grid">${history.map(super8Card).join("")}</div></div>`
-        : "";
-      grid.innerHTML = activeHTML + historyHTML;
-      $$("[data-super8-open]", grid).forEach((card) => {
-        const open = () => openSuper8Detail(card.dataset.super8Open);
-        card.addEventListener("click", open);
-        card.addEventListener("keydown", (event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            open();
-          }
-        });
-      });
+      const openCount = $("[data-s8-open-count]");
+      if (openCount) {
+        openCount.textContent = String(openList.length);
+        openCount.classList.toggle("hidden", openList.length === 0);
+      }
+      const confirmedCount = $("[data-s8-confirmed-count]");
+      if (confirmedCount) {
+        confirmedCount.textContent = String(confirmedList.length);
+        confirmedCount.classList.toggle("hidden", confirmedList.length === 0);
+      }
+      openGrid.innerHTML = openList.length
+        ? openList.map(super8Card).join("")
+        : `<p class="profile-data-note">Nenhum Super 8 em aberto. Clique em "Criar novo Super 8" para montar o primeiro torneio.</p>`;
+      confirmedGrid.innerHTML = confirmedList.length
+        ? confirmedList.map(super8Card).join("")
+        : `<p class="profile-data-note">Nenhum Super 8 confirmado ainda.</p>`;
+      historyGrid.innerHTML = historyList.length
+        ? historyList.map(super8Card).join("")
+        : `<p class="profile-data-note">Nenhum torneio finalizado ainda.</p>`;
+      wireSuper8Cards(openGrid);
+      wireSuper8Cards(confirmedGrid);
+      wireSuper8Cards(historyGrid);
     } catch (error) {
-      grid.innerHTML = `<p class="profile-data-note">${escapeHTML(error.message)}</p>`;
+      openGrid.innerHTML = `<p class="profile-data-note">${escapeHTML(error.message)}</p>`;
     }
   }
 
@@ -619,6 +654,12 @@
       fresh || super8State.tournaments.find((item) => item.id === id) || null;
     if (!tournament) return;
     super8State.current = tournament;
+    const tabForStatus = ["gerado", "em_andamento"].includes(tournament.status)
+      ? "confirmed"
+      : ["finalizado", "cancelado"].includes(tournament.status)
+        ? "history"
+        : "open";
+    switchSuper8Tab(tabForStatus);
     $("[data-super8-detail-title]").textContent = tournament.name;
     const statusLabel =
       SUPER8_STATUS_LABELS[tournament.status] || tournament.status;
@@ -654,9 +695,7 @@
     ) {
       primaryAction = `<button class="button button-primary button-block" type="button" data-super8-open-registrations>Abrir inscrições (${tournament.size - tournament.players.length} vagas)</button>`;
     } else if (tournament.status === "inscricoes_abertas") {
-      // TASK-63: clube acompanha inscrições (manuais + espontâneas) e pode
-      // fechar quando quiser; gerar continua exigindo o número exato.
-      primaryAction = `<p class="profile-data-note">Inscrições abertas — ${tournament.players.length}/${tournament.size} jogadores confirmados. A geração dos confrontos libera quando o quadro completar.</p><button class="button button-outline button-block" type="button" data-super8-close-registrations>Fechar inscrições agora</button>`;
+      primaryAction = `<p class="profile-data-note">Inscrições abertas — ${tournament.players.length}/${tournament.size} jogadores. As inscrições fecham e o bracket é gerado automaticamente quando o quadro completar.</p>`;
     } else if (
       tournament.status === "em_configuracao" &&
       tournament.players.length === tournament.size &&
@@ -710,10 +749,6 @@
     $("[data-super8-open-registrations]")?.addEventListener(
       "click",
       openSuper8Registrations,
-    );
-    $("[data-super8-close-registrations]")?.addEventListener(
-      "click",
-      closeSuper8Registrations,
     );
     $$("[data-super8-result]").forEach((button) =>
       button.addEventListener("click", () =>
@@ -916,6 +951,9 @@
   }
 
   function setupSuper8() {
+    $$("[data-s8tab]").forEach((btn) =>
+      btn.addEventListener("click", () => switchSuper8Tab(btn.dataset.s8tab)),
+    );
     $("[data-super8-create-open]")?.addEventListener("click", openSuper8Create);
     $("[data-super8-form]")?.addEventListener("submit", submitSuper8);
     $("[data-super8-size]")?.addEventListener("change", renderSuper8Players);

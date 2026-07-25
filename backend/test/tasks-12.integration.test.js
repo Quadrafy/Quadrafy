@@ -322,10 +322,10 @@ test("TASK-47: open registrations — player self-joins until roster is full; st
       cookie: playerB.cookie,
     });
     assert.equal(joinB.status, 200);
-    // quadro completo → status volta para configuração e sai da lista
+    // quadro completo → bracket auto-gerado e sai da lista de abertos
     assert.equal(
       (await joinB.json()).data.tournament.status,
-      "em_configuracao",
+      "gerado",
     );
     const lateJoin = await api(`/api/v1/players/super8/${tournament.id}/join`, {
       method: "POST",

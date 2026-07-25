@@ -3377,8 +3377,6 @@ export async function createApp(overrides = {}) {
         ];
       }
       const changes = { players: newPlayers };
-      // Close status when full. In pair-tracking mode (any entry has partnerId
-      // property), also require all pairs to be complete.
       const usingPairTracking = newPlayers.some((p) =>
         Object.prototype.hasOwnProperty.call(p, "partnerId"),
       );
@@ -3386,7 +3384,49 @@ export async function createApp(overrides = {}) {
         !usingPairTracking ||
         newPlayers.every((p) => p.partnerId !== null && p.partnerId !== undefined);
       if (newPlayers.length >= current.size && allPaired) {
-        changes.status = "em_configuracao";
+        // Auto-generate bracket when quadre fills: rotação with courts set, or
+        // duplas_fixas with pair-tracking active (all partners confirmed) and courts set.
+        const canAutoGenerate =
+          current.courtIds.length > 0 &&
+          (current.mode === "rotacao" || usingPairTracking);
+        if (canAutoGenerate) {
+          let effectivePairs = null;
+          if (current.mode === "duplas_fixas" && usingPairTracking) {
+            const seen = new Set();
+            effectivePairs = [];
+            for (let i = 0; i < newPlayers.length; i += 1) {
+              const p = newPlayers[i];
+              if (!seen.has(p.id)) {
+                const j = newPlayers.findIndex((q) => q.id === p.partnerId);
+                if (j !== -1) {
+                  effectivePairs.push([i, j]);
+                  seen.add(p.id);
+                  seen.add(p.partnerId);
+                }
+              }
+            }
+          }
+          const tournamentCourts = current.courtIds
+            .map((courtId) => courts.findById(courtId))
+            .filter(Boolean)
+            .map((court) => ({ id: court.id, name: court.name }));
+          const autoGames = generateSuper8Games({
+            mode: current.mode,
+            players: newPlayers,
+            pairs: effectivePairs ?? [],
+            courts: tournamentCourts,
+          }).map((game) => ({
+            id: createId(),
+            ...game,
+            status: "aguardando",
+            score: null,
+          }));
+          changes.games = autoGames;
+          changes.standings = null;
+          changes.status = "gerado";
+        } else {
+          changes.status = "em_configuracao";
+        }
       }
       const tournament = await super8.update(
         tournamentId,
