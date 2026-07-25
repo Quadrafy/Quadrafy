@@ -7,6 +7,8 @@ import { createId } from "../lib/security.js";
 // Status: "em_configuracao" → (opcional "inscricoes_abertas", quando o clube
 // abre vagas para jogadores se inscreverem sozinhos) → "gerado" →
 // "em_andamento" → "finalizado".
+// Um torneio em "inscricoes_abertas" com data/hora definida é automaticamente
+// marcado como "cancelado" se o horário de início passar com vagas em falta.
 export class Super8Store {
   constructor(dataDirectory) {
     this.dataDirectory = dataDirectory;
@@ -51,12 +53,31 @@ export class Super8Store {
     return this.tournaments;
   }
 
+  // Cancela automaticamente torneios abertos que passaram da hora de início
+  // sem completar o número de jogadores esperados. Persiste apenas se houver mudanças.
+  async autoCancelExpired() {
+    const now = Date.now();
+    let changed = false;
+    for (const t of this.tournaments) {
+      if (t.status !== "inscricoes_abertas") continue;
+      if (!t.date || !t.startTime) continue;
+      if (t.players.length >= t.size) continue;
+      const startMs = new Date(`${t.date}T${t.startTime}:00-03:00`).getTime();
+      if (now >= startMs) {
+        t.status = "cancelado";
+        t.updatedAt = new Date().toISOString();
+        changed = true;
+      }
+    }
+    if (changed) await this.persist();
+  }
+
   // Torneios publicados (visíveis ao jogador) em que o jogador está inscrito.
   listPublishedByPlayer(playerId) {
     return this.tournaments
       .filter(
         (entry) =>
-          ["inscricoes_abertas", "em_andamento", "finalizado"].includes(entry.status) &&
+          ["inscricoes_abertas", "em_andamento", "finalizado", "cancelado"].includes(entry.status) &&
           entry.players.some((player) => player.id === playerId),
       )
       .sort(

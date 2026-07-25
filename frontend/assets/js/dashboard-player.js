@@ -1844,9 +1844,13 @@
     const overflowBubble =
       overflow > 0 ? `<span class="super8-player-overflow">+${overflow}</span>` : "";
     const enrollCount = tournament.enrolled ?? players.length;
-    const statusBadge = tournament.alreadyJoined
-      ? '<span class="status-badge status-badge-joined">Inscrito</span>'
-      : '<span class="status-badge">Inscrições abertas</span>';
+    const statusBadge = tournament.status === "cancelado"
+      ? '<span class="status-badge status-badge-cancelled">Cancelado</span>'
+      : tournament.status === "finalizado"
+        ? '<span class="status-badge status-badge-done">Finalizado</span>'
+        : tournament.alreadyJoined
+          ? '<span class="status-badge status-badge-joined">Inscrito</span>'
+          : '<span class="status-badge">Inscrições abertas</span>';
     return `<article class="super8-card card-hover" data-super8-open-row="${escapeHTML(tournament.id)}" tabindex="0" role="button" aria-label="Ver detalhes de ${escapeHTML(tournament.name)}">
       <div class="super8-card-header">
         <span class="super8-card-datetime">${escapeHTML(super8DateTimeLabel(tournament))}</span>
@@ -1932,8 +1936,8 @@
     let activeCount = 0;
     try {
       const { tournaments } = await apiRequest("/api/v1/players/super8/mine");
-      const active = (tournaments ?? []).filter((t) => t.status !== "finalizado");
-      const history = (tournaments ?? []).filter((t) => t.status === "finalizado");
+      const active = (tournaments ?? []).filter((t) => t.status !== "finalizado" && t.status !== "cancelado");
+      const history = (tournaments ?? []).filter((t) => t.status === "finalizado" || t.status === "cancelado");
       activeCount = active.length;
       const activeHTML = active.length
         ? active.map((t) => super8OpenCard({ ...t, alreadyJoined: true })).join("")

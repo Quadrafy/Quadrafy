@@ -2645,6 +2645,7 @@ export async function createApp(overrides = {}) {
     if (pathname === "/api/v1/club/super8" && request.method === "GET") {
       const user = requireUser(request, "club");
       const club = await clubs.ensureForUser(user);
+      await super8.autoCancelExpired();
       sendData(response, 200, {
         tournaments: super8.listByClub(club.id).map(super8View),
       });
@@ -3583,6 +3584,7 @@ export async function createApp(overrides = {}) {
       request.method === "GET"
     ) {
       const user = requireUser(request, "player");
+      await super8.autoCancelExpired();
       const myCategory = playerLevelCategory(user);
       const tournaments = super8.tournaments
         .filter(
@@ -3664,6 +3666,7 @@ export async function createApp(overrides = {}) {
       request.method === "GET"
     ) {
       const user = requireUser(request, "player");
+      await super8.autoCancelExpired();
       const tournaments = super8.listPublishedByPlayer(user.id).map((tournament) => {
         const club = clubs.findById(tournament.clubId);
         return {

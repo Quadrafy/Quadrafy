@@ -135,6 +135,7 @@
     gerado: "Tabela gerada",
     em_andamento: "Em andamento",
     finalizado: "Finalizado",
+    cancelado: "Cancelado",
   };
 
   // TASK-95 — data + horário do torneio, formatados para exibição.
@@ -296,17 +297,22 @@
     try {
       const data = await apiRequest("/api/v1/club/super8");
       super8State.tournaments = data.tournaments;
-      const activeCount = data.tournaments.filter(
-        (t) => t.status !== "finalizado",
-      ).length;
+      const isArchived = (t) => t.status === "finalizado" || t.status === "cancelado";
+      const active = data.tournaments.filter((t) => !isArchived(t));
+      const history = data.tournaments.filter(isArchived);
+      const activeCount = active.length;
       const navBadge = $("[data-super8-nav-count]");
       if (navBadge) {
         navBadge.textContent = String(activeCount);
         navBadge.classList.toggle("hidden", activeCount === 0);
       }
-      grid.innerHTML = data.tournaments.length
-        ? data.tournaments.map(super8Card).join("")
-        : `<p class="profile-data-note">Nenhum Super 8 criado ainda. Clique em "Criar novo Super 8" para montar o primeiro torneio.</p>`;
+      const activeHTML = active.length
+        ? active.map(super8Card).join("")
+        : `<p class="profile-data-note">Nenhum Super 8 ativo. Clique em "Criar novo Super 8" para montar o primeiro torneio.</p>`;
+      const historyHTML = history.length
+        ? `<div class="super8-history-section"><p class="eyebrow dark">Histórico</p><div class="super8-grid">${history.map(super8Card).join("")}</div></div>`
+        : "";
+      grid.innerHTML = activeHTML + historyHTML;
       $$("[data-super8-open]", grid).forEach((card) => {
         const open = () => openSuper8Detail(card.dataset.super8Open);
         card.addEventListener("click", open);
