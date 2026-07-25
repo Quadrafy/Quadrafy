@@ -106,6 +106,26 @@ export class UserStore {
     });
   }
 
+  async updatePassword(userId, passwordHash) {
+    return this.enqueueWrite(async () => {
+      const user = this.findById(userId);
+      if (!user) {
+        throw new ApiError(404, "user_not_found", "Usuário não encontrado.");
+      }
+      const updatedAt = new Date().toISOString();
+      const persisted = this.authenticationRepository
+        ? await this.authenticationRepository.updateUserPassword(
+            userId,
+            passwordHash,
+            updatedAt,
+          )
+        : { ...user, passwordHash, updatedAt };
+      Object.assign(user, persisted);
+      if (!this.authenticationRepository) await this.persist();
+      return user;
+    });
+  }
+
   async persist() {
     await writeFile(this.filePath, `${JSON.stringify(this.users, null, 2)}\n`, {
       encoding: "utf8",

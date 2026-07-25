@@ -73,5 +73,25 @@ export function loadConfig(overrides = {}) {
     supabaseUrl: overrides.supabaseUrl ?? process.env.SUPABASE_URL ?? '',
     supabaseSecretKey:
       overrides.supabaseSecretKey ?? process.env.SUPABASE_SECRET_KEY ?? '',
+    appName: overrides.appName ?? process.env.APP_NAME ?? "Padelfy",
+    appBaseUrl: (
+      overrides.appBaseUrl ??
+      process.env.APP_BASE_URL ??
+      "https://www.padelfy.com.br"
+    ).replace(/\/+$/, ""),
+    resendApiKey: overrides.resendApiKey ?? process.env.RESEND_API_KEY ?? "",
+    resendFrom:
+      overrides.resendFrom ??
+      process.env.RESEND_FROM ??
+      "Padelfy <no-reply@padelfy.com.br>",
+    passwordResetTtlMs:
+      positiveInteger(
+        overrides.passwordResetTtlHours ??
+          process.env.PASSWORD_RESET_TTL_HOURS,
+        1,
+      ) *
+      60 *
+      60 *
+      1000,
   };
 }

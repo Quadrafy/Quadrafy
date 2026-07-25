@@ -90,6 +90,17 @@ export class SupabaseAuthenticationRepository {
     return toAppUser(data);
   }
 
+  async updateUserPassword(userId, passwordHash, updatedAt) {
+    const { data, error } = await this.client
+      .from("app_users")
+      .update({ password_hash: passwordHash, updated_at: updatedAt })
+      .eq("id", userId)
+      .select("id, role, email, password_hash, profile, created_at, updated_at")
+      .single();
+    throwDatabaseError("update user password", error);
+    return toAppUser(data);
+  }
+
   async loadActiveSessions(now) {
     const { data, error } = await requestWithClockSkewRetry(() =>
       this.client

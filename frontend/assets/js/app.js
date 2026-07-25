@@ -538,6 +538,32 @@
         );
       }),
     );
+    // Navegação interna dos cartões (ex.: "Esqueci minha senha" ↔ "Voltar").
+    $$("[data-auth-goto]").forEach((link) =>
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        switchTab(link.dataset.authGoto);
+        $$("[data-auth-feedback]").forEach((element) => {
+          element.textContent = "";
+          element.classList.add("hidden");
+        });
+      }),
+    );
+    // Página de redefinição: injeta o token vindo por e-mail (?token=...).
+    const resetForm = $('[data-auth-form="reset-password"]');
+    if (resetForm) {
+      const token = new URLSearchParams(location.search).get("token") || "";
+      const tokenField = resetForm.elements.namedItem("token");
+      if (tokenField) tokenField.value = token;
+      if (!token) {
+        setFormFeedback(
+          resetForm,
+          "Link inválido ou incompleto. Solicite uma nova redefinição de senha.",
+        );
+        const submitButton = $('button[type="submit"]', resetForm);
+        if (submitButton) submitButton.disabled = true;
+      }
+    }
     $$("[data-auth-form]").forEach((form) =>
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -553,14 +579,31 @@
             method: "POST",
             body,
           });
-          setFormFeedback(
-            form,
-            action === "login"
-              ? "Login confirmado. Abrindo seu painel…"
-              : "Conta criada. Preparando seu painel…",
-            true,
-          );
-          location.assign(data.redirectTo);
+          if (action === "forgot-password") {
+            setFormFeedback(
+              form,
+              data?.message ||
+                "Se existir uma conta com este e-mail, enviamos um link para redefinir a senha.",
+              true,
+            );
+            form.reset();
+          } else if (action === "reset-password") {
+            setFormFeedback(
+              form,
+              data?.message || "Senha redefinida com sucesso. Redirecionando…",
+              true,
+            );
+            setTimeout(() => location.assign("login.html"), 1600);
+          } else {
+            setFormFeedback(
+              form,
+              action === "login"
+                ? "Login confirmado. Abrindo seu painel…"
+                : "Conta criada. Preparando seu painel…",
+              true,
+            );
+            location.assign(data.redirectTo);
+          }
         } catch (error) {
           setFormFeedback(form, error.message);
           if (error.details?.field) {

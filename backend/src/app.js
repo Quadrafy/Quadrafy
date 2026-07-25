@@ -18,10 +18,13 @@ import { RateLimiter } from "./lib/rate-limiter.js";
 import { createAuthenticationRepository } from "./lib/authentication-repository.js";
 import {
   createId,
+  createSessionToken,
+  digestToken,
   hashPassword,
   normalizeEmail,
   verifyPassword,
 } from "./lib/security.js";
+import { createMailer } from "./lib/mailer.js";
 import {
   validateBookingUpdate,
   validateBooking,
@@ -30,6 +33,8 @@ import {
   validateLevelTest,
   validateMatchResult,
   validateLogin,
+  validateForgotPassword,
+  validateResetPassword,
   validateMatchMessage,
   validatePlayerProfile,
   validateArena,
@@ -44,6 +49,7 @@ import {
 import { computeOccupancyAnalytics } from "./services/finance-analytics.js";
 import { AuditLogStore } from "./stores/audit-log-store.js";
 import { BookingStore } from "./stores/booking-store.js";
+import { PasswordResetStore } from "./stores/password-reset-store.js";
 import { ClubStore } from "./stores/club-store.js";
 import { CourtStore } from "./stores/court-store.js";
 import { LevelTestStore } from "./stores/level-test-store.js";
@@ -292,6 +298,8 @@ export async function createApp(overrides = {}) {
   const levelHistory = new LevelHistoryStore(config.dataDirectory);
   const super8 = new Super8Store(config.dataDirectory);
   const achievements = new AchievementStore(config.dataDirectory);
+  const passwordResets = new PasswordResetStore(config.dataDirectory);
+  const mailer = overrides.mailer ?? createMailer(config);
   const supabaseEnabled = Boolean(config.supabaseUrl && config.supabaseSecretKey);
   const loginIpLimiter = new RateLimiter({
     limit: 30,
@@ -333,6 +341,16 @@ export async function createApp(overrides = {}) {
     windowMs: 60 * 60 * 1000,
     maxEntries: 50_000,
   });
+  const forgotPasswordIpLimiter = new RateLimiter({
+    limit: 20,
+    windowMs: 60 * 60 * 1000,
+    maxEntries: 10_000,
+  });
+  const forgotPasswordAccountLimiter = new RateLimiter({
+    limit: 5,
+    windowMs: 60 * 60 * 1000,
+    maxEntries: 50_000,
+  });
   await Promise.all([
     users.initialize(),
     sessions.initialize(),
@@ -346,6 +364,7 @@ export async function createApp(overrides = {}) {
     levelHistory.initialize(),
     super8.initialize(),
     achievements.initialize(),
+    passwordResets.initialize(),
   ]);
   const achievementsEngine = createAchievementsEngine({
     users,
@@ -949,6 +968,97 @@ export async function createApp(overrides = {}) {
         "Cache-Control": "no-store",
       });
       response.end();
+      return true;
+    }
+
+    if (
+      request.method === "POST" &&
+      pathname === "/api/v1/auth/forgot-password"
+    ) {
+      assertSameOrigin(request);
+      const ipKey = clientAddress(request);
+      forgotPasswordIpLimiter.consume(ipKey);
+      const input = validateForgotPassword(await readJson(request));
+      forgotPasswordAccountLimiter.consume(input.email);
+      // Resposta neutra: nunca revela se o e-mail existe (anti-enumeração).
+      const genericMessage =
+        "Se existir uma conta com este e-mail, enviamos um link para redefinir a senha.";
+      const user = users.findByEmail(input.email);
+      if (user) {
+        const token = createSessionToken();
+        const tokenHash = digestToken(token);
+        const expiresAt = new Date(
+          Date.now() + config.passwordResetTtlMs,
+        ).toISOString();
+        await passwordResets.create({
+          userId: user.id,
+          email: user.email,
+          tokenHash,
+          expiresAt,
+        });
+        const resetUrl = `${config.appBaseUrl}/reset-password.html?token=${token}`;
+        const ttlLabel = `${Math.round(config.passwordResetTtlMs / (60 * 60 * 1000))} hora(s)`;
+        try {
+          await mailer.sendPasswordReset({
+            to: user.email,
+            resetUrl,
+            name: user.profile?.name,
+            ttlLabel,
+          });
+        } catch (error) {
+          await auditLog.record({
+            actorId: user.id,
+            action: "auth.reset_email_failed",
+            resourceType: "auth",
+            resourceId: user.id,
+            after: { message: String(error.message).slice(0, 200) },
+            requestId: request.requestId,
+          });
+        }
+        await auditLog.record({
+          actorId: user.id,
+          action: "auth.reset_requested",
+          resourceType: "auth",
+          resourceId: user.id,
+          requestId: request.requestId,
+        });
+      }
+      sendData(response, 200, { message: genericMessage });
+      return true;
+    }
+
+    if (
+      request.method === "POST" &&
+      pathname === "/api/v1/auth/reset-password"
+    ) {
+      assertSameOrigin(request);
+      forgotPasswordIpLimiter.consume(clientAddress(request));
+      const input = validateResetPassword(await readJson(request));
+      const tokenHash = digestToken(input.token);
+      const entry = passwordResets.findByTokenHash(tokenHash);
+      const invalidToken =
+        !entry || entry.usedAt || Date.parse(entry.expiresAt) <= Date.now();
+      const user = entry ? users.findById(entry.userId) : null;
+      if (invalidToken || !user) {
+        throw new ApiError(
+          400,
+          "invalid_reset_token",
+          "Este link de redefinição é inválido ou expirou. Solicite um novo.",
+        );
+      }
+      await users.updatePassword(user.id, await hashPassword(input.password));
+      await passwordResets.consume(tokenHash);
+      await auditLog.record({
+        actorId: user.id,
+        action: "auth.password_reset",
+        resourceType: "auth",
+        resourceId: user.id,
+        requestId: request.requestId,
+      });
+      sendData(response, 200, {
+        message:
+          "Senha redefinida com sucesso. Você já pode entrar com a nova senha.",
+      });
       return true;
     }
 
