@@ -1965,7 +1965,7 @@
         $$("[data-super8-open-row]", activeList).forEach((row) => {
           const open = () => {
             const tournament = active.find((item) => item.id === row.dataset.super8OpenRow);
-            if (tournament) openSuper8PlayerDetail(tournament);
+            if (tournament) openSuper8PlayerDetail({ ...tournament, alreadyJoined: true });
           };
           row.addEventListener("click", open);
           row.addEventListener("keydown", (e) => {
@@ -1978,7 +1978,7 @@
         $$("[data-super8-open-row]", historyList).forEach((row) => {
           const open = () => {
             const tournament = history.find((item) => item.id === row.dataset.super8OpenRow);
-            if (tournament) openSuper8PlayerDetail(tournament);
+            if (tournament) openSuper8PlayerDetail({ ...tournament, alreadyJoined: true });
           };
           row.addEventListener("click", open);
           row.addEventListener("keydown", (e) => {
@@ -2125,7 +2125,8 @@
         <div><small>Gênero</small><strong>${escapeHTML(genderLabel)}</strong></div>
         <div><small>Categorias</small><strong>${escapeHTML(categoriesLabel)}</strong></div>
       </div>
-      <div class="super8-section"><p class="micro-label">Jogadores confirmados (${tournament.players.length}/${tournament.size})</p>${rosterHTML}</div>`;
+      <div class="super8-section"><p class="micro-label">Jogadores confirmados (${tournament.players.length}/${tournament.size})</p>${rosterHTML}</div>
+      ${super8StandingsTable(tournament)}`;
 
     // Wire "Ser parceiro" buttons that may be in the roster
     $$("[data-pair-with]", $("[data-super8-player-detail-content]")).forEach(
@@ -2144,6 +2145,7 @@
     const area = $("[data-super8-player-detail-join-area]");
     if (!area) return;
     area.innerHTML = "";
+    if (tournament.status === "finalizado" || tournament.status === "cancelado") return;
 
     if (tournament.mode !== "duplas_fixas") {
       // Rotação
