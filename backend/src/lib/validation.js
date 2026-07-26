@@ -741,8 +741,48 @@ export function validateCourt(body) {
     );
   }
 
+  // Faixas de horário com duração específica (opcional). Quando presentes,
+  // controlam as durações por período do dia; slotDurations é derivado delas.
+  let durationWindows = [];
+  if (Array.isArray(body.durationWindows) && body.durationWindows.length > 0) {
+    durationWindows = body.durationWindows.map((w, i) => {
+      const from = String(w?.from ?? "");
+      const to = String(w?.to ?? "");
+      const duration = Number(w?.duration ?? 0);
+      if (!HALF_HOUR_TIME_PATTERN.test(from) || !HALF_HOUR_TIME_PATTERN.test(to)) {
+        throw new ApiError(
+          422,
+          "validation_failed",
+          `Faixa ${i + 1}: horários inválidos.`,
+          { field: "durationWindows" },
+        );
+      }
+      const fromMin = timeToMinutesValidation(from);
+      const toMin = timeToMinutesValidation(to);
+      if (toMin <= fromMin) {
+        throw new ApiError(
+          422,
+          "validation_failed",
+          `Faixa ${i + 1}: o horário de fim deve ser depois do início.`,
+          { field: "durationWindows" },
+        );
+      }
+      if (![60, 90].includes(duration)) {
+        throw new ApiError(
+          422,
+          "validation_failed",
+          `Faixa ${i + 1}: duração deve ser 60 ou 90 minutos.`,
+          { field: "durationWindows" },
+        );
+      }
+      return { from, to, duration };
+    });
+  }
+
   let slotDurations;
-  if (Array.isArray(body.slotDurations)) {
+  if (durationWindows.length > 0) {
+    slotDurations = [...new Set(durationWindows.map((w) => w.duration))];
+  } else if (Array.isArray(body.slotDurations)) {
     slotDurations = body.slotDurations.map(Number);
   } else {
     const single = Number(body.slotDuration ?? body.slotDurationMinutes ?? 90);
@@ -786,6 +826,7 @@ export function validateCourt(body) {
     closeTime,
     slotDurations,
     slotDuration,
+    durationWindows,
     photoUrl: optionalImageUrl(body.photoUrl, "photoUrl", "courts") ?? "",
     // TASK-51: quadra pode pertencer a uma arena adicional do clube
     // (ausente = arena principal).

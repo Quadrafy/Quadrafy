@@ -36,6 +36,9 @@ export class CourtStore {
         const blockedWindows = Array.isArray(court.blockedWindows)
           ? court.blockedWindows
           : [];
+        const durationWindows = Array.isArray(court.durationWindows)
+          ? court.durationWindows
+          : [];
         // TASK-99 — quadras não distinguem mais coberta/descoberta.
         const { type, ...rest } = court;
         return {
@@ -49,6 +52,7 @@ export class CourtStore {
           slotDurationMinutes: slotDuration,
           blockedSlots,
           blockedWindows,
+          durationWindows,
         };
       });
     } catch (error) {
@@ -80,6 +84,7 @@ export class CourtStore {
     closeTime,
     slotDuration,
     slotDurations,
+    durationWindows = [],
     photoUrl = "",
     arenaId = null,
     blockedWindows = [],
@@ -100,6 +105,7 @@ export class CourtStore {
         closeTime,
         slotDurations: resolvedDurations,
         slotDuration: minDuration,
+        durationWindows: Array.isArray(durationWindows) ? durationWindows : [],
         photoUrl,
         blockedSlots: [],
         blockedWindows,
@@ -145,6 +151,9 @@ export class CourtStore {
       Object.assign(court, update, {
         slotDurations: resolvedDurations,
         slotDuration: minDuration,
+        durationWindows: Array.isArray(update.durationWindows)
+          ? update.durationWindows
+          : court.durationWindows ?? [],
         opensAt: update.openTime,
         closesAt: update.closeTime,
         slotDurationMinutes: minDuration,

@@ -531,6 +531,7 @@ export async function createApp(overrides = {}) {
       closesAt: court.closeTime ?? court.closesAt,
       slotDurationMinutes: minDuration,
       blockedWindows: court.blockedWindows ?? [],
+      durationWindows: court.durationWindows ?? [],
       photoUrl: court.photoUrl ?? "",
     };
   }
@@ -657,29 +658,62 @@ export async function createApp(overrides = {}) {
   function slotTimesFor(court) {
     const openTime = court.openTime ?? court.opensAt;
     const closeTime = court.closeTime ?? court.closesAt;
+    const opensAt = minutesFromTime(openTime);
+    const closesAtRaw = minutesFromTime(closeTime);
+    const closesAt = closesAtRaw <= opensAt ? closesAtRaw + 24 * 60 : closesAtRaw;
+    const blockedWindows = court.blockedWindows ?? [];
+
+    const isBlockedAt = (minute) =>
+      blockedWindows.some((w) => {
+        const from = minutesFromTime(w.from);
+        const to = minutesFromTime(w.to);
+        return minute >= from && minute < to;
+      });
+
+    // Faixas de horário com duração específica por período do dia.
+    if ((court.durationWindows ?? []).length > 0) {
+      const slots = [];
+      for (const win of court.durationWindows) {
+        const winFrom = minutesFromTime(win.from);
+        const winTo = minutesFromTime(win.to);
+        const dur = Number(win.duration);
+        // Intersecta a janela com os horários da quadra.
+        const start = Math.max(winFrom, opensAt);
+        const end = Math.min(winTo, closesAt);
+        for (let minute = start; minute + dur <= end; minute += dur) {
+          if (!isBlockedAt(minute)) {
+            const dayOffset = minute >= 24 * 60 ? 1 : 0;
+            slots.push({
+              time: timeFromMinutes(minute % (24 * 60)),
+              dayOffset,
+              _duration: dur,
+            });
+          }
+        }
+      }
+      return slots.sort((a, b) => {
+        const aAbs = a.dayOffset * 24 * 60 + minutesFromTime(a.time);
+        const bAbs = b.dayOffset * 24 * 60 + minutesFromTime(b.time);
+        return aAbs - bAbs;
+      });
+    }
+
+    // Caminho legado: slotDurations global.
     const slotDurations = Array.isArray(court.slotDurations)
       ? court.slotDurations
       : [court.slotDuration ?? court.slotDurationMinutes ?? 90];
     const minDuration = Math.min(...slotDurations);
     const step = slotDurations.length > 1 ? 30 : minDuration;
-    const opensAt = minutesFromTime(openTime);
-    const closesAtRaw = minutesFromTime(closeTime);
-    const closesAt = closesAtRaw <= opensAt ? closesAtRaw + 24 * 60 : closesAtRaw;
-    const blockedWindows = court.blockedWindows ?? [];
     const slots = [];
     for (
       let minute = opensAt;
       minute + minDuration <= closesAt;
       minute += step
     ) {
-      const inWindow = blockedWindows.some((w) => {
-        const from = minutesFromTime(w.from);
-        const to = minutesFromTime(w.to);
-        return minute >= from && minute < to;
-      });
-      if (inWindow) continue;
-      const dayOffset = minute >= 24 * 60 ? 1 : 0;
-      slots.push({ time: timeFromMinutes(minute % (24 * 60)), dayOffset });
+      if (!isBlockedAt(minute)) {
+        const dayOffset = minute >= 24 * 60 ? 1 : 0;
+        slots.push({ time: timeFromMinutes(minute % (24 * 60)), dayOffset });
+      }
     }
     return slots;
   }
@@ -718,13 +752,29 @@ export async function createApp(overrides = {}) {
         : [court.slotDuration ?? court.slotDurationMinutes ?? 90];
       const minDuration = Math.min(...slotDurations);
       const multiDuration = slotDurations.length > 1;
+      const hasDurationWindows = (court.durationWindows ?? []).length > 0;
       const blockedStarts = new Set(court.blockedSlots ?? []);
       const courtBookings = dateBookings.filter((b) => b.courtId === court.id);
-      const slots = slotTimesFor(court).map(({ time, dayOffset }) => {
+      const slots = slotTimesFor(court).map(({ time, dayOffset, _duration }) => {
         const startAt = new Date(
           `${shiftDateKey(date, dayOffset)}T${time}:00-03:00`,
         ).toISOString();
         const blocked = blockedStarts.has(startAt);
+        if (hasDurationWindows) {
+          // Cada slot tem duração fixada pela sua faixa de horário.
+          const dur = _duration;
+          const startMs = Date.parse(startAt);
+          const endMs = startMs + dur * 60000;
+          const available =
+            !blocked &&
+            !courtBookings.some((b) => {
+              const bStart = Date.parse(b.startAt);
+              const bEnd =
+                bStart + (b.durationMinutes ?? dur) * 60000;
+              return startMs < bEnd && endMs > bStart;
+            });
+          return { startAt, time, blocked, available, availableDurations: [dur] };
+        }
         if (!multiDuration) {
           return {
             startAt,
@@ -768,6 +818,7 @@ export async function createApp(overrides = {}) {
         courtName: court.name,
         slotDurations,
         slotDurationMinutes: minDuration,
+        durationWindows: court.durationWindows ?? [],
         slots,
       };
     });
@@ -815,6 +866,7 @@ export async function createApp(overrides = {}) {
           active,
           slotDurations: courtSlotDurations,
           slotDurationMinutes: Math.min(...courtSlotDurations),
+          durationWindows: court.durationWindows ?? [],
           slots,
         };
       }),

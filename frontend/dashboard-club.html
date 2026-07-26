@@ -617,17 +617,18 @@
             <select name="closeTime" data-court-close-time required></select>
           </label>
         </div>
-        <div class="input-group">
-          <span>Durações disponíveis</span>
-          <div class="checkbox-group">
-            <label class="checkbox-option">
-              <input type="checkbox" name="slotDurations" value="60" />
-              <span>1 hora</span>
-            </label>
-            <label class="checkbox-option">
-              <input type="checkbox" name="slotDurations" value="90" />
-              <span>1 hora e 30 min</span>
-            </label>
+        <div class="input-group" data-duration-windows-section>
+          <span>Faixas de horário <small>(duração diferente por período do dia)</small></span>
+          <div data-duration-windows-list></div>
+          <div class="blocked-window-add-row">
+            <select data-dw-from data-half-hour-select></select>
+            <span class="result-set-x" aria-hidden="true">até</span>
+            <select data-dw-to data-half-hour-select></select>
+            <select data-dw-duration>
+              <option value="60">1 hora</option>
+              <option value="90">1h 30 min</option>
+            </select>
+            <button class="button button-outline button-small" type="button" data-dw-add>+ Adicionar</button>
           </div>
         </div>
         <div class="input-group" data-blocked-windows-section>
@@ -637,7 +638,7 @@
             <select data-blocked-window-from data-half-hour-select></select>
             <span class="result-set-x" aria-hidden="true">até</span>
             <select data-blocked-window-to data-half-hour-select></select>
-            <button class="button button-outline button-small" type="button" data-blocked-window-add>+ Adicionar</button>
+            <button class="button button-outline button-small hidden" type="button" data-blocked-window-add>Confirmar</button>
           </div>
         </div>
         <p

@@ -32,6 +32,7 @@
     schedulePeriod: "day",
     schedule: null,
     editingCourtId: null,
+    editingDurationWindows: [],
     editingBlockedWindows: [],
     clubPreviewObjectUrl: null,
     clubCroppedFile: null,
@@ -69,6 +70,11 @@
   }
 
   function courtSlotDurations(court) {
+    if (Array.isArray(court.durationWindows) && court.durationWindows.length) {
+      return [...new Set(court.durationWindows.map((w) => Number(w.duration)))].sort(
+        (a, b) => a - b,
+      );
+    }
     return Array.isArray(court.slotDurations) && court.slotDurations.length
       ? court.slotDurations.map(Number).sort((a, b) => a - b)
       : [Number(court.slotDuration || court.slotDurationMinutes || 90)];
@@ -1436,6 +1442,31 @@
     }).join("");
   }
 
+  function durationLabel(minutes) {
+    return minutes === 60 ? "1 hora" : minutes === 90 ? "1h 30 min" : `${minutes} min`;
+  }
+
+  function renderDurationWindowsList() {
+    const list = $("[data-duration-windows-list]");
+    if (!list) return;
+    if (!state.editingDurationWindows.length) {
+      list.innerHTML = "";
+      return;
+    }
+    list.innerHTML = state.editingDurationWindows
+      .map(
+        (w, i) =>
+          `<div class="blocked-window-item"><span>${escapeHTML(w.from)} – ${escapeHTML(w.to)}: <strong>${escapeHTML(durationLabel(w.duration))}</strong></span><button class="blocked-window-item-remove" type="button" aria-label="Remover" data-remove-dw="${i}">×</button></div>`,
+      )
+      .join("");
+    list.querySelectorAll("[data-remove-dw]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.editingDurationWindows.splice(Number(btn.dataset.removeDw), 1);
+        renderDurationWindowsList();
+      });
+    });
+  }
+
   function renderBlockedWindowsList() {
     const list = $("[data-blocked-windows-list]");
     if (!list) return;
@@ -1473,14 +1504,25 @@
     form.elements.price.value = court?.price ?? "";
     form.elements.openTime.value = court ? courtOpenTime(court) : "06:00";
     form.elements.closeTime.value = court ? courtCloseTime(court) : "23:00";
-    const activeDurations = court ? courtSlotDurations(court) : [60];
-    form.querySelectorAll('[name="slotDurations"]').forEach((cb) => {
-      cb.checked = activeDurations.includes(Number(cb.value));
-    });
+    // Duration windows: se a quadra não tem nenhuma, derivamos uma do slotDuration
+    // para que o formulário nunca fique vazio.
+    if (Array.isArray(court?.durationWindows) && court.durationWindows.length) {
+      state.editingDurationWindows = [...court.durationWindows];
+    } else if (court) {
+      const dur = courtSlotDuration(court);
+      state.editingDurationWindows = [
+        { from: courtOpenTime(court), to: courtCloseTime(court), duration: dur },
+      ];
+    } else {
+      state.editingDurationWindows = [];
+    }
+    renderDurationWindowsList();
     state.editingBlockedWindows = Array.isArray(court?.blockedWindows)
       ? [...court.blockedWindows]
       : [];
     renderBlockedWindowsList();
+    // Oculta o botão "Confirmar" do bloqueio até o usuário escolher os horários.
+    $("[data-blocked-window-add]")?.classList.add("hidden");
     $("[data-court-eyebrow]").textContent = court
       ? "Editar quadra"
       : "Nova quadra";
@@ -1539,13 +1581,10 @@
     const button = $("[data-court-submit]", form);
     const formData = new FormData(form);
     const values = Object.fromEntries(formData.entries());
-    const slotDurations = Array.from(
-      form.querySelectorAll('[name="slotDurations"]:checked'),
-    ).map((cb) => Number(cb.value));
-    if (!slotDurations.length) {
+    if (!state.editingDurationWindows.length) {
       showFormFeedback(
         "[data-court-feedback]",
-        "Selecione ao menos uma duração de horário.",
+        "Adicione ao menos uma faixa de horário com duração.",
       );
       return;
     }
@@ -1554,7 +1593,7 @@
       price: Number(values.price),
       openTime: values.openTime,
       closeTime: values.closeTime,
-      slotDurations,
+      durationWindows: state.editingDurationWindows,
       // TASK-51: vazio = arena principal
       arenaId: values.arenaId || "",
     };
@@ -1567,7 +1606,9 @@
       closesAtMinutes <= opensAtMinutes
         ? closesAtMinutes + 24 * 60
         : closesAtMinutes;
-    const minDuration = Math.min(...slotDurations);
+    const minDuration = Math.min(
+      ...state.editingDurationWindows.map((w) => w.duration),
+    );
     if (closesAtMinutesNextDay - opensAtMinutes < minDuration) {
       showFormFeedback(
         "[data-court-feedback]",
@@ -1677,8 +1718,21 @@
   function setupCourtModal() {
     populateHalfHourSelect($("[data-court-open-time]"), "06:00");
     populateHalfHourSelect($("[data-court-close-time]"), "23:00");
+    // Selects de faixa de duração
+    populateHalfHourSelect($("[data-dw-from]"), "06:00");
+    populateHalfHourSelect($("[data-dw-to]"), "18:00");
+    // Selects de bloqueio recorrente
     populateHalfHourSelect($("[data-blocked-window-from]"), "08:00");
     populateHalfHourSelect($("[data-blocked-window-to]"), "09:00");
+
+    // Botão "Confirmar" do bloqueio aparece quando ambos os selects são alterados
+    const bwConfirmBtn = $("[data-blocked-window-add]");
+    const showBwConfirm = () => {
+      bwConfirmBtn?.classList.remove("hidden");
+    };
+    $("[data-blocked-window-from]")?.addEventListener("change", showBwConfirm);
+    $("[data-blocked-window-to]")?.addEventListener("change", showBwConfirm);
+
     $("[data-blocked-window-add]")?.addEventListener("click", () => {
       const from = $("[data-blocked-window-from]")?.value;
       const to = $("[data-blocked-window-to]")?.value;
@@ -1690,6 +1744,21 @@
       state.editingBlockedWindows.push({ from, to });
       renderBlockedWindowsList();
     });
+
+    // Botão de adicionar faixa de duração
+    $("[data-dw-add]")?.addEventListener("click", () => {
+      const from = $("[data-dw-from]")?.value;
+      const to = $("[data-dw-to]")?.value;
+      const duration = Number($("[data-dw-duration]")?.value ?? 60);
+      if (!from || !to || from >= to) {
+        showToast("O horário de início deve ser anterior ao de fim.");
+        return;
+      }
+      if (state.editingDurationWindows.some((w) => w.from === from && w.to === to)) return;
+      state.editingDurationWindows.push({ from, to, duration });
+      renderDurationWindowsList();
+    });
+
     $("[data-add-court]")?.addEventListener("click", openCourtCreator);
     $("[data-court-form]")?.addEventListener("submit", saveCourt);
     $("[data-court-delete-open]")?.addEventListener(

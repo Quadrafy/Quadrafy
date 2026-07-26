@@ -4835,14 +4835,17 @@ button.match-player-row:focus-visible strong {
 }
 .blocked-window-add-row select {
   flex: 1;
-  min-width: 80px;
+  min-width: 75px;
   min-height: 38px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  padding: 0 10px;
+  padding: 0 8px;
   background: rgba(255, 255, 255, 0.62);
   color: var(--ink);
   font-size: 13px;
+}
+[data-duration-windows-section] .blocked-window-add-row select[data-dw-duration] {
+  flex: 1.2;
 }
 .blocked-window-item {
   display: flex;
