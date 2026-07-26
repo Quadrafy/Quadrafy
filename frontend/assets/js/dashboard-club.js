@@ -754,11 +754,39 @@
     const rosterPanel = ["em_configuracao", "inscricoes_abertas"].includes(
       tournament.status,
     )
-      ? `<div class="super8-section"><p class="micro-label">Jogadores (${tournament.players.length}/${tournament.size})</p>${
-          tournament.players.length
-            ? `<div class="super8-player-chips">${tournament.players.map((player) => `<span class="super8-chip">${escapeHTML(player.name)}${player.id ? "" : ' <em title="Convidado sem conta">convidado</em>'}</span>`).join("")}</div>`
-            : '<p class="profile-data-note">Nenhum jogador ainda.</p>'
-        }</div>`
+      ? (() => {
+          const isDuplasWithPairs =
+            tournament.mode === "duplas_fixas" &&
+            Array.isArray(tournament.pairs) &&
+            tournament.pairs.length > 0;
+          let playersHTML = '<p class="profile-data-note">Nenhum jogador ainda.</p>';
+          if (tournament.players.length) {
+            if (isDuplasWithPairs) {
+              const pairedIdx = new Set(tournament.pairs.flat());
+              const rows = tournament.pairs
+                .map(([a, b]) => {
+                  const pa = tournament.players[a];
+                  const pb = tournament.players[b];
+                  if (!pa || !pb) return "";
+                  const chip = (p) =>
+                    `<span class="super8-chip">${escapeHTML(p.name)}${p.id ? "" : ' <em>convidado</em>'}</span>`;
+                  return `<div class="super8-pair-row-display">${chip(pa)}<span class="super8-pair-plus" aria-hidden="true">+</span>${chip(pb)}</div>`;
+                })
+                .join("");
+              const unpaired = tournament.players
+                .filter((_, i) => !pairedIdx.has(i))
+                .map(
+                  (p) =>
+                    `<span class="super8-chip">${escapeHTML(p.name)}${p.id ? "" : ' <em>convidado</em>'}</span>`,
+                )
+                .join("");
+              playersHTML = rows + (unpaired ? `<p class="micro-label" style="margin-top:8px">Sem dupla</p>${unpaired}` : "");
+            } else {
+              playersHTML = `<div class="super8-player-chips">${tournament.players.map((player) => `<span class="super8-chip">${escapeHTML(player.name)}${player.id ? "" : ' <em title="Convidado sem conta">convidado</em>'}</span>`).join("")}</div>`;
+            }
+          }
+          return `<div class="super8-section"><p class="micro-label">Jogadores (${tournament.players.length}/${tournament.size})</p>${playersHTML}</div>`;
+        })()
       : "";
     const pairsPanel = needsPairs
       ? `<div class="super8-section"><p class="micro-label">Definir duplas</p><p class="profile-data-note">O quadro completou — defina as duplas fixas antes de gerar os confrontos.</p><div class="super8-pairs" data-super8-detail-pairs></div><div class="super8-pairs-actions"><button class="button button-outline" type="button" data-super8-detail-shuffle>Sortear duplas</button><button class="button button-primary shine" type="button" data-super8-detail-pairs-save>Salvar duplas e gerar confrontos</button></div><p class="auth-feedback hidden" role="alert" aria-live="polite" data-super8-detail-pairs-note></p></div>`
@@ -1120,6 +1148,63 @@
           )
           .join("")
       : '<p class="profile-data-note">Nenhum jogador adicionado ainda.</p>';
+    renderSuper8EditPairs();
+  }
+
+  function renderSuper8EditPairs() {
+    const tournament = super8State.current;
+    const area = $("[data-super8-edit-pairs-area]");
+    if (!area) return;
+    const players = tournament?.players ?? [];
+    const isDuplas = tournament?.mode === "duplas_fixas";
+    const canPair = isDuplas && players.length >= 2 && players.length % 2 === 0;
+    area.classList.toggle("hidden", !canPair);
+    if (!canPair) return;
+    const existingPairs = Array.isArray(tournament.pairs) ? tournament.pairs : [];
+    const prevValues = $$("[data-super8-edit-pair-slot]", area).map((s) => Number(s.value));
+    const pairCount = players.length / 2;
+    const options = (selected) =>
+      players
+        .map(
+          (p, i) =>
+            `<option value="${i}"${i === selected ? " selected" : ""}>${escapeHTML(p.name)}</option>`,
+        )
+        .join("");
+    const rows = Array.from({ length: pairCount }, (_, pi) => {
+      const defA = existingPairs[pi]?.[0] ?? pi * 2;
+      const defB = existingPairs[pi]?.[1] ?? pi * 2 + 1;
+      const prevA = prevValues[pi * 2];
+      const prevB = prevValues[pi * 2 + 1];
+      const selA = prevA !== undefined && prevA < players.length ? prevA : defA;
+      const selB = prevB !== undefined && prevB < players.length ? prevB : defB;
+      return `<div class="super8-pair-row"><span class="result-set-label">Dupla ${pi + 1}</span><select data-super8-edit-pair-slot>${options(selA)}</select><span class="result-set-x" aria-hidden="true">+</span><select data-super8-edit-pair-slot>${options(selB)}</select></div>`;
+    }).join("");
+    area.querySelector("[data-super8-edit-pairs]").innerHTML = rows;
+  }
+
+  async function saveSuper8EditPairs() {
+    const tournament = super8State.current;
+    if (!tournament) return;
+    const slots = $$("[data-super8-edit-pair-slot]");
+    const values = slots.map((s) => Number(s.value));
+    if (new Set(values).size !== values.length) {
+      showToast("Cada jogador deve aparecer em exatamente uma dupla.");
+      return;
+    }
+    const pairs = [];
+    for (let i = 0; i < values.length; i += 2) pairs.push([values[i], values[i + 1]]);
+    try {
+      const { tournament: updated } = await apiRequest(
+        `/api/v1/club/super8/${encodeURIComponent(tournament.id)}/pairs`,
+        { method: "PATCH", body: { pairs } },
+      );
+      super8State.current = updated;
+      const idx = super8State.tournaments.findIndex((t) => t.id === updated.id);
+      if (idx >= 0) super8State.tournaments[idx] = updated;
+      showToast("Duplas salvas.");
+    } catch (error) {
+      showToast(error.message);
+    }
   }
 
   async function addSuper8EditPlayer(player) {
@@ -1238,6 +1323,17 @@
     $("[data-super8-edit-search]").value = "";
     $("[data-super8-edit-guest-name]").value = "";
     renderSuper8EditPlayers();
+    $("[data-super8-edit-pairs-save]")?.addEventListener("click", saveSuper8EditPairs);
+    $("[data-super8-edit-shuffle-pairs]")?.addEventListener("click", () => {
+      const players = super8State.current?.players ?? [];
+      const usable = players.length % 2 === 0 ? players.length : players.length - 1;
+      const idxs = Array.from({ length: usable }, (_, i) => i);
+      for (let i = idxs.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [idxs[i], idxs[j]] = [idxs[j], idxs[i]];
+      }
+      $$("[data-super8-edit-pair-slot]").forEach((sel, pos) => { sel.value = String(idxs[pos]); });
+    });
     openModal($("[data-super8-edit-modal]"));
   }
 

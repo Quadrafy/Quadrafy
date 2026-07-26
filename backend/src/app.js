@@ -3345,15 +3345,16 @@ export async function createApp(overrides = {}) {
           "As duplas só podem ser definidas antes de gerar a tabela.",
         );
       }
-      if (current.players.length !== current.size) {
+      const playerCount = current.players.length;
+      if (playerCount < 2 || playerCount % 2 !== 0) {
         throw new ApiError(
           409,
           "super8_roster_incomplete",
-          `O torneio precisa de ${current.size} jogadores para definir as duplas (faltam ${current.size - current.players.length}).`,
+          `São necessários ao menos 2 jogadores (número par) para definir as duplas.`,
         );
       }
       const body = await readJson(request);
-      const pairs = validateSuper8Pairs(body?.pairs, current.size);
+      const pairs = validateSuper8Pairs(body?.pairs, playerCount);
       const tournament = await super8.update(tournamentId, club.id, {
         pairs,
       });

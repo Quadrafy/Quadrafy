@@ -2036,7 +2036,27 @@
       Object.prototype.hasOwnProperty.call(p, "partnerId"),
     );
     if (!useTracking) {
-      // Legacy mode: plain list
+      if (Array.isArray(tournament.pairs) && tournament.pairs.length) {
+        const pairedIdx = new Set(tournament.pairs.flat());
+        const completePairs = tournament.pairs.map(([a, b]) => [players[a], players[b]].filter(Boolean));
+        const unpaired = players.filter((_, i) => !pairedIdx.has(i));
+        let html = "";
+        if (completePairs.length) {
+          html += `<p class="micro-label">Duplas formadas (${completePairs.length})</p>`;
+          html += completePairs
+            .map(([a, b]) =>
+              b
+                ? `<div class="super8-pair-slot">${super8RosterRow(a)}<span class="super8-pair-plus" aria-hidden="true">+</span>${super8RosterRow(b)}</div>`
+                : super8RosterRow(a),
+            )
+            .join("");
+        }
+        if (unpaired.length) {
+          html += `<p class="micro-label" style="margin-top:14px">Sem dupla definida (${unpaired.length})</p>`;
+          html += unpaired.map(super8RosterRow).join("");
+        }
+        return html || '<p class="profile-data-note">Nenhum jogador confirmado ainda.</p>';
+      }
       return players.length
         ? players.map(super8RosterRow).join("")
         : '<p class="profile-data-note">Nenhum jogador confirmado ainda.</p>';
@@ -2120,7 +2140,7 @@
       <p class="super8-start-time">${escapeHTML(tournament.clubName)}${tournament.clubAddress ? ` · ${escapeHTML(tournament.clubAddress)}` : ""}</p>
       <div class="super8-datetime-highlight"><div><small>Data</small><strong>${dateLabel}</strong></div><div><small>Horário de início</small><strong>${tournament.startTime ? escapeHTML(tournament.startTime) : "A definir"}</strong></div></div>
       <div class="match-detail super8-meta">
-        <div><small>Vagas</small><strong>${tournament.enrolled}/${tournament.size}</strong></div>
+        <div><small>Vagas</small><strong>${tournament.enrolled ?? tournament.players?.length ?? 0}/${tournament.size}</strong></div>
         <div><small>Modalidade</small><strong>${escapeHTML(modeLabel)}</strong></div>
         <div><small>Gênero</small><strong>${escapeHTML(genderLabel)}</strong></div>
         <div><small>Categorias</small><strong>${escapeHTML(categoriesLabel)}</strong></div>
