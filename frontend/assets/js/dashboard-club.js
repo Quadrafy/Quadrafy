@@ -511,7 +511,11 @@
     }
     if (playerCount < size) {
       const remaining = size - playerCount;
-      html += `<p class="profile-data-note">Faltam ${remaining} jogador${remaining !== 1 ? "es" : ""} — as duplas restantes serão definidas depois.</p>`;
+      if (playerCount % 2 === 0) {
+        html += `<p class="profile-data-note">Faltam ${remaining} jogador${remaining !== 1 ? "es" : ""}. As duplas acima serão salvas agora; as restantes serão definidas depois.</p>`;
+      } else {
+        html += `<p class="profile-data-note">Faltam ${remaining} jogador${remaining !== 1 ? "es" : ""} — as duplas restantes serão definidas depois.</p>`;
+      }
     }
     container.innerHTML = html;
   }
@@ -586,6 +590,7 @@
     // em aberto, parcial (misturando manual + inscrição espontânea depois)
     // ou completo, em qualquer modalidade.
     const isFull = super8State.players.length === size;
+    const playerCount = super8State.players.length;
     const courtIds = $$('[data-super8-courts] input:checked', form).map(
       (input) => input.value,
     );
@@ -594,7 +599,7 @@
       return;
     }
     let pairs = null;
-    if (isFixed && isFull) {
+    if (isFixed && playerCount >= 2 && playerCount % 2 === 0) {
       try {
         pairs = readSuper8Pairs();
       } catch (error) {

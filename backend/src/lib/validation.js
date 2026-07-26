@@ -296,13 +296,17 @@ export function validateSuper8(body) {
     startTime = raw;
   }
   assertSuper8FutureDateTime(date, startTime);
-  // TASK-74: as duplas só são exigidas já na criação quando o quadro
-  // completo (as `size` vagas) já está definido; com vagas em aberto, as
-  // duplas são definidas depois, quando o quadro completar (ver
-  // validateSuper8Pairs / PATCH .../pairs).
+  // Duplas podem ser definidas na criação sempre que o clube já adicionou
+  // um número par de jogadores (≥ 2). Se o quadro não está completo, as
+  // duplas cobrirão apenas os jogadores presentes; as demais serão definidas
+  // depois via PATCH .../pairs quando o quadro completar.
+  const canDefinePairs =
+    mode === "duplas_fixas" &&
+    players.length >= 2 &&
+    players.length % 2 === 0;
   const pairs =
-    mode === "duplas_fixas" && players.length === size
-      ? validateSuper8Pairs(body?.pairs, size)
+    canDefinePairs && body?.pairs != null
+      ? validateSuper8Pairs(body.pairs, players.length)
       : null;
   let genderCategory = "all";
   if (body?.genderCategory !== undefined && body?.genderCategory !== null) {
