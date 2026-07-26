@@ -383,7 +383,6 @@ test("booking detail is always open with three fixed spots, protects non-partici
     assert.equal(detail.clubId, clubAccount.club.id);
     assert.equal(detail.courtId, court.id);
     assert.equal(detail.startAt, startAt);
-    assert.equal(detail.referencePrice, 160);
     assert.equal(detail.status, "confirmed");
     assert.equal(detail.maxPlayers, 4);
     assert.equal(detail.openSpots, 3);

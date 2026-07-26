@@ -304,13 +304,6 @@
     let clubs = state.clubs.filter((club) =>
       club.name.toLowerCase().includes(query),
     );
-    if (sort === "price") {
-      clubs.sort(
-        (a, b) =>
-          (a.minimumPrice ?? Number.MAX_SAFE_INTEGER) -
-          (b.minimumPrice ?? Number.MAX_SAFE_INTEGER),
-      );
-    }
     const grid = $("[data-club-grid]");
     grid.innerHTML = clubs.length
       ? clubs.map(clubCard).join("")
@@ -551,7 +544,6 @@
           startAt: button.dataset.slotStart,
           courtId: court.id,
           courtName: court.name,
-          price: court.price,
           slotDuration: Number(button.dataset.slotDuration) || courtSlotDuration(court),
         };
         renderSlots();
@@ -676,13 +668,10 @@
     $("[data-summary-date]").textContent = dateLabel;
     $("[data-summary-time]").textContent = timeLabel;
     $("[data-summary-court]").textContent = selected.courtName;
-    const priceEl = $("[data-summary-price]");
-    if (priceEl) priceEl.textContent = formatCurrency(selected.price);
     $("[data-modal-club]").textContent = state.selectedClub.club.name;
     $("[data-modal-court]").textContent = selected.courtName;
     $("[data-modal-date]").textContent = dateLabel;
     $("[data-modal-time]").textContent = timeLabel;
-    $("[data-modal-price]").textContent = formatCurrency(selected.price);
     openModal($("[data-slot-selection-modal]"));
   }
 
@@ -1267,7 +1256,6 @@
     $("[data-booking-detail-summary]").innerHTML = `
       <div><small>Quadra</small><strong>${escapeHTML(booking.courtName)}</strong></div>
       <div><small>Data e hora</small><strong>${escapeHTML(formatDate(booking.startAt, { day: "2-digit", month: "long", hour: "2-digit", minute: "2-digit" }))}</strong></div>
-      <div><small>Preço de referência</small><strong>${escapeHTML(formatCurrency(booking.referencePrice))}</strong></div>
       <div><small>Status</small><strong>${escapeHTML(bookingStatusLabel(booking.status))}</strong></div>`;
 
     setLevelCategories(

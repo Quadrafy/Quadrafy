@@ -565,7 +565,6 @@ export async function createApp(overrides = {}) {
       id: court.id,
       clubId: court.clubId,
       name: court.name,
-      price: court.price,
       active: court.active,
       openTime: court.openTime ?? court.opensAt,
       closeTime: court.closeTime ?? court.closesAt,
@@ -583,7 +582,6 @@ export async function createApp(overrides = {}) {
 
   function clubView(club, { includeCourts = false } = {}) {
     const activeCourts = courts.listActiveByClub(club.id);
-    const prices = activeCourts.map((court) => court.price);
     const view = {
       id: club.id,
       name: club.name,
@@ -593,7 +591,6 @@ export async function createApp(overrides = {}) {
       photoUrl: club.photoUrl ?? "",
       status: club.status,
       courtCount: activeCourts.length,
-      minimumPrice: prices.length ? Math.min(...prices) : null,
       businessHours: club.businessHours ?? null,
     };
     if (includeCourts) view.courts = activeCourts.map(courtView);
@@ -613,9 +610,6 @@ export async function createApp(overrides = {}) {
       courtId: booking.courtId,
       courtName: court?.name ?? "Quadra indisponível",
       startAt: booking.startAt,
-      // TASK-78 — preço da quadra fica só como referência (o Padelfy não
-      // cobra nem processa pagamento da reserva feita por fora).
-      referencePrice: court?.price ?? null,
       levelCategories: booking.levelCategories ?? null,
       maxPlayers: booking.maxPlayers,
       genderCategory: booking.genderCategory ?? "all",

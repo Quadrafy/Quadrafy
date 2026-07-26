@@ -139,7 +139,6 @@ test("club edits every public court field including its uploaded photo", async (
   assert.equal(updated.id, court.id);
   assert.equal(updated.clubId, court.clubId);
   assert.equal(updated.name, "Quadra Central");
-  assert.equal(updated.price, 175);
   assert.equal(updated.openTime, "08:00");
   assert.equal(updated.closeTime, "23:00");
   assert.equal(updated.slotDuration, 90);

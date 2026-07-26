@@ -841,7 +841,6 @@ export function validateCourt(body) {
 
   return {
     name: text(body.name, "name", { max: 100 }),
-    price: number(body.price, "price", { min: 1, max: 10_000 }),
     openTime,
     closeTime,
     slotDurations,
