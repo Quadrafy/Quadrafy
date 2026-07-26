@@ -1734,7 +1734,9 @@
     $("[data-blocked-window-add]")?.addEventListener("click", () => {
       const from = $("[data-blocked-window-from]")?.value;
       const to = $("[data-blocked-window-to]")?.value;
-      if (!from || !to || from >= to) {
+      const bwFromMin = timeToMinutes(from);
+      const bwToMin = timeToMinutes(to) < bwFromMin ? timeToMinutes(to) + 24 * 60 : timeToMinutes(to);
+      if (!from || !to || bwToMin <= bwFromMin) {
         showToast("O horário de início deve ser anterior ao de fim.");
         return;
       }
@@ -1748,7 +1750,9 @@
       const from = $("[data-dw-from]")?.value;
       const to = $("[data-dw-to]")?.value;
       const duration = Number($("[data-dw-duration]")?.value ?? 60);
-      if (!from || !to || from >= to) {
+      const dwFromMin = timeToMinutes(from);
+      const dwToMin = timeToMinutes(to) < dwFromMin ? timeToMinutes(to) + 24 * 60 : timeToMinutes(to);
+      if (!from || !to || dwToMin <= dwFromMin) {
         showToast("O horário de início deve ser anterior ao de fim.");
         return;
       }

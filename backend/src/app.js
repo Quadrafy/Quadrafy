@@ -666,7 +666,8 @@ export async function createApp(overrides = {}) {
     const isBlockedAt = (minute) =>
       blockedWindows.some((w) => {
         const from = minutesFromTime(w.from);
-        const to = minutesFromTime(w.to);
+        const toRaw = minutesFromTime(w.to);
+        const to = toRaw < from ? toRaw + 24 * 60 : toRaw;
         return minute >= from && minute < to;
       });
 
@@ -675,7 +676,9 @@ export async function createApp(overrides = {}) {
       const slots = [];
       for (const win of court.durationWindows) {
         const winFrom = minutesFromTime(win.from);
-        const winTo = minutesFromTime(win.to);
+        const winToRaw = minutesFromTime(win.to);
+        // "00:00" como fim de faixa = meia-noite; também cobre travessias.
+        const winTo = winToRaw < winFrom ? winToRaw + 24 * 60 : winToRaw;
         const dur = Number(win.duration);
         // Intersecta a janela com os horários da quadra.
         const start = Math.max(winFrom, opensAt);

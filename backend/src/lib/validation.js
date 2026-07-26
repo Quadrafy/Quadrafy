@@ -758,8 +758,11 @@ export function validateCourt(body) {
         );
       }
       const fromMin = timeToMinutesValidation(from);
-      const toMin = timeToMinutesValidation(to);
-      if (toMin <= fromMin) {
+      const toMinRaw = timeToMinutesValidation(to);
+      // "00:00" como fim de faixa = meia-noite (1440 min); também cobre
+      // faixas que cruzam a meia-noite (ex.: 22:00 → 00:00).
+      const effectiveToMin = toMinRaw < fromMin ? toMinRaw + 24 * 60 : toMinRaw;
+      if (effectiveToMin <= fromMin) {
         throw new ApiError(
           422,
           "validation_failed",
@@ -860,8 +863,9 @@ export function validateBlockedWindows(windows) {
       );
     }
     const fromMin = Number(from.split(":")[0]) * 60 + Number(from.split(":")[1]);
-    const toMin = Number(to.split(":")[0]) * 60 + Number(to.split(":")[1]);
-    if (toMin <= fromMin) {
+    const toMinRaw = Number(to.split(":")[0]) * 60 + Number(to.split(":")[1]);
+    const effectiveToMin = toMinRaw < fromMin ? toMinRaw + 24 * 60 : toMinRaw;
+    if (effectiveToMin <= fromMin) {
       throw new ApiError(
         422,
         "validation_failed",
