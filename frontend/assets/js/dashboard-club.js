@@ -1514,7 +1514,8 @@
         { from: courtOpenTime(court), to: courtCloseTime(court), duration: dur },
       ];
     } else {
-      state.editingDurationWindows = [];
+      // Nova quadra: pré-preenche uma faixa padrão para facilitar o cadastro.
+      state.editingDurationWindows = [{ from: "06:00", to: "23:00", duration: 90 }];
     }
     renderDurationWindowsList();
     state.editingBlockedWindows = Array.isArray(court?.blockedWindows)
