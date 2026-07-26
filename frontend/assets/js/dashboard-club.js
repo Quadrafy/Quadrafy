@@ -1132,8 +1132,14 @@
     });
   }
 
-  // TASK-93 — jogadores adicionados aqui entram direto no torneio (uma
-  // chamada por adição); remoção continua fora do escopo (regra da TASK-90).
+  function makeEditChip(player, index, canRemove) {
+    const removeBtn = canRemove
+      ? `<button type="button" data-super8-remove-player="${index}" aria-label="Remover ${escapeHTML(player.name)}">×</button>`
+      : "";
+    return `<span class="super8-chip">${escapeHTML(player.name)}${player.id ? "" : ' <em title="Convidado sem conta">convidado</em>'}${removeBtn}</span>`;
+  }
+
+  // TASK-93 — jogadores; remoção via × em cada chip.
   function renderSuper8EditPlayers() {
     const tournament = super8State.current;
     if (!tournament) return;
@@ -1143,41 +1149,59 @@
     const players = tournament.players;
     const pairs = Array.isArray(tournament.pairs) ? tournament.pairs : [];
     const isDuplas = tournament.mode === "duplas_fixas";
+    const confirmed = isSuper8Confirmed(tournament);
+    const locked = confirmed || SUPER8_LOCKED_STATUSES.includes(tournament.status);
+    const canRemove = !locked;
     if (!players.length) {
       container.innerHTML = '<p class="profile-data-note">Nenhum jogador adicionado ainda.</p>';
     } else if (isDuplas && pairs.length) {
       const pairedIdx = new Set(pairs.flat());
-      const unpaired = players.filter((_, i) => !pairedIdx.has(i));
+      const unpaired = players
+        .map((p, i) => ({ p, i }))
+        .filter(({ i }) => !pairedIdx.has(i));
       let html = pairs
         .map(([a, b]) => {
           const pa = players[a];
           const pb = players[b];
           if (!pa) return "";
-          const chipA = `<span class="super8-chip">${escapeHTML(pa.name)}${pa.id ? "" : ' <em title="Convidado sem conta">convidado</em>'}</span>`;
-          const chipB = pb
-            ? `<span class="super8-chip">${escapeHTML(pb.name)}${pb.id ? "" : ' <em title="Convidado sem conta">convidado</em>'}</span>`
-            : "";
-          return `<div class="super8-pair-slot">${chipA}${pb ? '<span class="super8-pair-plus" aria-hidden="true">+</span>' : ""}${chipB}</div>`;
+          return `<div class="super8-chip-pair">${makeEditChip(pa, a, canRemove)}${pb ? `<span class="super8-pair-plus" aria-hidden="true">+</span>${makeEditChip(pb, b, canRemove)}` : ""}</div>`;
         })
         .join("");
       if (unpaired.length) {
-        html += unpaired
-          .map(
-            (p) =>
-              `<span class="super8-chip">${escapeHTML(p.name)}${p.id ? "" : ' <em title="Convidado sem conta">convidado</em>'}</span>`,
-          )
-          .join("");
+        html += unpaired.map(({ p, i }) => makeEditChip(p, i, canRemove)).join("");
       }
       container.innerHTML = html;
     } else {
       container.innerHTML = players
-        .map(
-          (player) =>
-            `<span class="super8-chip">${escapeHTML(player.name)}${player.id ? "" : ' <em title="Convidado sem conta">convidado</em>'}</span>`,
-        )
+        .map((player, i) => makeEditChip(player, i, canRemove))
         .join("");
     }
+    if (canRemove) {
+      $$("[data-super8-remove-player]", container).forEach((btn) => {
+        btn.addEventListener("click", () =>
+          removeSuper8EditPlayer(Number(btn.dataset.super8RemovePlayer)),
+        );
+      });
+    }
     renderSuper8EditPairs();
+  }
+
+  async function removeSuper8EditPlayer(index) {
+    const tournament = super8State.current;
+    if (!tournament) return;
+    try {
+      const { tournament: updated } = await apiRequest(
+        `/api/v1/club/super8/${encodeURIComponent(tournament.id)}/players/${index}`,
+        { method: "DELETE" },
+      );
+      super8State.current = updated;
+      const idx = super8State.tournaments.findIndex((t) => t.id === updated.id);
+      if (idx >= 0) super8State.tournaments[idx] = updated;
+      renderSuper8EditPlayers();
+      showToast("Jogador removido.");
+    } catch (error) {
+      showToast(error.message);
+    }
   }
 
   function renderSuper8EditPairs() {

@@ -3319,6 +3319,54 @@ export async function createApp(overrides = {}) {
       return true;
     }
 
+    // Remove a player from a Super 8 by index (club only, before games are generated).
+    // Pairs that reference the removed index are dropped; remaining pair indices are
+    // decremented to stay consistent with the new players array.
+    const super8RemovePlayerRoute = pathname.match(
+      /^\/api\/v1\/club\/super8\/([^/]+)\/players\/(\d+)$/,
+    );
+    if (super8RemovePlayerRoute && request.method === "DELETE") {
+      assertSameOrigin(request);
+      const user = requireUser(request, "club");
+      const club = await clubs.ensureForUser(user);
+      const tournamentId = decodeURIComponent(super8RemovePlayerRoute[1]);
+      const playerIndex = Number(super8RemovePlayerRoute[2]);
+      const current = super8.requireOwned(tournamentId, club.id);
+      if (["gerado", "em_andamento", "finalizado"].includes(current.status)) {
+        throw new ApiError(
+          409,
+          "super8_locked_after_generation",
+          "Os confrontos já foram gerados — não é possível remover jogadores.",
+        );
+      }
+      if (playerIndex < 0 || playerIndex >= current.players.length) {
+        throw new ApiError(404, "super8_player_not_found", "Jogador não encontrado.");
+      }
+      const players = current.players.filter((_, i) => i !== playerIndex);
+      let pairs = null;
+      if (Array.isArray(current.pairs) && current.pairs.length) {
+        const adjusted = current.pairs
+          .filter(([a, b]) => a !== playerIndex && b !== playerIndex)
+          .map(([a, b]) => [
+            a > playerIndex ? a - 1 : a,
+            b > playerIndex ? b - 1 : b,
+          ]);
+        pairs = adjusted.length ? adjusted : null;
+      }
+      const tournament = await super8.update(tournamentId, club.id, { players, pairs });
+      await auditLog.record({
+        actorId: user.id,
+        action: "super8.player_removed",
+        resourceType: "super8",
+        resourceId: tournamentId,
+        before: { players: current.players.length },
+        after: { players: tournament.players.length },
+        requestId: request.requestId,
+      });
+      sendData(response, 200, { tournament: super8View(tournament) });
+      return true;
+    }
+
     // TASK-74 — define (ou redefine) as duplas fixas depois que o quadro
     // completa via inscrição espontânea/preenchimento manual (quando não
     // vieram já definidas na criação).

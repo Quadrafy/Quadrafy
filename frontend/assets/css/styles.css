@@ -6852,6 +6852,17 @@ button.match-player-row:focus-visible strong {
   gap: 8px;
   margin-top: 6px;
 }
+.super8-chip-pair {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-basis: 100%;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+.super8-chip-pair:last-child {
+  border-bottom: 0;
+}
 .super8-chip {
   display: inline-flex;
   align-items: center;
