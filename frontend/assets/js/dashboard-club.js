@@ -1719,32 +1719,6 @@
     // Selects de faixa de duração
     populateHalfHourSelect($("[data-dw-from]"), "06:00");
     populateHalfHourSelect($("[data-dw-to]"), "18:00");
-    // Selects de bloqueio recorrente
-    populateHalfHourSelect($("[data-blocked-window-from]"), "08:00");
-    populateHalfHourSelect($("[data-blocked-window-to]"), "09:00");
-
-    // Botão "Confirmar" do bloqueio aparece quando ambos os selects são alterados
-    const bwConfirmBtn = $("[data-blocked-window-add]");
-    const showBwConfirm = () => {
-      bwConfirmBtn?.classList.remove("hidden");
-    };
-    $("[data-blocked-window-from]")?.addEventListener("change", showBwConfirm);
-    $("[data-blocked-window-to]")?.addEventListener("change", showBwConfirm);
-
-    $("[data-blocked-window-add]")?.addEventListener("click", () => {
-      const from = $("[data-blocked-window-from]")?.value;
-      const to = $("[data-blocked-window-to]")?.value;
-      const bwFromMin = timeToMinutes(from);
-      const bwToMin = timeToMinutes(to) < bwFromMin ? timeToMinutes(to) + 24 * 60 : timeToMinutes(to);
-      if (!from || !to || bwToMin <= bwFromMin) {
-        showToast("O horário de início deve ser anterior ao de fim.");
-        return;
-      }
-      if (state.editingBlockedWindows.some((w) => w.from === from && w.to === to)) return;
-      state.editingBlockedWindows.push({ from, to });
-      renderBlockedWindowsList();
-    });
-
     // Botão de adicionar faixa de duração
     $("[data-dw-add]")?.addEventListener("click", () => {
       const from = $("[data-dw-from]")?.value;
