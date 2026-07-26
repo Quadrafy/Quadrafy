@@ -482,7 +482,7 @@
           ...slot,
           courtId: court.courtId,
           courtName: court.courtName,
-          slotDuration: court.slotDurationMinutes,
+          slotDuration: slot.availableDurations?.[0] ?? court.slotDurationMinutes,
         })),
       )
       .filter((slot) => new Date(slot.startAt).getTime() > Date.now());
@@ -508,7 +508,7 @@
             const selected =
               state.selectedSlot?.startAt === slot.startAt &&
               state.selectedSlot?.courtId === slot.courtId;
-            return `<button class="time-slot${selected ? " selected" : ""}" type="button" data-slot-start="${slot.startAt}" data-slot-court="${escapeHTML(slot.courtId)}"><strong>${escapeHTML(slotTimeRange(slot.startAt, slot.slotDuration))}</strong><span class="slot-duration">${escapeHTML(formatDuration(slot.slotDuration))}</span><small>${escapeHTML(slot.courtName)}</small></button>`;
+            return `<button class="time-slot${selected ? " selected" : ""}" type="button" data-slot-start="${slot.startAt}" data-slot-court="${escapeHTML(slot.courtId)}" data-slot-duration="${slot.slotDuration}"><strong>${escapeHTML(slotTimeRange(slot.startAt, slot.slotDuration))}</strong><span class="slot-duration">${escapeHTML(formatDuration(slot.slotDuration))}</span><small>${escapeHTML(slot.courtName)}</small></button>`;
           })
           .join("")
       : emptyState(
@@ -525,7 +525,7 @@
           courtId: court.id,
           courtName: court.name,
           price: court.price,
-          slotDuration: courtSlotDuration(court),
+          slotDuration: Number(button.dataset.slotDuration) || courtSlotDuration(court),
         };
         renderSlots();
         updateSelection();
