@@ -2317,15 +2317,14 @@
 
   function appendLeaveButton(area, tournament, isPaired = false) {
     const wrap = document.createElement("div");
-    wrap.style.marginTop = "10px";
+    wrap.style.marginTop = "16px";
     wrap.style.display = "flex";
     wrap.style.gap = "8px";
 
     const soloBtn = document.createElement("button");
-    soloBtn.className = isPaired
-      ? "button button-ghost"
-      : "button button-ghost button-block";
+    soloBtn.className = "button button-outline";
     soloBtn.type = "button";
+    soloBtn.style.flex = "1";
     soloBtn.textContent = "Sair do torneio";
     soloBtn.onclick = () =>
       leaveSuper8(soloBtn, tournament.id, tournament.name, false);
@@ -2333,8 +2332,9 @@
 
     if (isPaired) {
       const pairBtn = document.createElement("button");
-      pairBtn.className = "button button-ghost";
+      pairBtn.className = "button button-outline";
       pairBtn.type = "button";
+      pairBtn.style.flex = "1";
       pairBtn.textContent = "Sair em dupla";
       pairBtn.onclick = () =>
         leaveSuper8(pairBtn, tournament.id, tournament.name, true);

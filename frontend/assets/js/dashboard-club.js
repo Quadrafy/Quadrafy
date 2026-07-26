@@ -1140,14 +1140,43 @@
     $("[data-super8-edit-player-count]").textContent =
       `${tournament.players.length}/${tournament.size}`;
     const container = $("[data-super8-edit-players]");
-    container.innerHTML = tournament.players.length
-      ? tournament.players
+    const players = tournament.players;
+    const pairs = Array.isArray(tournament.pairs) ? tournament.pairs : [];
+    const isDuplas = tournament.mode === "duplas_fixas";
+    if (!players.length) {
+      container.innerHTML = '<p class="profile-data-note">Nenhum jogador adicionado ainda.</p>';
+    } else if (isDuplas && pairs.length) {
+      const pairedIdx = new Set(pairs.flat());
+      const unpaired = players.filter((_, i) => !pairedIdx.has(i));
+      let html = pairs
+        .map(([a, b]) => {
+          const pa = players[a];
+          const pb = players[b];
+          if (!pa) return "";
+          const chipA = `<span class="super8-chip">${escapeHTML(pa.name)}${pa.id ? "" : ' <em title="Convidado sem conta">convidado</em>'}</span>`;
+          const chipB = pb
+            ? `<span class="super8-chip">${escapeHTML(pb.name)}${pb.id ? "" : ' <em title="Convidado sem conta">convidado</em>'}</span>`
+            : "";
+          return `<div class="super8-pair-slot">${chipA}${pb ? '<span class="super8-pair-plus" aria-hidden="true">+</span>' : ""}${chipB}</div>`;
+        })
+        .join("");
+      if (unpaired.length) {
+        html += unpaired
           .map(
-            (player) =>
-              `<span class="super8-chip">${escapeHTML(player.name)}${player.id ? "" : ' <em title="Convidado sem conta">convidado</em>'}</span>`,
+            (p) =>
+              `<span class="super8-chip">${escapeHTML(p.name)}${p.id ? "" : ' <em title="Convidado sem conta">convidado</em>'}</span>`,
           )
-          .join("")
-      : '<p class="profile-data-note">Nenhum jogador adicionado ainda.</p>';
+          .join("");
+      }
+      container.innerHTML = html;
+    } else {
+      container.innerHTML = players
+        .map(
+          (player) =>
+            `<span class="super8-chip">${escapeHTML(player.name)}${player.id ? "" : ' <em title="Convidado sem conta">convidado</em>'}</span>`,
+        )
+        .join("");
+    }
     renderSuper8EditPairs();
   }
 
@@ -1201,6 +1230,7 @@
       super8State.current = updated;
       const idx = super8State.tournaments.findIndex((t) => t.id === updated.id);
       if (idx >= 0) super8State.tournaments[idx] = updated;
+      renderSuper8EditPlayers();
       showToast("Duplas salvas.");
     } catch (error) {
       showToast(error.message);
