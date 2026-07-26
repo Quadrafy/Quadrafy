@@ -391,7 +391,7 @@
     overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
   }
 
-  function showGenericModal({ eyebrow = "Quadrafy", title, text }) {
+  function showGenericModal({ eyebrow = "Padelfy", title, text }) {
     const modal = $("[data-generic-modal]");
     const content = $("[data-generic-content]", modal);
     if (!modal || !content) return;
@@ -693,7 +693,7 @@
     input.value = formatBrazilPhone(input.value);
   });
 
-  window.Quadrafy = {
+  window.Padelfy = {
     $,
     $$,
     apiRequest,

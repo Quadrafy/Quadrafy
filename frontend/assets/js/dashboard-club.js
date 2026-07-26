@@ -19,7 +19,7 @@
     showToast,
     uploadImage,
     validateImageFile,
-  } = window.Quadrafy;
+  } = window.Padelfy;
 
   const state = {
     session: null,
@@ -1683,7 +1683,7 @@
     state.clubPreviewObjectUrl = null;
   }
 
-  function setClubPhotoPreview(url, name = state.club?.name || "Quadrafy") {
+  function setClubPhotoPreview(url, name = state.club?.name || "Padelfy") {
     const image = $("[data-club-photo-preview]");
     const placeholder = $("[data-club-photo-placeholder]");
     if (!image || !placeholder) return;
@@ -2150,10 +2150,10 @@
     element.classList.toggle("negative", rounded < 0);
   }
 
-  // TASK-78/81 — sem pagamento processado pelo Quadrafy, os gráficos viram
+  // TASK-78/81 — sem pagamento processado pelo Padelfy, os gráficos viram
   // ocupação: jogos criados, não receita.
   function renderFinanceCharts(data) {
-    const charts = window.QuadrafyCharts;
+    const charts = window.PadelfyCharts;
     if (!charts) return;
     charts.renderLine(
       $("[data-chart-revenue]"),

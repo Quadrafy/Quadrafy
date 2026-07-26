@@ -12,7 +12,7 @@ const frontendDirectory = path.resolve(testDirectory, "../../frontend");
 
 async function withTestServer(run) {
   const dataDirectory = await mkdtemp(
-    path.join(os.tmpdir(), "quadrafy-club-profile-test-"),
+    path.join(os.tmpdir(), "padelfy-club-profile-test-"),
   );
   let server;
 
@@ -78,7 +78,7 @@ test("club owner saves public arena information and exposes its address", async 
       method: "PATCH",
       cookie,
       body: {
-        name: "Arena Quadrafy Paulista",
+        name: "Arena Padelfy Paulista",
         description: "Quatro quadras cobertas e estacionamento no local.",
         phone: "(11) 99999-1234",
         address: "Alameda Santos, 1000 - Bela Vista, São Paulo - SP",
@@ -87,7 +87,7 @@ test("club owner saves public arena information and exposes its address", async 
 
     assert.equal(update.status, 200);
     const updatedClub = (await update.json()).data.club;
-    assert.equal(updatedClub.name, "Arena Quadrafy Paulista");
+    assert.equal(updatedClub.name, "Arena Padelfy Paulista");
     assert.equal(
       updatedClub.description,
       "Quatro quadras cobertas e estacionamento no local.",

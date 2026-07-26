@@ -206,5 +206,5 @@
     container.append(wrapper);
   }
 
-  window.QuadrafyCharts = { renderBars, renderDonut, renderLine };
+  window.PadelfyCharts = { renderBars, renderDonut, renderLine };
 })();

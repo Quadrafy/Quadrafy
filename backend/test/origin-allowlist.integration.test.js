@@ -11,12 +11,12 @@ const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const frontendDirectory = path.resolve(testDirectory, "../../frontend");
 
 test("permite a origem do Vercel em mutações e bloqueia origens não listadas", async () => {
-  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "quadrafy-origin-"));
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "padelfy-origin-"));
   const app = await createApp({
     environment: "test",
     dataDirectory,
     frontendDirectory,
-    allowedOrigins: ["https://quadrafy.vercel.app"],
+    allowedOrigins: ["https://padelfy.vercel.app"],
   });
   const server = createServer(app.handler);
 
@@ -38,7 +38,7 @@ test("permite a origem do Vercel em mutações e bloqueia origens não listadas"
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Origin: "https://quadrafy.vercel.app",
+        Origin: "https://padelfy.vercel.app",
       },
       body: JSON.stringify(body),
     });

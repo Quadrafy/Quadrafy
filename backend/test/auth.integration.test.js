@@ -15,7 +15,7 @@ let dataDirectory;
 let server;
 
 before(async () => {
-  dataDirectory = await mkdtemp(path.join(os.tmpdir(), "quadrafy-test-"));
+  dataDirectory = await mkdtemp(path.join(os.tmpdir(), "padelfy-test-"));
   const app = await createApp({
     environment: "test",
     dataDirectory,
@@ -173,7 +173,7 @@ test("invalid credentials, duplicate e-mail and anonymous access use honest erro
 
 test("login throttles one IP even when the attacker rotates e-mail addresses", async () => {
   const isolatedDataDirectory = await mkdtemp(
-    path.join(os.tmpdir(), "quadrafy-rate-limit-test-"),
+    path.join(os.tmpdir(), "padelfy-rate-limit-test-"),
   );
   const isolatedApp = await createApp({
     environment: "test",

@@ -11,7 +11,7 @@ const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const frontendDirectory = path.resolve(testDirectory, "../../frontend");
 
 test("GET /players/:id/achievements expõe pins e detalhes de campeão publicamente", async () => {
-  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "quadrafy-achievements-api-"));
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "padelfy-achievements-api-"));
   let server;
   try {
     await writeFile(

@@ -15,7 +15,7 @@ let server;
 let baseUrl;
 
 beforeEach(async () => {
-  dataDirectory = await mkdtemp(path.join(os.tmpdir(), "quadrafy-court-test-"));
+  dataDirectory = await mkdtemp(path.join(os.tmpdir(), "padelfy-court-test-"));
   const app = await createApp({
     environment: "test",
     dataDirectory,
@@ -59,7 +59,7 @@ async function register(role, suffix) {
       role === "club"
         ? {
             role,
-            responsibleName: "Gestora Quadrafy",
+            responsibleName: "Gestora Padelfy",
             arenaName: "Arena Teste",
             cnpj: "12.345.678/0001-90",
             email: `court-club-${suffix}@example.com`,

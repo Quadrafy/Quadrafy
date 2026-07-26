@@ -65,7 +65,7 @@ class MemoryAuthenticationRepository {
 
 async function startApplication(repository) {
   const dataDirectory = await mkdtemp(
-    path.join(os.tmpdir(), "quadrafy-supabase-auth-test-"),
+    path.join(os.tmpdir(), "padelfy-supabase-auth-test-"),
   );
   temporaryDirectories.push(dataDirectory);
   const app = await createApp({

@@ -12,7 +12,7 @@ const frontendDirectory = path.resolve(testDirectory, "../../frontend");
 
 async function withTestServer(run) {
   const dataDirectory = await mkdtemp(
-    path.join(os.tmpdir(), "quadrafy-tasks14-test-"),
+    path.join(os.tmpdir(), "padelfy-tasks14-test-"),
   );
   let server;
   try {

@@ -1,9 +1,9 @@
 {
-  "name": "quadrafy-backend",
+  "name": "padelfy-backend",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "API e servidor web da plataforma Quadrafy",
+  "description": "API e servidor web da plataforma Padelfy",
   "engines": {
     "node": ">=20"
   },

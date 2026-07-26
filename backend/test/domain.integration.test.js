@@ -12,7 +12,7 @@ const frontendDirectory = path.resolve(testDirectory, "../../frontend");
 
 async function withTestServer(run) {
   const dataDirectory = await mkdtemp(
-    path.join(os.tmpdir(), "quadrafy-domain-test-"),
+    path.join(os.tmpdir(), "padelfy-domain-test-"),
   );
   let server;
 
@@ -62,7 +62,7 @@ async function registerClub(api, suffix = "principal") {
     body: {
       role: "club",
       responsibleName: "Marina Costa",
-      arenaName: `Arena Quadrafy ${suffix}`,
+      arenaName: `Arena Padelfy ${suffix}`,
       cnpj: "12.345.678/0001-90",
       email: `clube-${suffix}@example.com`,
       password: "SenhaSeguraClube123",
@@ -154,7 +154,7 @@ test("club, court, booking, open match and finance form one persisted flow", asy
     const firstDashboardBody = await firstDashboard.json();
     const club = firstDashboardBody.data.club;
     assert.ok(club, "the first dashboard access must create the club arena");
-    assert.equal(club.name, "Arena Quadrafy principal");
+    assert.equal(club.name, "Arena Padelfy principal");
 
     const repeatedDashboard = await api("/api/v1/club/dashboard", {
       cookie: clubAccount.cookie,

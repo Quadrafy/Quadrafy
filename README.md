@@ -1,4 +1,4 @@
-# Quadrafy
+# Padelfy
 
 Plataforma web de padel que conecta jogadores a clubes e oferece reservas,
 partidas abertas e gestão de arenas. O projeto combina um frontend multipágina
@@ -67,7 +67,7 @@ auditoria ficam em arquivos JSON separados em `backend/data/`. Imagens ficam em
 `backend/data/uploads/`. As senhas usam `scrypt` e nunca são salvas em texto
 puro.
 
-A sessão usa o cookie `quadrafy_session` com `HttpOnly` e `SameSite=Lax`; em
+A sessão usa o cookie `padelfy_session` com `HttpOnly` e `SameSite=Lax`; em
 produção também recebe `Secure`. Requisições mutáveis validam a origem. O
 armazenamento atual é adequado para desenvolvimento com um único processo; uma
 implantação de produção deve usar banco transacional e armazenamento de objetos.

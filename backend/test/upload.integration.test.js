@@ -20,7 +20,7 @@ let baseUrl;
 
 beforeEach(async () => {
   dataDirectory = await mkdtemp(
-    path.join(os.tmpdir(), "quadrafy-upload-test-"),
+    path.join(os.tmpdir(), "padelfy-upload-test-"),
   );
   const app = await createApp({
     environment: "test",

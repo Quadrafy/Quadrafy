@@ -13,7 +13,7 @@ const frontendDirectory = path.resolve(testDirectory, "../../frontend");
 
 async function withTestServer(run) {
   const dataDirectory = await mkdtemp(
-    path.join(os.tmpdir(), "quadrafy-security-test-"),
+    path.join(os.tmpdir(), "padelfy-security-test-"),
   );
   let server;
 
@@ -322,7 +322,7 @@ test("agenda conflicts and sensitive mutations produce attributable audit events
 
 test("chat retention keeps only the latest 1,000 messages per match", async () => {
   const dataDirectory = await mkdtemp(
-    path.join(os.tmpdir(), "quadrafy-chat-retention-test-"),
+    path.join(os.tmpdir(), "padelfy-chat-retention-test-"),
   );
   try {
     const matchId = "retention-match";

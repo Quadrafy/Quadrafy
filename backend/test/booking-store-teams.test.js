@@ -7,7 +7,7 @@ import { BookingStore } from "../src/stores/booking-store.js";
 
 async function withStore(run, seed = null) {
   const dataDirectory = await mkdtemp(
-    path.join(os.tmpdir(), "quadrafy-booking-teams-test-"),
+    path.join(os.tmpdir(), "padelfy-booking-teams-test-"),
   );
 
   try {

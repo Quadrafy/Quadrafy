@@ -20,7 +20,7 @@ export async function startServer(overrides = {}) {
 const isMain = fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain) {
   const { server, app } = await startServer();
-  console.log(`Quadrafy disponível em http://localhost:${app.config.port}`);
+  console.log(`Padelfy disponível em http://localhost:${app.config.port}`);
 
   const shutdown = () => {
     server.close(() => process.exit(0));

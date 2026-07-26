@@ -2,7 +2,7 @@
 
 ## Visão geral
 
-O Quadrafy usa um frontend multipágina sem etapa de build e um backend Node.js.
+O Padelfy usa um frontend multipágina sem etapa de build e um backend Node.js.
 Cada contexto possui um HTML próprio (`index`, `login`, painel do jogador e
 painel do clube). Os scripts `dashboard-player.js` e `dashboard-club.js`
 consomem a API; `app.js`, `charts.js` e `styles.css` concentram recursos

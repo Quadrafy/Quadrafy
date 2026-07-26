@@ -117,7 +117,7 @@ export function parseCookies(request) {
 
 export function sessionCookie(token, maxAgeSeconds, secure = false) {
   const parts = [
-    `quadrafy_session=${encodeURIComponent(token)}`,
+    `padelfy_session=${encodeURIComponent(token)}`,
     "Path=/",
     "HttpOnly",
     "SameSite=Lax",

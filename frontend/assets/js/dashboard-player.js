@@ -20,7 +20,7 @@
     showToast,
     uploadImage,
     validateImageFile,
-  } = window.Quadrafy;
+  } = window.Padelfy;
 
   const LEVEL_MIN = 0.5;
   const LEVEL_MAX = 7;
@@ -2982,7 +2982,7 @@
   }
 
   function readStateKey(matchId) {
-    return `quadrafy:match-read:${state.session?.user?.id || "player"}:${matchId}`;
+    return `padelfy:match-read:${state.session?.user?.id || "player"}:${matchId}`;
   }
 
   function storedReadState(matchId) {
@@ -3172,7 +3172,7 @@
       <div class="public-player-heading">
         <div class="public-player-avatar">${avatar}</div>
         <div>
-          <p class="eyebrow dark">Jogador Quadrafy</p>
+          <p class="eyebrow dark">Jogador Padelfy</p>
           <h2 id="public-player-title">${escapeHTML(name)}</h2>
           <p>${escapeHTML(player.city || "Cidade não informada")}</p>
         </div>
@@ -3274,7 +3274,7 @@
     }
     const level = clampLevel(profile.level);
     const progress = ((level - LEVEL_MIN) / (LEVEL_MAX - LEVEL_MIN)) * 100;
-    banner.innerHTML = `<div><small>Seu nível Quadrafy</small><strong>${escapeHTML(profile.levelCategory || formatLevel(level))}</strong></div><div class="level-track" aria-hidden="true"><i></i><b></b></div><p>Use sua faixa de nível para encontrar jogos mais equilibrados.</p>`;
+    banner.innerHTML = `<div><small>Seu nível Padelfy</small><strong>${escapeHTML(profile.levelCategory || formatLevel(level))}</strong></div><div class="level-track" aria-hidden="true"><i></i><b></b></div><p>Use sua faixa de nível para encontrar jogos mais equilibrados.</p>`;
     $(".level-track i", banner).style.width = `${progress}%`;
     $(".level-track b", banner).style.left = `${progress}%`;
     banner.classList.remove("hidden");
@@ -3521,12 +3521,12 @@
     const unlocked = achievement.unlockedAt
       ? ` Desbloqueada em ${formatDate(achievement.unlockedAt, { day: "2-digit", month: "long", year: "numeric" })}.`
       : "";
-    return `${achievement.description || "Conquista Quadrafy."}${facts.length ? ` ${facts.join(" · ")}.` : ""}${unlocked}`;
+    return `${achievement.description || "Conquista Padelfy."}${facts.length ? ` ${facts.join(" · ")}.` : ""}${unlocked}`;
   }
 
   function showAchievementDetail(achievement) {
     showGenericModal({
-      eyebrow: achievement.type === "champion_title" ? "Título de campeão" : achievement.category || "Conquista Quadrafy",
+      eyebrow: achievement.type === "champion_title" ? "Título de campeão" : achievement.category || "Conquista Padelfy",
       title: achievement.name || "Conquista",
       text: achievementDetailText(achievement),
     });
@@ -3585,7 +3585,7 @@
   function announceRecentAchievements(achievements) {
     const userId = state.session?.user?.id;
     if (!userId || !achievements.length) return;
-    const storageKey = `quadrafy:achievement-notices:${userId}`;
+    const storageKey = `padelfy:achievement-notices:${userId}`;
     try {
       const seen = new Set(JSON.parse(localStorage.getItem(storageKey) || "[]"));
       const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
@@ -3676,7 +3676,7 @@
 
   async function loadLevelHistoryChart() {
     const container = $("[data-level-history-chart]");
-    if (!container || !window.QuadrafyCharts) return;
+    if (!container || !window.PadelfyCharts) return;
     try {
       const { history } = await apiRequest("/api/v1/player/level-history");
       if (!history?.length) return;
@@ -3687,8 +3687,8 @@
         }),
         value: Number(entry.level) || 0,
       }));
-      window.QuadrafyCharts.renderLine(container, items, {
-        label: "Evolução do nível Quadrafy ao longo do tempo",
+      window.PadelfyCharts.renderLine(container, items, {
+        label: "Evolução do nível Padelfy ao longo do tempo",
         formatValue: (value) => formatLevel(value),
       });
     } catch {
@@ -3786,7 +3786,7 @@
     if (note) note.textContent = `Você está em ${percent}% — faixa ${zone}`;
     openAccessibleModal(modal, "[data-modal-close]");
     const container = $("[data-confidence-history-chart]", modal);
-    if (!container || !window.QuadrafyCharts) return;
+    if (!container || !window.PadelfyCharts) return;
     try {
       const { history } = await apiRequest("/api/v1/player/level-history");
       const items = (history || [])
@@ -3800,7 +3800,7 @@
           value: normalizeReliabilityValue(entry.levelConfidence),
         }));
       if (items.length) {
-        window.QuadrafyCharts.renderLine(container, items, {
+        window.PadelfyCharts.renderLine(container, items, {
           label: "Evolução da fiabilidade (%) ao longo do tempo",
           formatValue: (value) => `${Math.round(value)}%`,
         });
@@ -3829,7 +3829,7 @@
     const progressNote = hasLevel
       ? nextBand
         ? `<p class="profile-data-note">Seu nível atual é <strong>${escapeHTML(formatLevel(level))}</strong>. Faltam <strong>${(Math.round((nextBand.min - level) * 100) / 100).toLocaleString("pt-BR")}</strong> pontos para alcançar a faixa ${escapeHTML(nextBand.technical)} (${escapeHTML(nextBand.category)}).</p>`
-        : `<p class="profile-data-note">Seu nível atual é <strong>${escapeHTML(formatLevel(level))}</strong> — você está na faixa mais alta do Quadrafy.</p>`
+        : `<p class="profile-data-note">Seu nível atual é <strong>${escapeHTML(formatLevel(level))}</strong> — você está na faixa mais alta do Padelfy.</p>`
       : '<p class="profile-data-note">Complete o teste de nível para descobrir sua faixa.</p>';
     content.innerHTML = `<table class="level-bands-table"><thead><tr><th scope="col">Nível</th><th scope="col">Classificação técnica</th><th scope="col">Categoria equivalente</th></tr></thead><tbody>${rows}</tbody></table>${progressNote}`;
     openAccessibleModal(modal, "[data-modal-close]");
@@ -4038,7 +4038,7 @@
       closeModal($("[data-level-test-modal]"));
       renderProfile();
       showGenericModal({
-        eyebrow: "Seu nível Quadrafy",
+        eyebrow: "Seu nível Padelfy",
         title:
           result.categoria_sugerida ||
           result.levelCategory ||

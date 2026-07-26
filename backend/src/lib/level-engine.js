@@ -1,4 +1,4 @@
-// TASKS-07 — Motor de nível "Playtomic Engine" do Quadrafy.
+// TASKS-07 — Motor de nível "Playtomic Engine" do Padelfy.
 // Substitui integralmente a fórmula Elo-like do TASKS-06 (ΔN = (R−E)×K×(1−Φ+0.1)).
 // Sistema 100% determinístico, sem nenhuma chamada de IA:
 //   - TASK-26: teste inicial por questionário de 6 perguntas (pontuação 6–24).

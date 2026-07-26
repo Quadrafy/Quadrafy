@@ -16,7 +16,7 @@ let server;
 const sentEmails = [];
 
 before(async () => {
-  dataDirectory = await mkdtemp(path.join(os.tmpdir(), "quadrafy-reset-test-"));
+  dataDirectory = await mkdtemp(path.join(os.tmpdir(), "padelfy-reset-test-"));
   const app = await createApp({
     environment: "test",
     dataDirectory,

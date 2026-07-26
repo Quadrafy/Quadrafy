@@ -1,4 +1,4 @@
-# Backend Quadrafy
+# Backend Padelfy
 
 Servidor Node.js sem pacotes npm de runtime. Ele entrega o frontend multipágina
 e expõe a API versionada em `/api/v1`.

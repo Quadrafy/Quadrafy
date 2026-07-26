@@ -25,17 +25,17 @@ const progress = ({
 });
 
 export const ACHIEVEMENT_CATALOG = Object.freeze([
-  progress({ id: "matches-1", name: "Estreante", description: "Jogou a primeira partida na Quadrafy.", category: "Jogos disputados", metric: "matchesPlayed", threshold: 1, tier: "bronze", asset: "pin-jogos-bronze" }),
-  progress({ id: "matches-10", name: "Em quadra", description: "Jogou 10 partidas na Quadrafy.", category: "Jogos disputados", metric: "matchesPlayed", threshold: 10, tier: "prata", asset: "pin-jogos-prata" }),
-  progress({ id: "matches-50", name: "Ritmo de jogo", description: "Jogou 50 partidas na Quadrafy.", category: "Jogos disputados", metric: "matchesPlayed", threshold: 50, tier: "ouro", asset: "pin-jogos-ouro" }),
-  progress({ id: "matches-100", name: "Centurião da quadra", description: "Jogou 100 partidas na Quadrafy.", category: "Jogos disputados", metric: "matchesPlayed", threshold: 100, tier: "diamante", asset: "pin-jogos-diamante" }),
-  progress({ id: "matches-250", name: "Lenda da quadra", description: "Jogou 250 partidas na Quadrafy.", category: "Jogos disputados", metric: "matchesPlayed", threshold: 250, tier: "elite", asset: "pin-jogos-elite" }),
+  progress({ id: "matches-1", name: "Estreante", description: "Jogou a primeira partida na Padelfy.", category: "Jogos disputados", metric: "matchesPlayed", threshold: 1, tier: "bronze", asset: "pin-jogos-bronze" }),
+  progress({ id: "matches-10", name: "Em quadra", description: "Jogou 10 partidas na Padelfy.", category: "Jogos disputados", metric: "matchesPlayed", threshold: 10, tier: "prata", asset: "pin-jogos-prata" }),
+  progress({ id: "matches-50", name: "Ritmo de jogo", description: "Jogou 50 partidas na Padelfy.", category: "Jogos disputados", metric: "matchesPlayed", threshold: 50, tier: "ouro", asset: "pin-jogos-ouro" }),
+  progress({ id: "matches-100", name: "Centurião da quadra", description: "Jogou 100 partidas na Padelfy.", category: "Jogos disputados", metric: "matchesPlayed", threshold: 100, tier: "diamante", asset: "pin-jogos-diamante" }),
+  progress({ id: "matches-250", name: "Lenda da quadra", description: "Jogou 250 partidas na Padelfy.", category: "Jogos disputados", metric: "matchesPlayed", threshold: 250, tier: "elite", asset: "pin-jogos-elite" }),
 
-  progress({ id: "wins-1", name: "Primeira vitória", description: "Conquistou a primeira vitória na Quadrafy.", category: "Vitórias", metric: "wins", threshold: 1, tier: "bronze", asset: "pin-vitorias-bronze" }),
-  progress({ id: "wins-10", name: "Dez vitórias", description: "Conquistou 10 vitórias na Quadrafy.", category: "Vitórias", metric: "wins", threshold: 10, tier: "prata", asset: "pin-vitorias-prata" }),
-  progress({ id: "wins-50", name: "Vitória consistente", description: "Conquistou 50 vitórias na Quadrafy.", category: "Vitórias", metric: "wins", threshold: 50, tier: "ouro", asset: "pin-vitorias-ouro" }),
-  progress({ id: "wins-100", name: "Cem vitórias", description: "Conquistou 100 vitórias na Quadrafy.", category: "Vitórias", metric: "wins", threshold: 100, tier: "diamante", asset: "pin-vitorias-diamante" }),
-  progress({ id: "wins-250", name: "Imparável", description: "Conquistou 250 vitórias na Quadrafy.", category: "Vitórias", metric: "wins", threshold: 250, tier: "elite", asset: "pin-vitorias-elite" }),
+  progress({ id: "wins-1", name: "Primeira vitória", description: "Conquistou a primeira vitória na Padelfy.", category: "Vitórias", metric: "wins", threshold: 1, tier: "bronze", asset: "pin-vitorias-bronze" }),
+  progress({ id: "wins-10", name: "Dez vitórias", description: "Conquistou 10 vitórias na Padelfy.", category: "Vitórias", metric: "wins", threshold: 10, tier: "prata", asset: "pin-vitorias-prata" }),
+  progress({ id: "wins-50", name: "Vitória consistente", description: "Conquistou 50 vitórias na Padelfy.", category: "Vitórias", metric: "wins", threshold: 50, tier: "ouro", asset: "pin-vitorias-ouro" }),
+  progress({ id: "wins-100", name: "Cem vitórias", description: "Conquistou 100 vitórias na Padelfy.", category: "Vitórias", metric: "wins", threshold: 100, tier: "diamante", asset: "pin-vitorias-diamante" }),
+  progress({ id: "wins-250", name: "Imparável", description: "Conquistou 250 vitórias na Padelfy.", category: "Vitórias", metric: "wins", threshold: 250, tier: "elite", asset: "pin-vitorias-elite" }),
 
   progress({ id: "streak-3", name: "Em chamas", description: "Venceu 3 partidas seguidas.", category: "Sequência de vitórias", metric: "currentWinStreak", threshold: 3, tier: "bronze", asset: "pin-sequencia-bronze" }),
   progress({ id: "streak-5", name: "Sequência forte", description: "Venceu 5 partidas seguidas.", category: "Sequência de vitórias", metric: "currentWinStreak", threshold: 5, tier: "prata", asset: "pin-sequencia-prata" }),

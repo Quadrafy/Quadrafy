@@ -194,7 +194,7 @@ export class BookingStore {
     });
   }
 
-  // TASK-79 — o Quadrafy não é mais o sistema oficial de reserva da quadra,
+  // TASK-79 — o Padelfy não é mais o sistema oficial de reserva da quadra,
   // então dois jogos na mesma quadra/horário não são mais bloqueados: só
   // avisamos o jogador (ver `hasConflict`) e deixamos ele confirmar mesmo
   // assim com `allowConflict`.

@@ -126,7 +126,7 @@ export function createAchievementsEngine({ users, matchResults, super8, clubs, a
           competitionType,
           competitionName: competition.name,
           clubId: competition.clubId,
-          clubName: club?.name ?? "Clube Quadrafy",
+          clubName: club?.name ?? "Clube Padelfy",
           competitionDate,
           levelCategory,
         });

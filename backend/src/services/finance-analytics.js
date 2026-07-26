@@ -1,4 +1,4 @@
-// TASK-78/81 — o Quadrafy deixou de processar pagamento da quadra, então o
+// TASK-78/81 — o Padelfy deixou de processar pagamento da quadra, então o
 // antigo painel de receita ("Financeiro") vira um painel de OCUPAÇÃO: em vez
 // de dinheiro, medimos quantos jogos foram criados por dia/quadra e a taxa
 // de ocupação da grade, sem nenhum valor monetário.

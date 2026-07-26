@@ -373,7 +373,7 @@ export async function createApp(overrides = {}) {
     clubs,
     achievementStore: achievements,
   });
-  const dummyPasswordHash = await hashPassword("quadrafy-dummy-password");
+  const dummyPasswordHash = await hashPassword("padelfy-dummy-password");
   let agendaWriteQueue = Promise.resolve();
 
   function withAgendaLock(operation) {
@@ -383,7 +383,7 @@ export async function createApp(overrides = {}) {
   }
 
   function currentUser(request) {
-    const token = parseCookies(request).quadrafy_session;
+    const token = parseCookies(request).padelfy_session;
     const session = sessions.get(token);
     return session ? users.findById(session.userId) : null;
   }
@@ -559,7 +559,7 @@ export async function createApp(overrides = {}) {
       courtId: booking.courtId,
       courtName: court?.name ?? "Quadra indisponível",
       startAt: booking.startAt,
-      // TASK-78 — preço da quadra fica só como referência (o Quadrafy não
+      // TASK-78 — preço da quadra fica só como referência (o Padelfy não
       // cobra nem processa pagamento da reserva feita por fora).
       referencePrice: court?.price ?? null,
       levelCategories: booking.levelCategories ?? null,
@@ -764,7 +764,7 @@ export async function createApp(overrides = {}) {
   }
 
   // TASK-78/81 — "Financeiro" virou "Ocupação": sem pagamento processado
-  // pelo Quadrafy, o painel do clube passa a mostrar jogos criados e taxa
+  // pelo Padelfy, o painel do clube passa a mostrar jogos criados e taxa
   // de ocupação da grade, não mais receita.
   function occupancyFor(club, { courtId, from, to } = {}) {
     const clubCourts = courts.listByClub(club.id);
@@ -849,7 +849,7 @@ export async function createApp(overrides = {}) {
   async function handleApi(request, response, url) {
     const { pathname } = url;
     if (request.method === "GET" && pathname === "/api/v1/health") {
-      sendData(response, 200, { status: "ok", service: "quadrafy-api" });
+      sendData(response, 200, { status: "ok", service: "padelfy-api" });
       return true;
     }
 
@@ -872,7 +872,7 @@ export async function createApp(overrides = {}) {
         after: { role: user.role },
         requestId: request.requestId,
       });
-      await sessions.revoke(parseCookies(request).quadrafy_session);
+      await sessions.revoke(parseCookies(request).padelfy_session);
       const token = await sessions.create(user.id);
       sendData(
         response,
@@ -921,7 +921,7 @@ export async function createApp(overrides = {}) {
         );
       }
       loginAccountLimiter.clear(accountKey);
-      await sessions.revoke(parseCookies(request).quadrafy_session);
+      await sessions.revoke(parseCookies(request).padelfy_session);
       const token = await sessions.create(user.id);
       await auditLog.record({
         actorId: user.id,
@@ -951,7 +951,7 @@ export async function createApp(overrides = {}) {
 
     if (request.method === "POST" && pathname === "/api/v1/auth/logout") {
       assertSameOrigin(request);
-      const token = parseCookies(request).quadrafy_session;
+      const token = parseCookies(request).padelfy_session;
       const session = sessions.get(token);
       await sessions.revoke(token);
       if (session) {
@@ -1337,7 +1337,7 @@ export async function createApp(overrides = {}) {
         (booking) => brazilDateKey(booking.startAt) === today,
       );
       const currentMonth = today.slice(0, 7);
-      // TASK-78/81 — sem pagamento processado pelo Quadrafy, o indicador do
+      // TASK-78/81 — sem pagamento processado pelo Padelfy, o indicador do
       // mês passa a ser a quantidade de jogos criados, não receita.
       const monthlyGames = clubBookings.filter(
         (booking) =>
@@ -1881,7 +1881,7 @@ export async function createApp(overrides = {}) {
             { field: "startAt" },
           );
         }
-        // TASK-79 — o Quadrafy não é mais o sistema oficial de reserva:
+        // TASK-79 — o Padelfy não é mais o sistema oficial de reserva:
         // isso não bloqueia mais a criação, só avisa (a menos que o
         // jogador já tenha confirmado o aviso com `allowConflict`).
         if (!selectedSlot.available && !input.allowConflict) {

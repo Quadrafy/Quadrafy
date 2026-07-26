@@ -64,7 +64,7 @@ test("marcos respeitam o limite e não concedem uma vitória antes da hora", () 
 });
 
 test("o store mantém progressão idempotente e acumula títulos distintos", async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "quadrafy-achievements-test-"));
+  const directory = await mkdtemp(path.join(os.tmpdir(), "padelfy-achievements-test-"));
   try {
     const store = new AchievementStore(directory);
     await store.initialize();
