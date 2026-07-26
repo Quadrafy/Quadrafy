@@ -154,6 +154,9 @@ export class CourtStore {
         durationWindows: Array.isArray(update.durationWindows)
           ? update.durationWindows
           : court.durationWindows ?? [],
+        blockedWindows: Array.isArray(update.blockedWindows)
+          ? update.blockedWindows
+          : court.blockedWindows ?? [],
         opensAt: update.openTime,
         closesAt: update.closeTime,
         slotDurationMinutes: minDuration,

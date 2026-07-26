@@ -1595,6 +1595,7 @@
       openTime: values.openTime,
       closeTime: values.closeTime,
       durationWindows: state.editingDurationWindows,
+      blockedWindows: state.editingBlockedWindows,
       // TASK-51: vazio = arena principal
       arenaId: values.arenaId || "",
     };
@@ -1636,14 +1637,6 @@
           method: "POST",
           body,
         }));
-      }
-      // Só envia PATCH de bloqueios se há janelas a salvar, ou se estamos
-      // editando uma quadra existente (para limpar janelas removidas).
-      if (state.editingCourtId || state.editingBlockedWindows.length > 0) {
-        ({ court } = await apiRequest(
-          `/api/v1/club/courts/${encodeURIComponent(court.id)}/blocked-windows`,
-          { method: "PATCH", body: { windows: state.editingBlockedWindows } },
-        ));
       }
       const index = state.courts.findIndex((item) => item.id === court.id);
       if (index === -1) state.courts.push(court);

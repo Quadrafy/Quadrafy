@@ -819,6 +819,10 @@ export function validateCourt(body) {
     );
   }
 
+  const blockedWindows = Array.isArray(body.blockedWindows)
+    ? validateBlockedWindows(body.blockedWindows)
+    : undefined;
+
   return {
     name: text(body.name, "name", { max: 100 }),
     price: number(body.price, "price", { min: 1, max: 10_000 }),
@@ -827,6 +831,7 @@ export function validateCourt(body) {
     slotDurations,
     slotDuration,
     durationWindows,
+    ...(blockedWindows !== undefined ? { blockedWindows } : {}),
     photoUrl: optionalImageUrl(body.photoUrl, "photoUrl", "courts") ?? "",
     // TASK-51: quadra pode pertencer a uma arena adicional do clube
     // (ausente = arena principal).
