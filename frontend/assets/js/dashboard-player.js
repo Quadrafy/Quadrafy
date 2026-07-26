@@ -367,13 +367,31 @@
     const dates = dateOptions();
     if (!state.selectedDate) state.selectedDate = localDateKey(dates[0]);
     const strip = $("[data-date-strip]");
-    strip.innerHTML = dates
-      .map((date) => {
+    const weekdays = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+    const chips = dates
+      .map((date, index) => {
         const key = localDateKey(date);
+        const dow = index === 0 ? "Hoje" : weekdays[date.getDay()];
         const label = `${date.getDate()}/${date.getMonth() + 1}`;
-        return `<button class="${key === state.selectedDate ? "active" : ""}" type="button" data-booking-date="${key}"><strong>${label}</strong></button>`;
+        return `<button class="${key === state.selectedDate ? "active" : ""}" type="button" data-booking-date="${key}"><span class="date-dow">${dow}</span><strong>${label}</strong></button>`;
       })
       .join("");
+    // Além dos 14 dias fixos, permite escolher qualquer data até o horizonte de
+    // 90 dias que o backend aceita para reservas.
+    const isCustom = !dates.some((date) => localDateKey(date) === state.selectedDate);
+    const maxDate = new Date();
+    maxDate.setHours(12, 0, 0, 0);
+    maxDate.setDate(maxDate.getDate() + 90);
+    let customLabel = "＋";
+    if (isCustom) {
+      const [, month, day] = state.selectedDate.split("-");
+      customLabel = `${Number(day)}/${Number(month)}`;
+    }
+    const picker = `<label class="date-more${isCustom ? " active" : ""}" title="Escolher outra data">
+        <span class="date-dow">Outra</span><strong>${customLabel}</strong>
+        <input type="date" data-date-picker min="${localDateKey(dates[0])}" max="${localDateKey(maxDate)}" value="${state.selectedDate}" aria-label="Escolher outra data" />
+      </label>`;
+    strip.innerHTML = chips + picker;
     $$("[data-booking-date]", strip).forEach((button) =>
       button.addEventListener("click", async () => {
         state.selectedDate = button.dataset.bookingDate;
@@ -381,6 +399,15 @@
         await fetchClubDetail();
       }),
     );
+    const pickerInput = $("[data-date-picker]", strip);
+    if (pickerInput) {
+      pickerInput.addEventListener("change", async () => {
+        if (!pickerInput.value) return;
+        state.selectedDate = pickerInput.value;
+        state.selectedSlot = null;
+        await fetchClubDetail();
+      });
+    }
   }
 
   function renderClubDetail() {

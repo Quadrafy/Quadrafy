@@ -2261,10 +2261,59 @@ em {
 .date-strip strong {
   font: 600 14px/1 var(--mono);
 }
+.date-strip .date-dow {
+  margin-bottom: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.55;
+}
 .date-strip button.active {
   border-color: var(--coral);
   background: var(--coral);
   color: #fff;
+}
+.date-strip button.active .date-dow {
+  opacity: 0.85;
+}
+.date-strip .date-more {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  width: 56px;
+  min-height: 52px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--line);
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+  scroll-snap-align: start;
+}
+.date-strip .date-more strong {
+  font: 600 14px/1 var(--mono);
+}
+.date-strip .date-more.active {
+  border-style: solid;
+  border-color: var(--coral);
+  background: var(--coral);
+  color: #fff;
+}
+.date-strip .date-more.active .date-dow {
+  opacity: 0.85;
+}
+.date-strip .date-more input[type="date"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 /* TASK-98 — a quadra é a decisão mais importante da tela (não existe
    opção "Todas"), então o seletor ganha mais destaque: botões maiores e
