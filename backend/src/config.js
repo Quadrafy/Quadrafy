@@ -93,5 +93,14 @@ export function loadConfig(overrides = {}) {
       60 *
       60 *
       1000,
+    emailVerificationTtlMs:
+      positiveInteger(
+        overrides.emailVerificationTtlHours ??
+          process.env.EMAIL_VERIFICATION_TTL_HOURS,
+        24,
+      ) *
+      60 *
+      60 *
+      1000,
   };
 }

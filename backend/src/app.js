@@ -36,6 +36,7 @@ import {
   validateLogin,
   validateForgotPassword,
   validateResetPassword,
+  validateVerifyEmail,
   validateMatchMessage,
   validatePlayerProfile,
   validateArena,
@@ -51,6 +52,7 @@ import { computeOccupancyAnalytics } from "./services/finance-analytics.js";
 import { AuditLogStore } from "./stores/audit-log-store.js";
 import { BookingStore } from "./stores/booking-store.js";
 import { PasswordResetStore } from "./stores/password-reset-store.js";
+import { EmailVerificationStore } from "./stores/email-verification-store.js";
 import { ClubStore } from "./stores/club-store.js";
 import { CourtStore } from "./stores/court-store.js";
 import { LevelTestStore } from "./stores/level-test-store.js";
@@ -300,6 +302,7 @@ export async function createApp(overrides = {}) {
   const super8 = new Super8Store(config.dataDirectory);
   const achievements = new AchievementStore(config.dataDirectory);
   const passwordResets = new PasswordResetStore(config.dataDirectory);
+  const emailVerifications = new EmailVerificationStore(config.dataDirectory);
   const mailer = overrides.mailer ?? createMailer(config);
   const supabaseEnabled = Boolean(config.supabaseUrl && config.supabaseSecretKey);
   const loginIpLimiter = new RateLimiter({
@@ -352,6 +355,11 @@ export async function createApp(overrides = {}) {
     windowMs: 60 * 60 * 1000,
     maxEntries: 50_000,
   });
+  const emailVerificationLimiter = new RateLimiter({
+    limit: 6,
+    windowMs: 60 * 60 * 1000,
+    maxEntries: 50_000,
+  });
   await Promise.all([
     users.initialize(),
     sessions.initialize(),
@@ -366,6 +374,7 @@ export async function createApp(overrides = {}) {
     super8.initialize(),
     achievements.initialize(),
     passwordResets.initialize(),
+    emailVerifications.initialize(),
   ]);
   const achievementsEngine = createAchievementsEngine({
     users,
@@ -375,6 +384,42 @@ export async function createApp(overrides = {}) {
     achievementStore: achievements,
   });
   const dummyPasswordHash = await hashPassword("padelfy-dummy-password");
+
+  // Gera um token de confirmação, persiste o hash e dispara o e-mail branded.
+  // Nunca derruba o fluxo chamador se o envio falhar (registra na auditoria).
+  async function issueEmailVerification(user, request) {
+    const token = createSessionToken();
+    const tokenHash = digestToken(token);
+    const expiresAt = new Date(
+      Date.now() + config.emailVerificationTtlMs,
+    ).toISOString();
+    await emailVerifications.create({
+      userId: user.id,
+      email: user.email,
+      tokenHash,
+      expiresAt,
+    });
+    const verifyUrl = `${config.appBaseUrl}/verify-email.html?token=${token}`;
+    const ttlLabel = `${Math.round(config.emailVerificationTtlMs / (60 * 60 * 1000))} hora(s)`;
+    try {
+      await mailer.sendEmailVerification({
+        to: user.email,
+        verifyUrl,
+        name: user.profile?.firstName ?? user.profile?.name,
+        ttlLabel,
+      });
+    } catch (error) {
+      await auditLog.record({
+        actorId: user.id,
+        action: "auth.verification_email_failed",
+        resourceType: "auth",
+        resourceId: user.id,
+        after: { message: String(error.message).slice(0, 200) },
+        requestId: request.requestId,
+      });
+    }
+  }
+
   let agendaWriteQueue = Promise.resolve();
 
   function withAgendaLock(operation) {
@@ -975,7 +1020,7 @@ export async function createApp(overrides = {}) {
         role: input.role,
         email: input.email,
         passwordHash: await hashPassword(input.password),
-        profile: input.profile,
+        profile: { ...input.profile, emailVerified: false },
       });
       await auditLog.record({
         actorId: user.id,
@@ -985,6 +1030,7 @@ export async function createApp(overrides = {}) {
         after: { role: user.role },
         requestId: request.requestId,
       });
+      await issueEmailVerification(user, request);
       await sessions.revoke(parseCookies(request).padelfy_session);
       const token = await sessions.create(user.id);
       sendData(
@@ -1171,6 +1217,67 @@ export async function createApp(overrides = {}) {
       sendData(response, 200, {
         message:
           "Senha redefinida com sucesso. Você já pode entrar com a nova senha.",
+      });
+      return true;
+    }
+
+    if (
+      request.method === "POST" &&
+      pathname === "/api/v1/auth/verify-email"
+    ) {
+      assertSameOrigin(request);
+      emailVerificationLimiter.consume(clientAddress(request));
+      const input = validateVerifyEmail(await readJson(request));
+      const tokenHash = digestToken(input.token);
+      const entry = emailVerifications.findByTokenHash(tokenHash);
+      const invalidToken =
+        !entry || entry.usedAt || Date.parse(entry.expiresAt) <= Date.now();
+      const user = entry ? users.findById(entry.userId) : null;
+      if (invalidToken || !user) {
+        throw new ApiError(
+          400,
+          "invalid_verification_token",
+          "Este link de confirmação é inválido ou expirou. Solicite um novo.",
+        );
+      }
+      if (!user.profile?.emailVerified) {
+        await users.updateProfile(user.id, {
+          emailVerified: true,
+          emailVerifiedAt: new Date().toISOString(),
+        });
+      }
+      await emailVerifications.consume(tokenHash);
+      await auditLog.record({
+        actorId: user.id,
+        action: "auth.email_verified",
+        resourceType: "auth",
+        resourceId: user.id,
+        requestId: request.requestId,
+      });
+      sendData(response, 200, {
+        message: "E-mail confirmado com sucesso! Sua conta está ativa.",
+      });
+      return true;
+    }
+
+    if (
+      request.method === "POST" &&
+      pathname === "/api/v1/auth/resend-verification"
+    ) {
+      assertSameOrigin(request);
+      const user = requireUser(request);
+      emailVerificationLimiter.consume(user.id);
+      if (user.profile?.emailVerified) {
+        sendData(response, 200, {
+          message: "Seu e-mail já está confirmado.",
+          verified: true,
+        });
+        return true;
+      }
+      await issueEmailVerification(user, request);
+      sendData(response, 200, {
+        message: "Enviamos um novo link de confirmação para o seu e-mail.",
+        verified: false,
       });
       return true;
     }

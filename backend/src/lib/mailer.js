@@ -89,6 +89,76 @@ function passwordResetTemplate({ appName, resetUrl, name, ttlLabel }) {
 </html>`;
 }
 
+/**
+ * Template HTML do e-mail de confirmação de cadastro, mesma identidade visual
+ * do e-mail de recuperação (coral #ff6b4a sobre fundo creme).
+ */
+function emailVerificationTemplate({ appName, verifyUrl, name, ttlLabel }) {
+  const safeName = name ? escapeHtml(name) : "";
+  const safeUrl = escapeHtml(verifyUrl);
+  const greeting = safeName ? `Bem-vindo(a), ${safeName}!` : "Bem-vindo(a)!";
+  return `<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light only" />
+    <title>Confirme seu e-mail</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f4f2ee;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#14171f;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f2ee;padding:32px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 12px 40px rgba(20,23,31,0.08);">
+            <tr>
+              <td style="background:#14171f;padding:28px 32px;">
+                <span style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:#ffffff;">${escapeHtml(appName)}<span style="color:#ff6b4a;">.</span></span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:36px 32px 8px;">
+                <h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;color:#14171f;">${greeting}</h1>
+                <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#626772;">
+                  Falta só um passo para ativar sua conta no ${escapeHtml(appName)}: confirme que este e-mail é seu.
+                  Este link expira em <strong style="color:#14171f;">${escapeHtml(ttlLabel)}</strong>.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding:8px 32px 28px;">
+                <a href="${safeUrl}" style="display:inline-block;background:#ff6b4a;color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:14px 34px;border-radius:999px;">
+                  Confirmar meu e-mail
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 32px 28px;">
+                <p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#626772;">
+                  Se o botão não funcionar, copie e cole este endereço no navegador:
+                </p>
+                <p style="margin:0;font-size:13px;line-height:1.6;word-break:break-all;">
+                  <a href="${safeUrl}" style="color:#e75435;">${safeUrl}</a>
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 32px;border-top:1px solid #eceae5;">
+                <p style="margin:0;font-size:13px;line-height:1.6;color:#8a8f99;">
+                  Se você não criou esta conta, ignore este e-mail.
+                </p>
+              </td>
+            </tr>
+          </table>
+          <p style="margin:20px 0 0;font-size:12px;color:#a7abb3;">
+            © ${escapeHtml(appName)} · Este é um e-mail automático, não responda.
+          </p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
 export function createMailer(config) {
   const apiKey = config.resendApiKey;
   const from = config.resendFrom;
@@ -139,5 +209,23 @@ export function createMailer(config) {
     return send({ to, subject, html, text });
   }
 
-  return { enabled, send, sendPasswordReset };
+  async function sendEmailVerification({ to, verifyUrl, name, ttlLabel = "24 horas" }) {
+    const subject = `Confirme seu e-mail • ${appName}`;
+    const html = emailVerificationTemplate({ appName, verifyUrl, name, ttlLabel });
+    const text = [
+      name ? `Bem-vindo(a), ${name}!` : "Bem-vindo(a)!",
+      "",
+      `Falta um passo para ativar sua conta no ${appName}: confirme seu e-mail.`,
+      `Abra o link abaixo (válido por ${ttlLabel}):`,
+      "",
+      verifyUrl,
+      "",
+      "Se você não criou esta conta, ignore este e-mail.",
+      "",
+      `— Equipe ${appName}`,
+    ].join("\n");
+    return send({ to, subject, html, text });
+  }
+
+  return { enabled, send, sendPasswordReset, sendEmailVerification };
 }

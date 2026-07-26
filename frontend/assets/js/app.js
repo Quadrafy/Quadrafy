@@ -598,14 +598,15 @@
               true,
             );
             setTimeout(() => location.assign("login.html"), 1600);
-          } else {
+          } else if (action === "register") {
             setFormFeedback(
               form,
-              action === "login"
-                ? "Login confirmado. Abrindo seu painel…"
-                : "Conta criada. Preparando seu painel…",
+              "Conta criada! Enviamos um link de confirmação para o seu e-mail. Abrindo seu painel…",
               true,
             );
+            setTimeout(() => location.assign(data.redirectTo), 2400);
+          } else {
+            setFormFeedback(form, "Login confirmado. Abrindo seu painel…", true);
             location.assign(data.redirectTo);
           }
         } catch (error) {
@@ -697,6 +698,36 @@
     input.value = formatBrazilPhone(input.value);
   });
 
+  function setupVerifyEmail() {
+    const root = $("[data-verify-email]");
+    if (!root) return;
+    const statusEl = $("[data-verify-status]", root);
+    const setStatus = (message, state) => {
+      statusEl.textContent = message;
+      statusEl.classList.remove("hidden");
+      statusEl.classList.toggle("success", state === "success");
+    };
+    const token = new URLSearchParams(location.search).get("token") || "";
+    if (!token) {
+      setStatus("Link de confirmação inválido ou incompleto.", "error");
+      return;
+    }
+    setStatus("Confirmando seu e-mail…", "loading");
+    apiRequest("/api/v1/auth/verify-email", { method: "POST", body: { token } })
+      .then((data) =>
+        setStatus(
+          data?.message || "E-mail confirmado com sucesso! Sua conta está ativa.",
+          "success",
+        ),
+      )
+      .catch((error) =>
+        setStatus(
+          error.message || "Não foi possível confirmar o e-mail.",
+          "error",
+        ),
+      );
+  }
+
   window.Padelfy = {
     $,
     $$,
@@ -724,4 +755,5 @@
   setupLandingDate();
   if (page === "auth") setupAuth();
   if (page === "player" || page === "club") setupLogout();
+  setupVerifyEmail();
 })();

@@ -1943,7 +1943,7 @@ em {
   position: relative;
   height: 150px;
   overflow: hidden;
-  background: var(--indigo);
+  background: #0f1626;
 }
 .club-cover::before {
   position: absolute;
@@ -1967,7 +1967,7 @@ em {
 .club-cover-photo {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 .club-cover-art::before {
   position: absolute;
@@ -2133,7 +2133,7 @@ em {
   height: 230px;
   overflow: hidden;
   border-radius: 10px;
-  background: #324d73;
+  background: #0f1626;
 }
 .detail-art .club-cover-art {
   opacity: 0.9;
@@ -2141,7 +2141,7 @@ em {
 .court-detail-photo {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 .detail-info {
   display: flex;

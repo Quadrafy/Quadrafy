@@ -609,6 +609,19 @@ export function validateResetPassword(body) {
   };
 }
 
+export function validateVerifyEmail(body) {
+  const token = String(body?.token ?? "").trim();
+  if (token.length < 20 || token.length > 200 || !/^[A-Za-z0-9_-]+$/.test(token)) {
+    throw new ApiError(
+      400,
+      "invalid_verification_token",
+      "Link de confirmação inválido ou expirado. Solicite um novo.",
+      { field: "token" },
+    );
+  }
+  return { token };
+}
+
 // TASKS-14 / TASK-58 — telefone brasileiro: DDD + número (10 ou 11
 // dígitos). Aceita máscara "(11) 91234-5678" e normaliza para dígitos.
 export function phone(value, field = "phone", { required = true } = {}) {
