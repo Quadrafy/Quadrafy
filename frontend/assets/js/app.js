@@ -108,9 +108,13 @@
       ? await response.json()
       : null;
     if (!response.ok) {
-      const error = new Error(
-        payload?.error?.message || "Não foi possível concluir a solicitação.",
-      );
+      const baseMessage =
+        payload?.error?.message || "Não foi possível concluir a solicitação.";
+      const debugSuffix =
+        response.status === 404
+          ? ` [${options.method || "GET"} ${url}]`
+          : "";
+      const error = new Error(baseMessage + debugSuffix);
       error.status = response.status;
       error.code = payload?.error?.code;
       error.details = payload?.error?.details;
