@@ -1637,10 +1637,14 @@
           body,
         }));
       }
-      ({ court } = await apiRequest(
-        `/api/v1/club/courts/${encodeURIComponent(court.id)}/blocked-windows`,
-        { method: "PATCH", body: { windows: state.editingBlockedWindows } },
-      ));
+      // Só envia PATCH de bloqueios se há janelas a salvar, ou se estamos
+      // editando uma quadra existente (para limpar janelas removidas).
+      if (state.editingCourtId || state.editingBlockedWindows.length > 0) {
+        ({ court } = await apiRequest(
+          `/api/v1/club/courts/${encodeURIComponent(court.id)}/blocked-windows`,
+          { method: "PATCH", body: { windows: state.editingBlockedWindows } },
+        ));
+      }
       const index = state.courts.findIndex((item) => item.id === court.id);
       if (index === -1) state.courts.push(court);
       else state.courts[index] = court;
