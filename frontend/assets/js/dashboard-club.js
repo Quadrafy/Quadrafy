@@ -1514,8 +1514,7 @@
         { from: courtOpenTime(court), to: courtCloseTime(court), duration: dur },
       ];
     } else {
-      // Nova quadra: pré-preenche uma faixa padrão para facilitar o cadastro.
-      state.editingDurationWindows = [{ from: "06:00", to: "23:00", duration: 90 }];
+      state.editingDurationWindows = [];
     }
     renderDurationWindowsList();
     state.editingBlockedWindows = Array.isArray(court?.blockedWindows)
@@ -1730,9 +1729,15 @@
         showToast("O horário de início deve ser anterior ao de fim.");
         return;
       }
-      if (state.editingDurationWindows.some((w) => w.from === from && w.to === to)) return;
+      if (state.editingDurationWindows.some((w) => w.from === from && w.to === to)) {
+        showToast("Essa faixa de horário já foi adicionada.");
+        return;
+      }
       state.editingDurationWindows.push({ from, to, duration });
       renderDurationWindowsList();
+      // Avança o "de" para o fim da faixa recém adicionada, facilitando encadeamento.
+      const dwFromSelect = $("[data-dw-from]");
+      if (dwFromSelect) dwFromSelect.value = to;
     });
 
     $("[data-add-court]")?.addEventListener("click", openCourtCreator);
