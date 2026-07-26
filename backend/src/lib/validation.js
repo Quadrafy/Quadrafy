@@ -741,10 +741,17 @@ export function validateCourt(body) {
     );
   }
 
-  const slotDuration = Number(
-    body.slotDuration ?? body.slotDurationMinutes ?? 90,
-  );
-  if (![60, 90].includes(slotDuration)) {
+  let slotDurations;
+  if (Array.isArray(body.slotDurations)) {
+    slotDurations = body.slotDurations.map(Number);
+  } else {
+    const single = Number(body.slotDuration ?? body.slotDurationMinutes ?? 90);
+    slotDurations = [single];
+  }
+  if (
+    slotDurations.length === 0 ||
+    !slotDurations.every((d) => [60, 90].includes(d))
+  ) {
     throw new ApiError(
       422,
       "validation_failed",
@@ -752,6 +759,7 @@ export function validateCourt(body) {
       { field: "slotDuration" },
     );
   }
+  const slotDuration = Math.min(...slotDurations);
   // TASK-96 — funcionamento que atravessa a meia-noite (ex.: abre 06:00,
   // fecha 01:00 do dia seguinte) é válido: nesse caso o fechamento é
   // numericamente menor/igual ao horário de abertura, então tratamos como
@@ -776,12 +784,47 @@ export function validateCourt(body) {
     price: number(body.price, "price", { min: 1, max: 10_000 }),
     openTime,
     closeTime,
+    slotDurations,
     slotDuration,
     photoUrl: optionalImageUrl(body.photoUrl, "photoUrl", "courts") ?? "",
     // TASK-51: quadra pode pertencer a uma arena adicional do clube
     // (ausente = arena principal).
     arenaId: optionalText(body.arenaId, "arenaId", { min: 1, max: 80 }),
   };
+}
+
+export function validateBlockedWindows(windows) {
+  if (!Array.isArray(windows)) {
+    throw new ApiError(
+      422,
+      "validation_failed",
+      "Informe uma lista de bloqueios válida.",
+    );
+  }
+  const HALF_HOUR = /^([01]\d|2[0-3]):[03]0$|^(00:00)$/;
+  return windows.map((w, i) => {
+    const from = String(w?.from ?? "");
+    const to = String(w?.to ?? "");
+    if (!HALF_HOUR.test(from) || !HALF_HOUR.test(to)) {
+      throw new ApiError(
+        422,
+        "validation_failed",
+        `Bloqueio ${i + 1}: informe horários válidos em múltiplos de 30 minutos.`,
+        { field: "blockedWindows" },
+      );
+    }
+    const fromMin = Number(from.split(":")[0]) * 60 + Number(from.split(":")[1]);
+    const toMin = Number(to.split(":")[0]) * 60 + Number(to.split(":")[1]);
+    if (toMin <= fromMin) {
+      throw new ApiError(
+        422,
+        "validation_failed",
+        `Bloqueio ${i + 1}: o horário de fim deve ser depois do início.`,
+        { field: "blockedWindows" },
+      );
+    }
+    return { from, to };
+  });
 }
 
 export function validateBooking(body) {

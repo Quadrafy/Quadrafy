@@ -32,6 +32,7 @@
     schedulePeriod: "day",
     schedule: null,
     editingCourtId: null,
+    editingBlockedWindows: [],
     clubPreviewObjectUrl: null,
     clubCroppedFile: null,
   };
@@ -67,8 +68,14 @@
     return court.closeTime || court.closesAt || "23:00";
   }
 
+  function courtSlotDurations(court) {
+    return Array.isArray(court.slotDurations) && court.slotDurations.length
+      ? court.slotDurations.map(Number).sort((a, b) => a - b)
+      : [Number(court.slotDuration || court.slotDurationMinutes || 90)];
+  }
+
   function courtSlotDuration(court) {
-    return Number(court.slotDuration || court.slotDurationMinutes || 90);
+    return Math.min(...courtSlotDurations(court));
   }
 
   function safePhotoUrl(value) {
@@ -1391,7 +1398,7 @@
     const artwork = photoUrl
       ? `<img class="management-court-photo" src="${escapeHTML(photoUrl)}" alt="${escapeHTML(court.name)}" />`
       : '<div class="club-cover-art"></div>';
-    return `<article class="management-court card-hover" role="button" tabindex="0" data-edit-court="${escapeHTML(court.id)}" aria-label="Editar ${escapeHTML(court.name)}"><div class="management-court-art">${artwork}<span class="court-state">${court.active ? "Ativa" : "Inativa"}</span></div><div class="management-court-body"><h3>${escapeHTML(court.name)}</h3><p>${escapeHTML(courtOpenTime(court))}–${escapeHTML(courtCloseTime(court))}</p><div class="court-meta"><span><small>Preço por horário</small><strong>${escapeHTML(formatCurrency(court.price))}</strong></span><span><small>Duração</small><strong>${courtSlotDuration(court)} min</strong></span><span class="court-edit-hint">Editar</span></div></div></article>`;
+    return `<article class="management-court card-hover" role="button" tabindex="0" data-edit-court="${escapeHTML(court.id)}" aria-label="Editar ${escapeHTML(court.name)}"><div class="management-court-art">${artwork}<span class="court-state">${court.active ? "Ativa" : "Inativa"}</span></div><div class="management-court-body"><h3>${escapeHTML(court.name)}</h3><p>${escapeHTML(courtOpenTime(court))}–${escapeHTML(courtCloseTime(court))}</p><div class="court-meta"><span><small>Preço por horário</small><strong>${escapeHTML(formatCurrency(court.price))}</strong></span><span><small>Duração</small><strong>${courtSlotDurations(court).join(" / ")} min</strong></span><span class="court-edit-hint">Editar</span></div></div></article>`;
   }
 
   function renderCourts() {
@@ -1429,6 +1436,27 @@
     }).join("");
   }
 
+  function renderBlockedWindowsList() {
+    const list = $("[data-blocked-windows-list]");
+    if (!list) return;
+    if (!state.editingBlockedWindows.length) {
+      list.innerHTML = "";
+      return;
+    }
+    list.innerHTML = state.editingBlockedWindows
+      .map(
+        (w, i) =>
+          `<div class="blocked-window-item"><span>${escapeHTML(w.from)} – ${escapeHTML(w.to)}</span><button class="blocked-window-item-remove" type="button" aria-label="Remover" data-remove-bw="${i}">×</button></div>`,
+      )
+      .join("");
+    list.querySelectorAll("[data-remove-bw]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.editingBlockedWindows.splice(Number(btn.dataset.removeBw), 1);
+        renderBlockedWindowsList();
+      });
+    });
+  }
+
   function showFormFeedback(selector, message, success = false) {
     const feedback = $(selector);
     if (!feedback) return;
@@ -1445,9 +1473,14 @@
     form.elements.price.value = court?.price ?? "";
     form.elements.openTime.value = court ? courtOpenTime(court) : "06:00";
     form.elements.closeTime.value = court ? courtCloseTime(court) : "23:00";
-    form.elements.slotDuration.value = String(
-      court ? courtSlotDuration(court) : 60,
-    );
+    const activeDurations = court ? courtSlotDurations(court) : [60];
+    form.querySelectorAll('[name="slotDurations"]').forEach((cb) => {
+      cb.checked = activeDurations.includes(Number(cb.value));
+    });
+    state.editingBlockedWindows = Array.isArray(court?.blockedWindows)
+      ? [...court.blockedWindows]
+      : [];
+    renderBlockedWindowsList();
     $("[data-court-eyebrow]").textContent = court
       ? "Editar quadra"
       : "Nova quadra";
@@ -1506,12 +1539,22 @@
     const button = $("[data-court-submit]", form);
     const formData = new FormData(form);
     const values = Object.fromEntries(formData.entries());
+    const slotDurations = Array.from(
+      form.querySelectorAll('[name="slotDurations"]:checked'),
+    ).map((cb) => Number(cb.value));
+    if (!slotDurations.length) {
+      showFormFeedback(
+        "[data-court-feedback]",
+        "Selecione ao menos uma duração de horário.",
+      );
+      return;
+    }
     const body = {
       name: values.name.trim(),
       price: Number(values.price),
       openTime: values.openTime,
       closeTime: values.closeTime,
-      slotDuration: Number(values.slotDuration),
+      slotDurations,
       // TASK-51: vazio = arena principal
       arenaId: values.arenaId || "",
     };
@@ -1524,7 +1567,8 @@
       closesAtMinutes <= opensAtMinutes
         ? closesAtMinutes + 24 * 60
         : closesAtMinutes;
-    if (closesAtMinutesNextDay - opensAtMinutes < body.slotDuration) {
+    const minDuration = Math.min(...slotDurations);
+    if (closesAtMinutesNextDay - opensAtMinutes < minDuration) {
       showFormFeedback(
         "[data-court-feedback]",
         "O horário de fechamento deve permitir ao menos um horário completo.",
@@ -1551,6 +1595,10 @@
           body,
         }));
       }
+      ({ court } = await apiRequest(
+        `/api/v1/club/courts/${encodeURIComponent(court.id)}/blocked-windows`,
+        { method: "PATCH", body: { windows: state.editingBlockedWindows } },
+      ));
       const index = state.courts.findIndex((item) => item.id === court.id);
       if (index === -1) state.courts.push(court);
       else state.courts[index] = court;
@@ -1629,6 +1677,19 @@
   function setupCourtModal() {
     populateHalfHourSelect($("[data-court-open-time]"), "06:00");
     populateHalfHourSelect($("[data-court-close-time]"), "23:00");
+    populateHalfHourSelect($("[data-blocked-window-from]"), "08:00");
+    populateHalfHourSelect($("[data-blocked-window-to]"), "09:00");
+    $("[data-blocked-window-add]")?.addEventListener("click", () => {
+      const from = $("[data-blocked-window-from]")?.value;
+      const to = $("[data-blocked-window-to]")?.value;
+      if (!from || !to || from >= to) {
+        showToast("O horário de início deve ser anterior ao de fim.");
+        return;
+      }
+      if (state.editingBlockedWindows.some((w) => w.from === from && w.to === to)) return;
+      state.editingBlockedWindows.push({ from, to });
+      renderBlockedWindowsList();
+    });
     $("[data-add-court]")?.addEventListener("click", openCourtCreator);
     $("[data-court-form]")?.addEventListener("submit", saveCourt);
     $("[data-court-delete-open]")?.addEventListener(

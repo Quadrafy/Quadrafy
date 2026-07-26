@@ -4799,6 +4799,75 @@ button.match-player-row:focus-visible strong {
 .court-form-modal .button[type="submit"] {
   margin-top: 6px;
 }
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.checkbox-option {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ink);
+  transition: border-color 0.15s, background 0.15s;
+  user-select: none;
+}
+.checkbox-option:hover {
+  border-color: var(--coral);
+}
+.checkbox-option input[type="checkbox"] {
+  accent-color: var(--coral);
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.blocked-window-add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.blocked-window-add-row select {
+  flex: 1;
+  min-width: 80px;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 10px;
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--ink);
+  font-size: 13px;
+}
+.blocked-window-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 11px;
+  margin-bottom: 5px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 12px;
+  color: var(--ink);
+}
+.blocked-window-item-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 2px;
+  transition: color 0.15s;
+}
+.blocked-window-item-remove:hover {
+  color: var(--coral);
+}
 .generic-modal-icon {
   display: grid;
   width: 55px;

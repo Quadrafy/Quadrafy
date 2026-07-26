@@ -20,8 +20,11 @@ export class CourtStore {
       this.courts = parsed.map((court) => {
         const openTime = court.openTime ?? court.opensAt;
         const closeTime = court.closeTime ?? court.closesAt;
-        const slotDuration =
-          court.slotDuration ?? court.slotDurationMinutes ?? 90;
+        const rawDuration = court.slotDuration ?? court.slotDurationMinutes ?? 90;
+        const slotDurations = Array.isArray(court.slotDurations)
+          ? court.slotDurations
+          : [rawDuration];
+        const slotDuration = Math.min(...slotDurations);
         const blockedSlots = [
           ...new Set(
             (Array.isArray(court.blockedSlots) ? court.blockedSlots : []).filter(
@@ -30,17 +33,22 @@ export class CourtStore {
             ),
           ),
         ];
+        const blockedWindows = Array.isArray(court.blockedWindows)
+          ? court.blockedWindows
+          : [];
         // TASK-99 — quadras não distinguem mais coberta/descoberta.
         const { type, ...rest } = court;
         return {
           ...rest,
           openTime,
           closeTime,
+          slotDurations,
           slotDuration,
           opensAt: openTime,
           closesAt: closeTime,
           slotDurationMinutes: slotDuration,
           blockedSlots,
+          blockedWindows,
         };
       });
     } catch (error) {
@@ -71,11 +79,17 @@ export class CourtStore {
     openTime,
     closeTime,
     slotDuration,
+    slotDurations,
     photoUrl = "",
     arenaId = null,
+    blockedWindows = [],
   }) {
     return this.enqueueWrite(async () => {
       const now = new Date().toISOString();
+      const resolvedDurations = Array.isArray(slotDurations)
+        ? slotDurations
+        : [slotDuration ?? 90];
+      const minDuration = Math.min(...resolvedDurations);
       const court = {
         id: createId(),
         clubId,
@@ -84,14 +98,16 @@ export class CourtStore {
         active,
         openTime,
         closeTime,
-        slotDuration,
+        slotDurations: resolvedDurations,
+        slotDuration: minDuration,
         photoUrl,
         blockedSlots: [],
+        blockedWindows,
         // TASK-51: null = arena principal do clube
         arenaId: arenaId || null,
         opensAt: openTime,
         closesAt: closeTime,
-        slotDurationMinutes: slotDuration,
+        slotDurationMinutes: minDuration,
         createdAt: now,
         updatedAt: now,
       };
@@ -120,12 +136,33 @@ export class CourtStore {
       if (!court) {
         throw new ApiError(404, "court_not_found", "Quadra não encontrada.");
       }
+      const resolvedDurations = Array.isArray(update.slotDurations)
+        ? update.slotDurations
+        : update.slotDuration
+          ? [update.slotDuration]
+          : court.slotDurations;
+      const minDuration = Math.min(...resolvedDurations);
       Object.assign(court, update, {
+        slotDurations: resolvedDurations,
+        slotDuration: minDuration,
         opensAt: update.openTime,
         closesAt: update.closeTime,
-        slotDurationMinutes: update.slotDuration,
+        slotDurationMinutes: minDuration,
         updatedAt: new Date().toISOString(),
       });
+      await this.persist();
+      return court;
+    });
+  }
+
+  async setBlockedWindows(courtId, windows) {
+    return this.enqueueWrite(async () => {
+      const court = this.findById(courtId);
+      if (!court) {
+        throw new ApiError(404, "court_not_found", "Quadra não encontrada.");
+      }
+      court.blockedWindows = windows;
+      court.updatedAt = new Date().toISOString();
       await this.persist();
       return court;
     });

@@ -28,6 +28,7 @@ import { createMailer } from "./lib/mailer.js";
 import {
   validateBookingUpdate,
   validateBooking,
+  validateBlockedWindows,
   validateClubProfile,
   validateCourt,
   validateLevelTest,
@@ -510,6 +511,11 @@ export async function createApp(overrides = {}) {
   }
 
   function courtView(court) {
+    const rawDuration = court.slotDuration ?? court.slotDurationMinutes;
+    const slotDurations = Array.isArray(court.slotDurations)
+      ? court.slotDurations
+      : [rawDuration];
+    const minDuration = Math.min(...slotDurations);
     return {
       id: court.id,
       clubId: court.clubId,
@@ -519,10 +525,12 @@ export async function createApp(overrides = {}) {
       openTime: court.openTime ?? court.opensAt,
       closeTime: court.closeTime ?? court.closesAt,
       arenaId: court.arenaId ?? null,
-      slotDuration: court.slotDuration ?? court.slotDurationMinutes,
+      slotDurations,
+      slotDuration: minDuration,
       opensAt: court.openTime ?? court.opensAt,
       closesAt: court.closeTime ?? court.closesAt,
-      slotDurationMinutes: court.slotDuration ?? court.slotDurationMinutes,
+      slotDurationMinutes: minDuration,
+      blockedWindows: court.blockedWindows ?? [],
       photoUrl: court.photoUrl ?? "",
     };
   }
@@ -647,18 +655,29 @@ export async function createApp(overrides = {}) {
   // slots que "passam" da meia-noite recebem dayOffset 1, para que quem
   // consome a lista saiba montar o `startAt` no dia calendário correto.
   function slotTimesFor(court) {
-    const slots = [];
     const openTime = court.openTime ?? court.opensAt;
     const closeTime = court.closeTime ?? court.closesAt;
-    const slotDuration = court.slotDuration ?? court.slotDurationMinutes;
+    const slotDurations = Array.isArray(court.slotDurations)
+      ? court.slotDurations
+      : [court.slotDuration ?? court.slotDurationMinutes ?? 90];
+    const minDuration = Math.min(...slotDurations);
+    const step = slotDurations.length > 1 ? 30 : minDuration;
     const opensAt = minutesFromTime(openTime);
     const closesAtRaw = minutesFromTime(closeTime);
     const closesAt = closesAtRaw <= opensAt ? closesAtRaw + 24 * 60 : closesAtRaw;
+    const blockedWindows = court.blockedWindows ?? [];
+    const slots = [];
     for (
       let minute = opensAt;
-      minute + slotDuration <= closesAt;
-      minute += slotDuration
+      minute + minDuration <= closesAt;
+      minute += step
     ) {
+      const inWindow = blockedWindows.some((w) => {
+        const from = minutesFromTime(w.from);
+        const to = minutesFromTime(w.to);
+        return minute >= from && minute < to;
+      });
+      if (inWindow) continue;
       const dayOffset = minute >= 24 * 60 ? 1 : 0;
       slots.push({ time: timeFromMinutes(minute % (24 * 60)), dayOffset });
     }
@@ -685,35 +704,70 @@ export async function createApp(overrides = {}) {
   function availabilityFor(club, date) {
     const activeCourts = courts.listActiveByClub(club.id);
     const nextDate = shiftDateKey(date, 1);
-    const reservedStarts = new Set(
-      bookings
-        .listByClub(club.id)
-        .filter(
-          (booking) =>
-            booking.status === "confirmed" &&
-            (brazilDateKey(booking.startAt) === date ||
-              brazilDateKey(booking.startAt) === nextDate),
-        )
-        .map((booking) => `${booking.courtId}:${booking.startAt}`),
-    );
+    const dateBookings = bookings
+      .listByClub(club.id)
+      .filter(
+        (booking) =>
+          booking.status === "confirmed" &&
+          (brazilDateKey(booking.startAt) === date ||
+            brazilDateKey(booking.startAt) === nextDate),
+      );
     return activeCourts.map((court) => {
+      const slotDurations = Array.isArray(court.slotDurations)
+        ? court.slotDurations
+        : [court.slotDuration ?? court.slotDurationMinutes ?? 90];
+      const minDuration = Math.min(...slotDurations);
+      const multiDuration = slotDurations.length > 1;
       const blockedStarts = new Set(court.blockedSlots ?? []);
+      const courtBookings = dateBookings.filter((b) => b.courtId === court.id);
       const slots = slotTimesFor(court).map(({ time, dayOffset }) => {
         const startAt = new Date(
           `${shiftDateKey(date, dayOffset)}T${time}:00-03:00`,
         ).toISOString();
         const blocked = blockedStarts.has(startAt);
+        if (!multiDuration) {
+          return {
+            startAt,
+            time,
+            blocked,
+            available:
+              !blocked &&
+              !courtBookings.some((b) => b.startAt === startAt),
+          };
+        }
+        const startMs = Date.parse(startAt);
+        const closesAt = minutesFromTime(
+          court.closeTime ?? court.closesAt ?? "23:00",
+        );
+        const opensAt = minutesFromTime(
+          court.openTime ?? court.opensAt ?? "06:00",
+        );
+        const closesMs =
+          Date.parse(
+            `${shiftDateKey(date, closesAt <= opensAt ? 1 : 0)}T${timeFromMinutes(closesAt % (24 * 60))}:00-03:00`,
+          );
+        const availableDurations = slotDurations.filter((dur) => {
+          const endMs = startMs + dur * 60000;
+          if (endMs > closesMs) return false;
+          return !courtBookings.some((b) => {
+            const bStart = Date.parse(b.startAt);
+            const bEnd = bStart + (b.durationMinutes ?? minDuration) * 60000;
+            return startMs < bEnd && endMs > bStart;
+          });
+        });
         return {
           startAt,
           time,
           blocked,
-          available: !blocked && !reservedStarts.has(`${court.id}:${startAt}`),
+          available: !blocked && availableDurations.length > 0,
+          availableDurations,
         };
       });
       return {
         courtId: court.id,
         courtName: court.name,
-        slotDurationMinutes: court.slotDuration ?? court.slotDurationMinutes,
+        slotDurations,
+        slotDurationMinutes: minDuration,
         slots,
       };
     });
@@ -752,11 +806,15 @@ export async function createApp(overrides = {}) {
             ...(booking ? { booking: bookingView(booking) } : {}),
           };
         });
+        const courtSlotDurations = Array.isArray(court.slotDurations)
+          ? court.slotDurations
+          : [court.slotDuration ?? court.slotDurationMinutes ?? 90];
         return {
           courtId: court.id,
           courtName: court.name,
           active,
-          slotDurationMinutes: court.slotDuration ?? court.slotDurationMinutes,
+          slotDurations: courtSlotDurations,
+          slotDurationMinutes: Math.min(...courtSlotDurations),
           slots,
         };
       }),
@@ -1570,6 +1628,25 @@ export async function createApp(overrides = {}) {
       return true;
     }
 
+    const ownerCourtWindowsRoute = pathname.match(
+      /^\/api\/v1\/club\/courts\/([^/]+)\/blocked-windows$/,
+    );
+    if (ownerCourtWindowsRoute && request.method === "PATCH") {
+      assertSameOrigin(request);
+      const user = requireUser(request, "club");
+      const club = await clubs.ensureForUser(user);
+      const courtId = decodeURIComponent(ownerCourtWindowsRoute[1]);
+      const court = courts.findById(courtId);
+      if (!court || court.clubId !== club.id) {
+        throw new ApiError(404, "court_not_found", "Quadra não encontrada.");
+      }
+      const body = await readJson(request);
+      const windows = validateBlockedWindows(body.windows ?? []);
+      const updated = await courts.setBlockedWindows(courtId, windows);
+      sendData(response, 200, { court: courtView(updated) });
+      return true;
+    }
+
     const ownerCourtRoute = pathname.match(
       /^\/api\/v1\/club\/courts\/([^/]+)$/,
     );
@@ -1863,6 +1940,23 @@ export async function createApp(overrides = {}) {
       if (!court || court.clubId !== club.id || !court.active) {
         throw new ApiError(404, "court_not_found", "Quadra não encontrada.");
       }
+      const courtSlotDurations = Array.isArray(court.slotDurations)
+        ? court.slotDurations
+        : [court.slotDuration ?? 90];
+      const rawDuration = rawBody?.durationMinutes != null
+        ? Number(rawBody.durationMinutes)
+        : null;
+      const durationMinutes = rawDuration != null
+        ? rawDuration
+        : Math.min(...courtSlotDurations);
+      if (!courtSlotDurations.includes(durationMinutes)) {
+        throw new ApiError(
+          422,
+          "validation_failed",
+          `Esta quadra não oferece horários de ${durationMinutes} minutos.`,
+          { field: "durationMinutes" },
+        );
+      }
       const booking = await withAgendaLock(async () => {
         const selectedSlot = findSlotForCourt(club, court, input.startAt);
         if (selectedSlot?.blocked) {
@@ -1881,6 +1975,18 @@ export async function createApp(overrides = {}) {
             { field: "startAt" },
           );
         }
+        if (
+          courtSlotDurations.length > 1 &&
+          selectedSlot.availableDurations &&
+          !selectedSlot.availableDurations.includes(durationMinutes)
+        ) {
+          throw new ApiError(
+            409,
+            "booking_conflict",
+            "Já existe um jogo criado neste horário nesta quadra.",
+            { courtId: court.id, startAt: input.startAt },
+          );
+        }
         // TASK-79 — o Padelfy não é mais o sistema oficial de reserva:
         // isso não bloqueia mais a criação, só avisa (a menos que o
         // jogador já tenha confirmado o aviso com `allowConflict`).
@@ -1894,6 +2000,7 @@ export async function createApp(overrides = {}) {
         }
         return bookings.create({
           ...input,
+          durationMinutes,
           playerId: user.id,
           status: "confirmed",
           // já verificamos acima (inclui reservas fixas do clube, que o

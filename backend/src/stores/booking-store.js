@@ -212,6 +212,7 @@ export class BookingStore {
     clubId,
     courtId,
     startAt,
+    durationMinutes,
     levelCategories = null,
     maxPlayers = 4,
     genderCategory = "all",
@@ -244,6 +245,7 @@ export class BookingStore {
         clubId,
         courtId,
         startAt,
+        ...(durationMinutes != null ? { durationMinutes } : {}),
         // TASK-49: "all" | "women_only" | "men_only" | "mixed"
         genderCategory,
         levelCategories,
