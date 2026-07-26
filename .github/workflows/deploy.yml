@@ -18,7 +18,8 @@ jobs:
           port: 22
           script: |
             cd /var/www/backend
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
             docker build -t app-backend .
             docker stop backend-container || true
             docker rm backend-container || true
