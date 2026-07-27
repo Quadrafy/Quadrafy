@@ -52,30 +52,48 @@ function circlePairings(count) {
   return rounds;
 }
 
-// Fatia os jogos de cada bloco em grupos de até `courts.length` jogos
-// paralelos e devolve a lista plana e numerada de confrontos (sem tempo).
+// Greedy court packer: a cada slot preenche todas as quadras disponíveis
+// com jogos sem conflito de jogadores (pode cruzar limites de rodada base).
+// Garante que nenhuma quadra fique ociosa enquanto houver jogos disponíveis.
 function scheduleGames({ baseRounds, courts }) {
-  const games = [];
+  const getPlayerKeys = (game) => [
+    ...game.team1.map((p) => p.id ?? p.name),
+    ...game.team2.map((p) => p.id ?? p.name),
+  ];
+
+  const pending = baseRounds.flat();
+  const scheduled = [];
   let block = 0;
-  for (const baseGames of baseRounds) {
-    for (
-      let sliceStart = 0;
-      sliceStart < baseGames.length;
-      sliceStart += courts.length
-    ) {
-      const slice = baseGames.slice(sliceStart, sliceStart + courts.length);
-      slice.forEach((game, index) => {
-        games.push({
-          order: games.length + 1,
-          court: courts[(index + block) % courts.length],
-          team1: game.team1,
-          team2: game.team2,
-        });
-      });
-      block += 1;
+
+  while (pending.length > 0) {
+    const slotPlayers = new Set();
+    const slotGames = [];
+    let i = 0;
+
+    while (i < pending.length && slotGames.length < courts.length) {
+      const game = pending[i];
+      const players = getPlayerKeys(game);
+      if (players.every((p) => !slotPlayers.has(p))) {
+        slotGames.push(game);
+        players.forEach((p) => slotPlayers.add(p));
+        pending.splice(i, 1);
+      } else {
+        i += 1;
+      }
     }
+
+    slotGames.forEach((game, index) => {
+      scheduled.push({
+        order: scheduled.length + 1,
+        court: courts[(index + block) % courts.length],
+        team1: game.team1,
+        team2: game.team2,
+      });
+    });
+    block += 1;
   }
-  return games;
+
+  return scheduled;
 }
 
 // Modalidade "duplas fixas": round-robin entre as duplas.

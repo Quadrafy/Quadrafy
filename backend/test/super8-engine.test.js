@@ -156,6 +156,36 @@ test("court rotation: no player is locked to a single court across the tournamen
   );
 });
 
+test("greedy packer: 12 players / 2 courts — all courts in use on every full slot", () => {
+  for (const mode of ["rotacao", "duplas_fixas"]) {
+    const games = generateSuper8Games({
+      mode,
+      players: makePlayers(12),
+      pairs: mode === "duplas_fixas" ? makePairs(12) : [],
+      courts: makeCourts(2),
+    });
+    assertValidGames(games);
+    // Group games into concurrent slots: games at positions 0-1, 2-3, 4-5…
+    // Every slot except possibly the last must use all 2 courts.
+    for (let start = 0; start + 2 <= games.length; start += 2) {
+      const slot = games.slice(start, start + 2);
+      const slotPlayerIds = slot.flatMap(gamePlayers);
+      // No player appears twice in the same slot
+      assert.equal(
+        new Set(slotPlayerIds).size,
+        slotPlayerIds.length,
+        `slot starting at ${start} has a player conflict`,
+      );
+    }
+    // Total game count unchanged
+    const expected =
+      mode === "duplas_fixas"
+        ? (6 * 5) / 2 // C(6,2) = 15
+        : (12 * 11) / 4; // 33
+    assert.equal(games.length, expected);
+  }
+});
+
 /* TASK-48 — tabela final */
 
 test("standings (rotation): ordered by wins, ties broken by games balance", () => {
