@@ -19,30 +19,15 @@ export const INITIAL_RELIABILITY = 35; // % (TASK-26/27)
 export const POT_BASE_FAVORITE_WIN = 0.06;
 export const POT_BASE_UNDERDOG_WIN = 0.34;
 
-// Tabela oficial de faixas (inalterada desde o TASKS-06).
+// Tabela oficial de faixas.
 export const LEVEL_BANDS = [
-  { min: 0, max: 1, technical: "Iniciante", category: "7ª Categoria" },
-  {
-    min: 1,
-    max: 2,
-    technical: "Iniciante Intermediário",
-    category: "6ª Categoria",
-  },
-  { min: 2, max: 3.5, technical: "Intermediário", category: "5ª Categoria" },
-  {
-    min: 3.5,
-    max: 5.5,
-    technical: "Intermediário Avançado",
-    category: "4ª Categoria",
-  },
-  { min: 5.5, max: 6.5, technical: "Avançado", category: "3ª Categoria" },
-  {
-    min: 6.5,
-    max: 6.8,
-    technical: "Avançado Elevado",
-    category: "2ª Categoria",
-  },
-  { min: 6.8, max: 7, technical: "Elite", category: "Categoria Open" },
+  { min: 0,   max: 1,   technical: "Iniciante",               category: "7ª Categoria"   },
+  { min: 1,   max: 2,   technical: "Iniciante Intermediário",  category: "6ª Categoria"   },
+  { min: 2,   max: 3.5, technical: "Intermediário",            category: "5ª Categoria"   },
+  { min: 3.5, max: 5.3, technical: "Intermediário Avançado",   category: "4ª Categoria"   },
+  { min: 5.2, max: 6.2, technical: "Avançado",                 category: "3ª Categoria"   },
+  { min: 6.2, max: 6.8, technical: "Avançado Elevado",         category: "2ª Categoria"   },
+  { min: 6.8, max: 7,   technical: "Elite",                    category: "Categoria Open" },
 ];
 
 // TASK-77 — nomes técnicos das 7 categorias oficiais, para reaproveitar em
