@@ -86,15 +86,15 @@ function assertSuper8FutureDateTime(date, startTime) {
 }
 
 const MAX_BOOKING_HORIZON_MS = 90 * 24 * 60 * 60 * 1_000;
-// TASK-26 — questionário determinístico: 6 perguntas, cada resposta vale
-// de 1 a 4 pontos (pontuação total 6–24).
+// Questionário de 7 perguntas: Q1 vale 1–4, Q2–Q7 valem 1–5 (total 7–34).
 export const LEVEL_TEST_QUESTIONS = [
-  "tempo_pratica",
-  "frequencia_semanal",
-  "experiencia_esportes_raquete",
-  "autoavaliacao_golpes",
-  "experiencia_competicoes",
-  "tatica_posicionamento",
+  "tempo_pratica",       // Q1: 1–4
+  "aulas_treino",        // Q2: 1–5
+  "consistencia_erros",  // Q3: 1–5
+  "condicao_fisica",     // Q4: 1–5
+  "golpes_fundo",        // Q5: 1–5
+  "jogo_voleio",         // Q6: 1–5
+  "golpes_aereos",       // Q7: 1–5
 ];
 
 
@@ -571,13 +571,13 @@ function optionalImageUrl(value, field, uploadDirectory) {
   return url;
 }
 
-function questionScore(value, field) {
+function questionScore(value, field, max = 4) {
   const numeric = Number(value);
-  if (!Number.isInteger(numeric) || numeric < 1 || numeric > 4) {
+  if (!Number.isInteger(numeric) || numeric < 1 || numeric > max) {
     throw new ApiError(
       422,
       "validation_failed",
-      `Verifique o campo ${field} (resposta de 1 a 4).`,
+      `Verifique o campo ${field} (resposta de 1 a ${max}).`,
       { field },
     );
   }
@@ -991,12 +991,15 @@ export function validatePlayerProfile(body) {
 }
 
 export function validateLevelTest(body) {
-  return Object.fromEntries(
-    LEVEL_TEST_QUESTIONS.map((question) => [
-      question,
-      questionScore(body?.[question], question),
-    ]),
-  );
+  return {
+    tempo_pratica:      questionScore(body?.tempo_pratica,      "tempo_pratica",      4),
+    aulas_treino:       questionScore(body?.aulas_treino,       "aulas_treino",       5),
+    consistencia_erros: questionScore(body?.consistencia_erros, "consistencia_erros", 5),
+    condicao_fisica:    questionScore(body?.condicao_fisica,    "condicao_fisica",    5),
+    golpes_fundo:       questionScore(body?.golpes_fundo,       "golpes_fundo",       5),
+    jogo_voleio:        questionScore(body?.jogo_voleio,        "jogo_voleio",        5),
+    golpes_aereos:      questionScore(body?.golpes_aereos,      "golpes_aereos",      5),
+  };
 }
 
 export function validateMatchMessage(body) {

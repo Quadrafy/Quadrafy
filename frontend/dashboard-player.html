@@ -1364,11 +1364,10 @@
 
     <div class="modal-backdrop" data-level-test-modal aria-hidden="true">
       <div
-        class="modal-card match-detail-modal"
+        class="modal-card lt-modal"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="level-test-title"
-        aria-describedby="level-test-description"
+        aria-labelledby="lt-title"
       >
         <button
           class="modal-close"
@@ -1379,81 +1378,149 @@
         >
           ×
         </button>
-        <p class="eyebrow dark">Nivelamento Padelfy</p>
-        <h2 id="level-test-title">Vamos encontrar seu nível.</h2>
-        <p id="level-test-description" class="profile-data-note">
-          Responda seis perguntas rápidas. O cálculo é imediato e
-          determinístico — o resultado ajuda a indicar partidas equilibradas.
-        </p>
-        <form data-level-test-form>
-          <label class="input-group">
-            <span>Há quanto tempo você pratica padel?</span>
-            <select name="tempo_pratica" required>
-              <option value="">Selecione</option>
-              <option value="1">Menos de 3 meses (ou nunca joguei)</option>
-              <option value="2">Entre 3 e 12 meses</option>
-              <option value="3">Entre 1 e 3 anos</option>
-              <option value="4">Mais de 3 anos</option>
-            </select>
-          </label>
-          <label class="input-group">
-            <span>Com que frequência você joga por semana?</span>
-            <select name="frequencia_semanal" required>
-              <option value="">Selecione</option>
-              <option value="1">Ainda não jogo toda semana</option>
-              <option value="2">Uma vez por semana</option>
-              <option value="3">Duas ou três vezes por semana</option>
-              <option value="4">Mais de três vezes por semana</option>
-            </select>
-          </label>
-          <label class="input-group">
-            <span>Qual sua experiência em outros esportes de raquete?</span>
-            <select name="experiencia_esportes_raquete" required>
-              <option value="">Selecione</option>
-              <option value="1">Nenhuma</option>
-              <option value="2">Recreativa</option>
-              <option value="3">Frequente</option>
-              <option value="4">Tênis ou squash em alto nível</option>
-            </select>
-          </label>
-          <label class="input-group">
-            <span>Como você avalia seus golpes?</span>
-            <select name="autoavaliacao_golpes" required>
-              <option value="">Selecione</option>
-              <option value="1">Estou aprendendo os golpes básicos</option>
-              <option value="2">Consigo sustentar trocas simples</option>
-              <option value="3">Tenho controle e uso paredes</option>
-              <option value="4">Domino golpes, paredes e estratégia</option>
-            </select>
-          </label>
-          <label class="input-group">
-            <span>Qual sua experiência em competições?</span>
-            <select name="experiencia_competicoes" required>
-              <option value="">Selecione</option>
-              <option value="1">Nunca competi</option>
-              <option value="2">Já joguei torneios internos ou amistosos</option>
-              <option value="3">Compito em torneios amadores regularmente</option>
-              <option value="4">Compito em nível federado/avançado</option>
-            </select>
-          </label>
-          <label class="input-group">
-            <span>Como você avalia sua tática e posicionamento?</span>
-            <select name="tatica_posicionamento" required>
-              <option value="">Selecione</option>
-              <option value="1">Ainda me perco no posicionamento</option>
-              <option value="2">Sei as posições básicas de ataque e defesa</option>
-              <option value="3">Leio o jogo e troco de posição com o parceiro</option>
-              <option value="4">Domino transições, lob e jogo de rede</option>
-            </select>
-          </label>
-          <button
-            class="button button-primary button-block shine"
-            type="submit"
-            data-level-test-submit
-          >
-            Calcular meu nível
+
+        <!-- ── Passo 1: perguntas ─────────────────────────── -->
+        <div data-lt-step="questions">
+          <p class="eyebrow dark">Nivelamento Quadrafy</p>
+          <h2 id="lt-title">Vamos encontrar seu nível.</h2>
+          <p class="lt-count" data-lt-count>0 / 7 respondidas</p>
+          <div class="lt-progress"><div class="lt-fill" data-lt-fill style="width:0%"></div></div>
+
+          <div class="lt-questions">
+
+            <!-- Q1 (1–4) -->
+            <div class="lt-question">
+              <p class="lt-qlabel"><span class="lt-qnum" id="lt-n1">1</span>Há quanto tempo você pratica padel?</p>
+              <div class="lt-opts">
+                <label class="lt-opt"><input type="radio" name="tempo_pratica" value="1"><span class="lt-letter">A</span><span>Menos de 6 meses (ou nunca joguei)</span></label>
+                <label class="lt-opt"><input type="radio" name="tempo_pratica" value="2"><span class="lt-letter">B</span><span>Entre 6 meses e 2 anos</span></label>
+                <label class="lt-opt"><input type="radio" name="tempo_pratica" value="3"><span class="lt-letter">C</span><span>Entre 2 e 5 anos</span></label>
+                <label class="lt-opt"><input type="radio" name="tempo_pratica" value="4"><span class="lt-letter">D</span><span>Mais de 5 anos</span></label>
+              </div>
+            </div>
+
+            <!-- Q2 (1–5) -->
+            <div class="lt-question">
+              <p class="lt-qlabel"><span class="lt-qnum" id="lt-n2">2</span>Você treina com aulas ou coach regularmente?</p>
+              <div class="lt-opts">
+                <label class="lt-opt"><input type="radio" name="aulas_treino" value="1"><span class="lt-letter">A</span><span>Nunca tive aulas</span></label>
+                <label class="lt-opt"><input type="radio" name="aulas_treino" value="2"><span class="lt-letter">B</span><span>Tive aulas esporadicamente</span></label>
+                <label class="lt-opt"><input type="radio" name="aulas_treino" value="3"><span class="lt-letter">C</span><span>Treino com aulas mensalmente</span></label>
+                <label class="lt-opt"><input type="radio" name="aulas_treino" value="4"><span class="lt-letter">D</span><span>Treino com aulas semanalmente</span></label>
+                <label class="lt-opt"><input type="radio" name="aulas_treino" value="5"><span class="lt-letter">E</span><span>Treinamento técnico intensivo e regular</span></label>
+              </div>
+            </div>
+
+            <!-- Q3 (1–5) -->
+            <div class="lt-question">
+              <p class="lt-qlabel"><span class="lt-qnum" id="lt-n3">3</span>Como é sua consistência durante os pontos?</p>
+              <div class="lt-opts">
+                <label class="lt-opt"><input type="radio" name="consistencia_erros" value="1"><span class="lt-letter">A</span><span>Erro muitas bolas simples</span></label>
+                <label class="lt-opt"><input type="radio" name="consistencia_erros" value="2"><span class="lt-letter">B</span><span>Consigo manter trocas curtas</span></label>
+                <label class="lt-opt"><input type="radio" name="consistencia_erros" value="3"><span class="lt-letter">C</span><span>Sustento trocas longas sem errar muito</span></label>
+                <label class="lt-opt"><input type="radio" name="consistencia_erros" value="4"><span class="lt-letter">D</span><span>Cometo poucos erros não forçados</span></label>
+                <label class="lt-opt"><input type="radio" name="consistencia_erros" value="5"><span class="lt-letter">E</span><span>Sou muito consistente e controlo o ritmo</span></label>
+              </div>
+            </div>
+
+            <!-- Q4 (1–5) -->
+            <div class="lt-question">
+              <p class="lt-qlabel"><span class="lt-qnum" id="lt-n4">4</span>Como você avalia sua condição física?</p>
+              <div class="lt-opts">
+                <label class="lt-opt"><input type="radio" name="condicao_fisica" value="1"><span class="lt-letter">A</span><span>Fico cansado logo nos primeiros games</span></label>
+                <label class="lt-opt"><input type="radio" name="condicao_fisica" value="2"><span class="lt-letter">B</span><span>Consigo jogar um set</span></label>
+                <label class="lt-opt"><input type="radio" name="condicao_fisica" value="3"><span class="lt-letter">C</span><span>Mantenho bom ritmo em dois sets</span></label>
+                <label class="lt-opt"><input type="radio" name="condicao_fisica" value="4"><span class="lt-letter">D</span><span>Tenho preparação física dedicada</span></label>
+                <label class="lt-opt"><input type="radio" name="condicao_fisica" value="5"><span class="lt-letter">E</span><span>Treino físico regularmente em nível competitivo</span></label>
+              </div>
+            </div>
+
+            <!-- Q5 (1–5) -->
+            <div class="lt-question">
+              <p class="lt-qlabel"><span class="lt-qnum" id="lt-n5">5</span>Seus golpes de fundo de quadra (direita/esquerda)?</p>
+              <div class="lt-opts">
+                <label class="lt-opt"><input type="radio" name="golpes_fundo" value="1"><span class="lt-letter">A</span><span>Ainda estou aprendendo os golpes básicos</span></label>
+                <label class="lt-opt"><input type="radio" name="golpes_fundo" value="2"><span class="lt-letter">B</span><span>Bato com alguma consistência</span></label>
+                <label class="lt-opt"><input type="radio" name="golpes_fundo" value="3"><span class="lt-letter">C</span><span>Tenho controle e direciono a bola</span></label>
+                <label class="lt-opt"><input type="radio" name="golpes_fundo" value="4"><span class="lt-letter">D</span><span>Uso variação de ritmo e efeito</span></label>
+                <label class="lt-opt"><input type="radio" name="golpes_fundo" value="5"><span class="lt-letter">E</span><span>Golpes de fundo como arma tática principal</span></label>
+              </div>
+            </div>
+
+            <!-- Q6 (1–5) -->
+            <div class="lt-question">
+              <p class="lt-qlabel"><span class="lt-qnum" id="lt-n6">6</span>Como é seu jogo de voleio e na rede?</p>
+              <div class="lt-opts">
+                <label class="lt-opt"><input type="radio" name="jogo_voleio" value="1"><span class="lt-letter">A</span><span>Evito a rede</span></label>
+                <label class="lt-opt"><input type="radio" name="jogo_voleio" value="2"><span class="lt-letter">B</span><span>Volejo com dificuldade</span></label>
+                <label class="lt-opt"><input type="radio" name="jogo_voleio" value="3"><span class="lt-letter">C</span><span>Voleio com algum controle</span></label>
+                <label class="lt-opt"><input type="radio" name="jogo_voleio" value="4"><span class="lt-letter">D</span><span>Jogo bem a rede e ataco no voleio</span></label>
+                <label class="lt-opt"><input type="radio" name="jogo_voleio" value="5"><span class="lt-letter">E</span><span>Domino a rede como ponto forte</span></label>
+              </div>
+            </div>
+
+            <!-- Q7 (1–5) -->
+            <div class="lt-question">
+              <p class="lt-qlabel"><span class="lt-qnum" id="lt-n7">7</span>Como são seus golpes aéreos (bandeja, víbora, smash)?</p>
+              <div class="lt-opts">
+                <label class="lt-opt"><input type="radio" name="golpes_aereos" value="1"><span class="lt-letter">A</span><span>Ainda não os executo</span></label>
+                <label class="lt-opt"><input type="radio" name="golpes_aereos" value="2"><span class="lt-letter">B</span><span>Sei bater, mas falta consistência</span></label>
+                <label class="lt-opt"><input type="radio" name="golpes_aereos" value="3"><span class="lt-letter">C</span><span>Executo com algum controle</span></label>
+                <label class="lt-opt"><input type="radio" name="golpes_aereos" value="4"><span class="lt-letter">D</span><span>São armas do meu jogo</span></label>
+                <label class="lt-opt"><input type="radio" name="golpes_aereos" value="5"><span class="lt-letter">E</span><span>Uso taticamente com variação de ângulo</span></label>
+              </div>
+            </div>
+
+          </div><!-- /.lt-questions -->
+
+          <p class="lt-err" data-lt-err hidden>Responda todas as 7 perguntas para continuar.</p>
+          <button class="button button-primary button-block shine" type="button" data-lt-calc>
+            Ver meu nível →
           </button>
-        </form>
+        </div><!-- /[data-lt-step="questions"] -->
+
+        <!-- ── Passo 2: resultado ─────────────────────────── -->
+        <div data-lt-step="result" hidden>
+          <p class="eyebrow dark">Seu resultado</p>
+
+          <div class="lt-circle-wrap">
+            <svg class="lt-gauge" viewBox="0 0 100 100" aria-hidden="true">
+              <circle cx="50" cy="50" r="40" class="lt-gauge-bg"/>
+              <circle cx="50" cy="50" r="40" class="lt-gauge-arc" data-lt-arc/>
+            </svg>
+            <div class="lt-circle-inner">
+              <span class="lt-num" data-lt-circle>—</span>
+              <span class="lt-denom">/7</span>
+            </div>
+          </div>
+
+          <h3 class="lt-rname" data-lt-rname></h3>
+          <p class="lt-rcat" data-lt-rcat></p>
+
+          <!-- Ajuste ±0,5 (só aparece quando nível ≤ 5,2) -->
+          <div class="lt-adj" data-lt-adj-section hidden>
+            <p class="lt-adj-label">Ajuste fino (±0,5)</p>
+            <div class="lt-adj-row">
+              <button class="lt-adj-btn" type="button" data-lt-minus aria-label="Diminuir nível">−</button>
+              <span class="lt-adj-val" data-lt-adj-display>0,0</span>
+              <button class="lt-adj-btn" type="button" data-lt-plus aria-label="Aumentar nível">+</button>
+            </div>
+            <p class="lt-adj-hint">Máximo permitido: 5,2</p>
+          </div>
+
+          <!-- Aviso quando nível > 5,2 (sem ajuste) -->
+          <div class="lt-locked" data-lt-adj-locked hidden>
+            <p class="lt-lock-msg">Nível acima de 5,2 — ajuste manual não disponível.</p>
+          </div>
+
+          <p class="lt-meta" data-lt-meta></p>
+
+          <button class="button button-primary button-block shine" type="button" data-lt-confirm>
+            Confirmar meu nível
+          </button>
+          <button class="lt-back" type="button" data-lt-back>← Refazer o teste</button>
+        </div><!-- /[data-lt-step="result"] -->
+
       </div>
     </div>
 

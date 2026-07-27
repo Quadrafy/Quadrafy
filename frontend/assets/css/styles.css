@@ -7713,3 +7713,44 @@ button.super8-open-row:focus-visible {
 .crop-actions .button {
   flex: 1;
 }
+
+/* ── Level-test questionnaire (TASK-new) ────────────────────────────── */
+.lt-modal { max-height: 85vh; overflow-y: auto; }
+.lt-progress { height: 4px; background: var(--line); border-radius: 2px; margin: 6px 0 18px; }
+.lt-fill { height: 100%; background: var(--green); border-radius: 2px; transition: width .25s ease; }
+.lt-questions { display: flex; flex-direction: column; gap: 18px; margin-bottom: 14px; }
+.lt-qlabel { display: flex; align-items: flex-start; gap: 8px; font-weight: 600; color: var(--ink); margin: 0 0 8px; font-size: .9rem; line-height: 1.4; }
+.lt-qnum { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; min-width: 22px; border-radius: 50%; background: var(--ink); color: #fff; font-size: .7rem; font-weight: 700; margin-top: 1px; transition: background .2s; }
+.lt-qnum.lt-answered { background: var(--green); }
+.lt-opts { display: flex; flex-direction: column; gap: 5px; }
+.lt-opt { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1.5px solid var(--line); border-radius: var(--radius-sm); cursor: pointer; transition: border-color .15s, background .15s; font-size: .88rem; color: var(--ink); user-select: none; }
+.lt-opt:hover { border-color: var(--green); background: rgba(43,130,101,.05); }
+.lt-opt input[type=radio] { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+.lt-opt.lt-selected { border-color: var(--green); background: rgba(43,130,101,.09); }
+.lt-letter { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; min-width: 20px; border-radius: 4px; background: var(--paper-2); font-size: .72rem; font-weight: 700; color: var(--ink); transition: background .15s, color .15s; }
+.lt-opt.lt-selected .lt-letter { background: var(--green); color: #fff; }
+.lt-err { color: #c0392b; font-size: .83rem; margin: 0 0 10px; }
+.lt-count { font-size: .82rem; color: var(--ink-soft); }
+/* Result step */
+.lt-circle-wrap { position: relative; width: 130px; height: 130px; margin: 6px auto 14px; }
+.lt-gauge { width: 100%; height: 100%; transform: rotate(-90deg); }
+.lt-gauge-bg { fill: none; stroke: var(--line); stroke-width: 10; }
+.lt-gauge-arc { fill: none; stroke: var(--green); stroke-width: 10; stroke-linecap: round; stroke-dasharray: 251.3; stroke-dashoffset: 251.3; transition: stroke-dashoffset .6s ease; }
+.lt-circle-inner { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.lt-num { font-size: 1.9rem; font-weight: 800; color: var(--ink); line-height: 1; }
+.lt-denom { font-size: .8rem; color: var(--ink-soft); }
+.lt-rname { text-align: center; font-size: 1.05rem; font-weight: 700; margin: 0 0 3px; color: var(--ink); }
+.lt-rcat { text-align: center; font-size: .82rem; color: var(--ink-soft); margin: 0 0 16px; }
+.lt-adj { border: 1.5px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 14px; }
+.lt-adj-label { font-size: .75rem; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .05em; margin: 0 0 10px; text-align: center; }
+.lt-adj-row { display: flex; align-items: center; justify-content: center; gap: 18px; }
+.lt-adj-btn { width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--green); background: transparent; color: var(--green); font-size: 1.4rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 700; transition: background .15s, color .15s; }
+.lt-adj-btn:hover:not(:disabled) { background: var(--green); color: #fff; }
+.lt-adj-btn:disabled { border-color: var(--line); color: var(--ink-soft); cursor: not-allowed; }
+.lt-adj-val { font-size: 1.5rem; font-weight: 800; color: var(--ink); min-width: 56px; text-align: center; }
+.lt-adj-hint { font-size: .78rem; color: var(--ink-soft); text-align: center; margin: 8px 0 0; }
+.lt-locked { text-align: center; margin-bottom: 14px; }
+.lt-lock-msg { font-size: .83rem; color: var(--ink-soft); padding: 10px 12px; background: var(--paper-2); border-radius: var(--radius-sm); }
+.lt-meta { font-size: .8rem; color: var(--ink-soft); text-align: center; margin: 0 0 14px; }
+.lt-back { display: block; width: 100%; padding: 10px; background: none; border: none; color: var(--ink-soft); font-size: .88rem; cursor: pointer; text-align: center; margin-top: 6px; }
+.lt-back:hover { color: var(--ink); }

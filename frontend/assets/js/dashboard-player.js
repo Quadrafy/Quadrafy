@@ -47,6 +47,7 @@
     unreadByMatch: new Map(),
     refreshingUnread: false,
     levelTestRequired: false,
+    lt: {},
     lastFocusedElement: null,
     profilePreviewObjectUrl: null,
     profileCroppedFile: null,
@@ -4111,51 +4112,138 @@
     }
   }
 
+  /* ── Level-test helpers ─────────────────────────────────── */
+
+  function ltScoreToLevel(score) {
+    if (score <= 13) return 0.5 + ((score - 7) / 6) * 0.7;
+    if (score <= 20) return 1.3 + ((score - 14) / 6) * 1.1;
+    if (score <= 27) return 2.5 + ((score - 21) / 6) * 1.5;
+    return 4.1 + ((score - 28) / 6) * 2.1;
+  }
+
+  function ltRoundToHalf(n) {
+    return Math.round(n * 2) / 2;
+  }
+
+  function ltLevelInfo(l) {
+    if (l < 1)   return { name: "Iniciante",               cat: "7ª Categoria" };
+    if (l < 2)   return { name: "Iniciante Intermediário",  cat: "6ª Categoria" };
+    if (l < 3.5) return { name: "Intermediário",            cat: "5ª Categoria" };
+    if (l < 5.5) return { name: "Intermediário Avançado",   cat: "4ª Categoria" };
+    if (l < 6.5) return { name: "Avançado",                 cat: "3ª Categoria" };
+    if (l < 6.8) return { name: "Avançado Elevado",         cat: "2ª Categoria" };
+    return               { name: "Elite",                   cat: "Categoria Open" };
+  }
+
+  function ltFmtLevel(n) {
+    return n.toFixed(1).replace(".", ",");
+  }
+
+  function ltUpdateGauge(modal, level) {
+    const circ = 2 * Math.PI * 40; // ≈ 251.3
+    const fraction = Math.min(1, Math.max(0, level / 7));
+    const offset = circ * (1 - fraction);
+    $("[data-lt-arc]", modal).style.strokeDashoffset = offset.toFixed(2);
+    $("[data-lt-circle]", modal).textContent = ltFmtLevel(level);
+  }
+
+  function ltUpdateAdjDisplay(modal) {
+    const { currentLevel, baseLevel } = state.lt;
+    const adjSection = $("[data-lt-adj-section]", modal);
+    $("[data-lt-adj-display]", modal).textContent = ltFmtLevel(currentLevel);
+    const info = ltLevelInfo(currentLevel);
+    $("[data-lt-rname]", modal).textContent = info.name;
+    $("[data-lt-rcat]", modal).textContent = info.cat;
+    ltUpdateGauge(modal, currentLevel);
+    $("[data-lt-minus]", modal).disabled = currentLevel <= 0.5;
+    $("[data-lt-plus]", modal).disabled = currentLevel >= 5.2;
+    $("[data-lt-meta]", modal).textContent =
+      currentLevel !== baseLevel
+        ? `Nível calculado: ${ltFmtLevel(baseLevel)} → ajustado para ${ltFmtLevel(currentLevel)}`
+        : `Nível calculado pelo questionário: ${ltFmtLevel(baseLevel)}`;
+  }
+
+  function ltShowResult(modal) {
+    const names = ["tempo_pratica","aulas_treino","consistencia_erros","condicao_fisica","golpes_fundo","jogo_voleio","golpes_aereos"];
+    const answers = {};
+    names.forEach((name) => {
+      const checked = $(`[name="${name}"]:checked`, modal);
+      answers[name] = checked ? Number(checked.value) : 0;
+    });
+    const score = Object.values(answers).reduce((s, v) => s + v, 0);
+    const rawLevel = ltScoreToLevel(score);
+    const baseLevel = Math.min(6.2, ltRoundToHalf(rawLevel));
+    const canAdjust = baseLevel <= 5.2;
+
+    state.lt = { answers, score, baseLevel, currentLevel: baseLevel, canAdjust };
+
+    $("[data-lt-step='questions']", modal).hidden = true;
+    const resultStep = $("[data-lt-step='result']", modal);
+    resultStep.hidden = false;
+
+    $("[data-lt-adj-section]", modal).hidden = !canAdjust;
+    $("[data-lt-adj-locked]", modal).hidden = canAdjust;
+
+    const info = ltLevelInfo(baseLevel);
+    $("[data-lt-rname]", modal).textContent = info.name;
+    $("[data-lt-rcat]", modal).textContent = info.cat;
+    ltUpdateGauge(modal, baseLevel);
+    if (canAdjust) {
+      $("[data-lt-adj-display]", modal).textContent = ltFmtLevel(baseLevel);
+      $("[data-lt-minus]", modal).disabled = baseLevel <= 0.5;
+      $("[data-lt-plus]", modal).disabled = baseLevel >= 5.2;
+    }
+    $("[data-lt-meta]", modal).textContent = `Nível calculado pelo questionário: ${ltFmtLevel(baseLevel)}`;
+
+    resultStep.scrollIntoView({ block: "start", behavior: "smooth" });
+  }
+
   function openLevelTest(required = false) {
     state.levelTestRequired = required;
     const modal = $("[data-level-test-modal]");
     const closeButton = $("[data-level-test-close]", modal);
     closeButton.classList.toggle("hidden", required);
     modal.dataset.required = String(required);
+
+    // Reset to questions step
+    $("[data-lt-step='questions']", modal).hidden = false;
+    $("[data-lt-step='result']", modal).hidden = true;
+    $("[data-lt-err]", modal).hidden = true;
+    // Clear selections
+    $$(".lt-opt", modal).forEach((label) => label.classList.remove("lt-selected"));
+    $$("input[type=radio]", modal).forEach((input) => { input.checked = false; });
+    $$(".lt-qnum", modal).forEach((badge) => badge.classList.remove("lt-answered"));
+    const fill = $("[data-lt-fill]", modal);
+    if (fill) fill.style.width = "0%";
+    const count = $("[data-lt-count]", modal);
+    if (count) count.textContent = "0 / 7 respondidas";
+    state.lt = {};
+
     openAccessibleModal(modal, '[name="tempo_pratica"]');
   }
 
-  async function submitLevelTest(event) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    if (!form.checkValidity()) return form.reportValidity();
-    const button = $("[data-level-test-submit]", form);
-    const body = Object.fromEntries(new FormData(form).entries());
-    setBusy(button, true, "Analisando…");
+  async function ltConfirm(modal) {
+    const button = $("[data-lt-confirm]", modal);
+    const { answers, currentLevel, canAdjust } = state.lt;
+    const body = { ...answers };
+    if (canAdjust && currentLevel !== state.lt.baseLevel) {
+      body.adjusted_level = currentLevel;
+    }
+    setBusy(button, true, "Salvando…");
     try {
-      const { result, user, engine } = await apiRequest(
-        "/api/v1/player/level-test",
-        {
-          method: "POST",
-          body,
-        },
-      );
+      const { result, user } = await apiRequest("/api/v1/player/level-test", {
+        method: "POST",
+        body,
+      });
       state.session.user = user;
       state.levelTestRequired = false;
-      closeModal($("[data-level-test-modal]"));
+      closeModal(modal);
       renderProfile();
       showGenericModal({
-        eyebrow: "Seu nível Padelfy",
-        title:
-          result.categoria_sugerida ||
-          result.levelCategory ||
-          user.profile.levelCategory ||
-          "Nivelamento concluído",
-        text: [
-          result.analise_tecnica ||
-            result.analysis ||
-            "Seu perfil foi atualizado com o resultado do nivelamento.",
-          engine?.warning ? `Aviso: ${engine.warning}` : "",
-        ]
-          .filter(Boolean)
-          .join(" "),
+        eyebrow: "Nível confirmado",
+        title: user.profile?.levelCategory || result.categoria_sugerida || "Nivelamento concluído",
+        text: result.analise_tecnica || "Seu perfil foi atualizado com sucesso.",
       });
-      form.reset();
     } catch (error) {
       showToast(error.message);
     } finally {
@@ -4179,7 +4267,63 @@
       "change",
       previewPlayerPhoto,
     );
-    $("[data-level-test-form]")?.addEventListener("submit", submitLevelTest);
+    // Level-test: radio selection, progress, two-step flow
+    const ltModal = $("[data-level-test-modal]");
+    if (ltModal) {
+      ltModal.addEventListener("change", (e) => {
+        if (!e.target.matches("input[type=radio]")) return;
+        const name = e.target.name;
+        // Mark the option as selected
+        $$(`[name="${name}"]`, ltModal).forEach((input) => {
+          input.closest(".lt-opt")?.classList.remove("lt-selected");
+        });
+        e.target.closest(".lt-opt")?.classList.add("lt-selected");
+        // Mark question number badge as answered
+        const qnames = ["tempo_pratica","aulas_treino","consistencia_erros","condicao_fisica","golpes_fundo","jogo_voleio","golpes_aereos"];
+        const qIndex = qnames.indexOf(name);
+        if (qIndex >= 0) {
+          $(`#lt-n${qIndex + 1}`, ltModal)?.classList.add("lt-answered");
+        }
+        // Update count + progress
+        const answered = qnames.filter((n) => $(`[name="${n}"]:checked`, ltModal)).length;
+        const countEl = $("[data-lt-count]", ltModal);
+        if (countEl) countEl.textContent = `${answered} / 7 respondidas`;
+        const fill = $("[data-lt-fill]", ltModal);
+        if (fill) fill.style.width = `${(answered / 7) * 100}%`;
+        // Hide error if now fully answered
+        if (answered === 7) $("[data-lt-err]", ltModal).hidden = true;
+      });
+
+      $("[data-lt-calc]", ltModal)?.addEventListener("click", () => {
+        const qnames = ["tempo_pratica","aulas_treino","consistencia_erros","condicao_fisica","golpes_fundo","jogo_voleio","golpes_aereos"];
+        const answered = qnames.filter((n) => $(`[name="${n}"]:checked`, ltModal)).length;
+        if (answered < 7) {
+          $("[data-lt-err]", ltModal).hidden = false;
+          $("[data-lt-err]", ltModal).scrollIntoView({ block: "nearest", behavior: "smooth" });
+          return;
+        }
+        ltShowResult(ltModal);
+      });
+
+      $("[data-lt-minus]", ltModal)?.addEventListener("click", () => {
+        if (state.lt.currentLevel <= 0.5) return;
+        state.lt.currentLevel = Math.round((state.lt.currentLevel - 0.5) * 10) / 10;
+        ltUpdateAdjDisplay(ltModal);
+      });
+
+      $("[data-lt-plus]", ltModal)?.addEventListener("click", () => {
+        if (state.lt.currentLevel >= 5.2) return;
+        state.lt.currentLevel = Math.round((state.lt.currentLevel + 0.5) * 10) / 10;
+        ltUpdateAdjDisplay(ltModal);
+      });
+
+      $("[data-lt-confirm]", ltModal)?.addEventListener("click", () => ltConfirm(ltModal));
+
+      $("[data-lt-back]", ltModal)?.addEventListener("click", () => {
+        $("[data-lt-step='result']", ltModal).hidden = true;
+        $("[data-lt-step='questions']", ltModal).hidden = false;
+      });
+    }
     setupMatchFilters();
     // TASK-17B: formulário de placar (sempre 3 sets).
     const resultForm = $("[data-match-result-form]");

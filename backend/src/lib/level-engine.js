@@ -10,9 +10,9 @@
 export const LEVEL_FLOOR = 0;
 export const LEVEL_CEILING = 7;
 
-// Teto do nível inicial pelo questionário (TASK-26): ninguém começa acima
-// de 5.6 — só resultados de partidas (TASK-28) levam além disso.
-export const INITIAL_LEVEL_CAP = 5.6;
+// Teto do nível inicial pelo questionário: ninguém começa acima de 6.2
+// (pontuação perfeita 34/34) — só resultados de partidas levam além disso.
+export const INITIAL_LEVEL_CAP = 6.2;
 export const INITIAL_RELIABILITY = 35; // % (TASK-26/27)
 
 // Pote Base (TASK-28): igual para as duas duplas na mesma partida.
@@ -77,15 +77,15 @@ export function classificationFor(level) {
 // cada faixa (ex.: pontuação 12 na faixa 10–14 fica na metade → nível na
 // metade de 1.3–2.4).
 export const SCORE_BANDS = [
-  { minScore: 6, maxScore: 9, minLevel: 0.5, maxLevel: 1.2 },
-  { minScore: 10, maxScore: 14, minLevel: 1.3, maxLevel: 2.4 },
-  { minScore: 15, maxScore: 19, minLevel: 2.5, maxLevel: 3.9 },
-  { minScore: 20, maxScore: 24, minLevel: 4.0, maxLevel: 5.6 },
+  { minScore: 7,  maxScore: 13, minLevel: 0.5, maxLevel: 1.2 },
+  { minScore: 14, maxScore: 20, minLevel: 1.3, maxLevel: 2.4 },
+  { minScore: 21, maxScore: 27, minLevel: 2.5, maxLevel: 4.0 },
+  { minScore: 28, maxScore: 34, minLevel: 4.1, maxLevel: 6.2 },
 ];
 
 export function initialLevelForScore(score) {
   const numeric = Number(score);
-  if (!Number.isInteger(numeric) || numeric < 6 || numeric > 24) return null;
+  if (!Number.isInteger(numeric) || numeric < 7 || numeric > 34) return null;
   const band = SCORE_BANDS.find(
     (candidate) => numeric >= candidate.minScore && numeric <= candidate.maxScore,
   );
@@ -113,8 +113,8 @@ const SCORE_BAND_TEXTS = [
     "Você domina os fundamentos e usa as paredes. Seu nível será lapidado pelos resultados contra duplas do seu patamar.",
   ],
   [
-    "Perfil avançado: experiência competitiva e domínio técnico. O teto inicial é 5.6 — acima disso, só vencendo em quadra.",
-    "Você chega com bagagem forte. O questionário limita o início a 5.6; seus resultados em partidas confirmadas dirão até onde seu nível vai.",
+    "Perfil avançado: experiência competitiva e domínio técnico. Seus resultados em partidas confirmadas dirão até onde seu nível vai.",
+    "Você chega com bagagem forte. O nível inicial reflete sua experiência; as partidas confirmadas vão calibrá-lo com precisão.",
   ],
 ];
 

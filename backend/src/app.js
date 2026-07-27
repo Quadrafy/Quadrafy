@@ -1504,15 +1504,34 @@ export async function createApp(overrides = {}) {
       assertSameOrigin(request);
       const user = requireUser(request, "player");
       levelTestLimiter.consume(user.id);
-      const answers = validateLevelTest(await readJson(request));
+      const body = await readJson(request);
+      const answers = validateLevelTest(body);
       // TASKS-07 / TASK-26: avaliação 100% determinística — nenhuma chamada
-      // de IA externa. Pontuação 6–24 → nível interpolado (teto 5.6),
+      // de IA externa. Pontuação 7–34 → nível interpolado (teto 6.2),
       // fiabilidade inicial sempre 35%.
       const result = assessQuestionnaire(answers);
+
+      // Ajuste manual opcional: o jogador pode subir/descer ±0.5 no cliente,
+      // mas só se o nível calculado for ≤ 5.2, e o teto do ajuste é 5.2.
+      let finalLevel = result.nivel_inicial;
+      let finalCategory = result.categoria_sugerida;
+      if (result.nivel_inicial <= 5.2 && body.adjusted_level !== undefined) {
+        const adj = Number(body.adjusted_level);
+        if (
+          Number.isFinite(adj) &&
+          adj >= 0.5 &&
+          adj <= 5.2 &&
+          Math.round(adj * 2) === adj * 2
+        ) {
+          finalLevel = adj;
+          finalCategory = classificationFor(adj)?.technical ?? result.categoria_sugerida;
+        }
+      }
+
       const updated = await users.updateProfile(user.id, {
-        level: result.nivel_inicial,
+        level: finalLevel,
         levelConfidence: result.confiabilidade_inicial,
-        levelCategory: result.categoria_sugerida,
+        levelCategory: finalCategory,
         levelAnalysis: result.analise_tecnica,
         levelAssessmentCompleted: true,
         levelAssessedAt: new Date().toISOString(),
@@ -1528,8 +1547,8 @@ export async function createApp(overrides = {}) {
       // TASK-19: toda definição de nível gera um ponto na série histórica.
       await levelHistory.record({
         playerId: user.id,
-        level: result.nivel_inicial,
-        levelCategory: result.categoria_sugerida,
+        level: finalLevel,
+        levelCategory: finalCategory,
         levelConfidence: result.confiabilidade_inicial,
         source: "level_test",
       });
