@@ -73,13 +73,19 @@ export class Super8Store {
   }
 
   // Torneios publicados (visíveis ao jogador) em que o jogador está inscrito.
-  listPublishedByPlayer(playerId) {
+  // Torneios finalizado/cancelado somem 24h após a última atualização.
+  listPublishedByPlayer(playerId, now = Date.now()) {
+    const historyWindow = 24 * 60 * 60 * 1000;
     return this.tournaments
-      .filter(
-        (entry) =>
-          ["inscricoes_abertas", "em_andamento", "finalizado", "cancelado"].includes(entry.status) &&
-          entry.players.some((player) => player.id === playerId),
-      )
+      .filter((entry) => {
+        if (!["inscricoes_abertas", "em_andamento", "finalizado", "cancelado"].includes(entry.status)) return false;
+        if (!entry.players.some((player) => player.id === playerId)) return false;
+        if (entry.status === "finalizado" || entry.status === "cancelado") {
+          const ts = entry.updatedAt ?? entry.createdAt;
+          return now - new Date(ts).getTime() < historyWindow;
+        }
+        return true;
+      })
       .sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),

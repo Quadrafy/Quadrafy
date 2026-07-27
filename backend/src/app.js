@@ -2232,13 +2232,18 @@ export async function createApp(overrides = {}) {
       const cancelledBookings = bookings
         .listByPlayer(user.id)
         .filter((booking) => booking.status === "cancelled");
+      const historyWindow = 24 * 60 * 60 * 1000;
       const historyBookings = [
-        ...startedByPlayer.filter(
-          (booking) =>
-            isFull(booking) &&
-            matchResults.findByMatch(booking.id)?.status === "confirmed",
-        ),
-        ...cancelledBookings,
+        ...startedByPlayer.filter((booking) => {
+          if (!isFull(booking)) return false;
+          const result = matchResults.findByMatch(booking.id);
+          if (result?.status !== "confirmed") return false;
+          return now - new Date(result.confirmedAt).getTime() < historyWindow;
+        }),
+        ...cancelledBookings.filter((booking) => {
+          const ts = booking.cancelledAt ?? booking.updatedAt ?? booking.startAt;
+          return now - new Date(ts).getTime() < historyWindow;
+        }),
       ];
       const pendingResults = resultBookings.length;
       // TASK-50 — filtro opcional por categoria de gênero.
