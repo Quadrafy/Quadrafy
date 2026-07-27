@@ -1511,6 +1511,15 @@
     return formatDate(date, { weekday: "short", day: "2-digit", month: "short" });
   }
 
+  function historyExpiresLabel(expiresAt) {
+    const ms = new Date(expiresAt) - Date.now();
+    if (ms <= 0) return "A expirar";
+    const hours = Math.floor(ms / (1000 * 60 * 60));
+    if (hours >= 1) return `Sai em ${hours}h`;
+    const minutes = Math.floor(ms / (1000 * 60));
+    return `Sai em ${minutes}min`;
+  }
+
  function matchStatus(match) {
     if (match.status === "cancelled") {
       return match.cancellationReason === "insufficient_players"
@@ -1590,14 +1599,23 @@
     const unreadBadge = unread
       ? `&nbsp;<span class="nav-count" aria-label="${unread} mensagens não lidas">${unread}</span>`
       : "";
-    return `<article class="match-card card-hover" data-match-id="${escapeHTML(match.id)}" tabindex="0" role="button" aria-label="Ver detalhes do jogo em ${escapeHTML(match.clubName)}">
+    const isCancelled = match.status === "cancelled";
+    const historyBadge = match.historyExpiresAt
+      ? isCancelled
+        ? `<span class="status-badge status-badge-cancelled">Cancelado</span>`
+        : `<span class="status-badge status-badge-done">Concluído</span>`
+      : "";
+    const expiresChip = match.historyExpiresAt
+      ? `<span class="history-expires-chip">${escapeHTML(historyExpiresLabel(match.historyExpiresAt))}</span>`
+      : "";
+    return `<article class="match-card card-hover${isCancelled ? " match-card-cancelled" : ""}" data-match-id="${escapeHTML(match.id)}" tabindex="0" role="button" aria-label="Ver detalhes do jogo em ${escapeHTML(match.clubName)}">
       <div class="match-top">
         <span class="match-day-line">${escapeHTML(matchDayStr(match.startAt))}</span>
         <div class="match-time-row">
           <span class="match-time-range">${escapeHTML(slotTimeRange(match.startAt, match.slotDuration))}</span>
           <span class="match-duration-pill">${escapeHTML(formatDuration(match.slotDuration))}</span>
         </div>
-        <div class="match-card-badges">${genderCategoryBadge(match)}${catBadge}</div>
+        <div class="match-card-badges">${historyBadge}${genderCategoryBadge(match)}${catBadge}${expiresChip}</div>
       </div>
       <div class="match-player-list" aria-label="Jogadores e vagas">${matchPlayerSlots(match)}</div>
       <div class="match-info-strip">
@@ -1859,6 +1877,10 @@
     const overflowBubble =
       overflow > 0 ? `<span class="super8-player-overflow">+${overflow}</span>` : "";
     const enrollCount = tournament.enrolled ?? players.length;
+    const isHistory = tournament.status === "finalizado" || tournament.status === "cancelado";
+    const historyExpiresAt = isHistory && tournament.updatedAt
+      ? new Date(new Date(tournament.updatedAt).getTime() + 24 * 60 * 60 * 1000).toISOString()
+      : null;
     const statusBadge = tournament.status === "cancelado"
       ? '<span class="status-badge status-badge-cancelled">Cancelado</span>'
       : tournament.status === "finalizado"
@@ -1866,10 +1888,13 @@
         : tournament.alreadyJoined
           ? '<span class="status-badge status-badge-joined">Inscrito</span>'
           : '<span class="status-badge">Inscrições abertas</span>';
+    const expiresChip = historyExpiresAt
+      ? `<span class="history-expires-chip">${escapeHTML(historyExpiresLabel(historyExpiresAt))}</span>`
+      : "";
     return `<article class="super8-card card-hover" data-super8-open-row="${escapeHTML(tournament.id)}" tabindex="0" role="button" aria-label="Ver detalhes de ${escapeHTML(tournament.name)}">
       <div class="super8-card-header">
         <span class="super8-card-datetime">${escapeHTML(super8DateTimeLabel(tournament))}</span>
-        ${statusBadge}
+        <div style="display:flex;gap:6px;align-items:center">${statusBadge}${expiresChip}</div>
       </div>
       <p class="super8-card-format">${escapeHTML(formatLabel)}</p>
       <h3>${escapeHTML(tournament.name)}</h3>

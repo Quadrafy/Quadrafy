@@ -6745,6 +6745,25 @@ button.match-player-row:focus-visible strong {
   background: rgba(26, 127, 79, 0.14);
   color: #1a7f4f;
 }
+.history-expires-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: rgba(var(--text-rgb, 0,0,0), 0.06);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+@media (prefers-color-scheme: dark) {
+  .history-expires-chip {
+    background: rgba(255,255,255,0.08);
+  }
+}
+.match-card-cancelled {
+  opacity: 0.75;
+}
 .super8-history-section {
   margin-top: 36px;
 }

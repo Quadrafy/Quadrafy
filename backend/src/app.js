@@ -2274,7 +2274,21 @@ export async function createApp(overrides = {}) {
               ? new Date(b.startAt).getTime() - new Date(a.startAt).getTime()
               : new Date(a.startAt).getTime() - new Date(b.startAt).getTime(),
         )
-        .map((booking) => matchView(booking, user));
+        .map((booking) => {
+          const view = matchView(booking, user);
+          if (scope === "history") {
+            const result = matchResults.findByMatch(booking.id);
+            const enteredAt =
+              result?.confirmedAt ??
+              booking.cancelledAt ??
+              booking.updatedAt ??
+              booking.startAt;
+            view.historyExpiresAt = new Date(
+              new Date(enteredAt).getTime() + historyWindow,
+            ).toISOString();
+          }
+          return view;
+        });
       sendData(response, 200, { matches, pendingResults });
       return true;
     }
