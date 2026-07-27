@@ -2035,15 +2035,37 @@
   function super8DuplasRosterHTML(tournament, myId) {
     const players = tournament.players ?? [];
 
-    // Club-defined pairs always win when present.
+    // Club-defined pairs always win when present. Players not covered by
+    // the pairs array may still be paired via free-join partnerId tracking.
     if (Array.isArray(tournament.pairs) && tournament.pairs.length) {
       const pairedIdx = new Set(tournament.pairs.flat());
-      const completePairs = tournament.pairs.map(([a, b]) => [players[a], players[b]].filter(Boolean));
-      const unpaired = players.filter((_, i) => !pairedIdx.has(i));
+      const clubPairs = tournament.pairs.map(([a, b]) => [players[a], players[b]].filter(Boolean));
+      // Remaining players: try to group by partnerId before marking as solo.
+      const notInClubPairs = players
+        .map((p, i) => ({ p, i }))
+        .filter(({ i }) => !pairedIdx.has(i));
+      const seenFree = new Set();
+      const freePairs = [];
+      const trulySolo = [];
+      for (const { p } of notInClubPairs) {
+        if (seenFree.has(p.id)) continue;
+        if (p.partnerId) {
+          const partner = players.find((q) => q.id === p.partnerId);
+          if (partner) {
+            freePairs.push([p, partner]);
+            seenFree.add(p.id);
+            seenFree.add(p.partnerId);
+            continue;
+          }
+        }
+        trulySolo.push(p);
+        if (p.id) seenFree.add(p.id);
+      }
+      const allPairs = [...clubPairs, ...freePairs];
       let html = "";
-      if (completePairs.length) {
-        html += `<p class="micro-label">Duplas formadas (${completePairs.length})</p>`;
-        html += completePairs
+      if (allPairs.length) {
+        html += `<p class="micro-label">Duplas formadas (${allPairs.length})</p>`;
+        html += allPairs
           .map(([a, b]) =>
             b
               ? `<div class="super8-pair-slot">${super8RosterRow(a)}<span class="super8-pair-plus" aria-hidden="true">+</span>${super8RosterRow(b)}</div>`
@@ -2051,9 +2073,9 @@
           )
           .join("");
       }
-      if (unpaired.length) {
-        html += `<p class="micro-label" style="margin-top:14px">Sem dupla definida (${unpaired.length})</p>`;
-        html += unpaired.map(super8RosterRow).join("");
+      if (trulySolo.length) {
+        html += `<p class="micro-label" style="margin-top:14px">Sem dupla definida (${trulySolo.length})</p>`;
+        html += trulySolo.map(super8RosterRow).join("");
       }
       return html || '<p class="profile-data-note">Nenhum jogador confirmado ainda.</p>';
     }
