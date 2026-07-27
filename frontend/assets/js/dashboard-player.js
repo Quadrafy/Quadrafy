@@ -2030,33 +2030,39 @@
 
   // Builds the player list section for duplas_fixas: groups complete pairs and
   // shows solo players (awaiting partner) separately with a "pair up" button.
+  // Club-defined pairs (tournament.pairs index array) take priority over the
+  // free-join partnerId tracking so the two systems don't conflict.
   function super8DuplasRosterHTML(tournament, myId) {
     const players = tournament.players ?? [];
+
+    // Club-defined pairs always win when present.
+    if (Array.isArray(tournament.pairs) && tournament.pairs.length) {
+      const pairedIdx = new Set(tournament.pairs.flat());
+      const completePairs = tournament.pairs.map(([a, b]) => [players[a], players[b]].filter(Boolean));
+      const unpaired = players.filter((_, i) => !pairedIdx.has(i));
+      let html = "";
+      if (completePairs.length) {
+        html += `<p class="micro-label">Duplas formadas (${completePairs.length})</p>`;
+        html += completePairs
+          .map(([a, b]) =>
+            b
+              ? `<div class="super8-pair-slot">${super8RosterRow(a)}<span class="super8-pair-plus" aria-hidden="true">+</span>${super8RosterRow(b)}</div>`
+              : super8RosterRow(a),
+          )
+          .join("");
+      }
+      if (unpaired.length) {
+        html += `<p class="micro-label" style="margin-top:14px">Sem dupla definida (${unpaired.length})</p>`;
+        html += unpaired.map(super8RosterRow).join("");
+      }
+      return html || '<p class="profile-data-note">Nenhum jogador confirmado ainda.</p>';
+    }
+
+    // Fall back to partnerId-based tracking (free-join flow).
     const useTracking = players.some((p) =>
       Object.prototype.hasOwnProperty.call(p, "partnerId"),
     );
     if (!useTracking) {
-      if (Array.isArray(tournament.pairs) && tournament.pairs.length) {
-        const pairedIdx = new Set(tournament.pairs.flat());
-        const completePairs = tournament.pairs.map(([a, b]) => [players[a], players[b]].filter(Boolean));
-        const unpaired = players.filter((_, i) => !pairedIdx.has(i));
-        let html = "";
-        if (completePairs.length) {
-          html += `<p class="micro-label">Duplas formadas (${completePairs.length})</p>`;
-          html += completePairs
-            .map(([a, b]) =>
-              b
-                ? `<div class="super8-pair-slot">${super8RosterRow(a)}<span class="super8-pair-plus" aria-hidden="true">+</span>${super8RosterRow(b)}</div>`
-                : super8RosterRow(a),
-            )
-            .join("");
-        }
-        if (unpaired.length) {
-          html += `<p class="micro-label" style="margin-top:14px">Sem dupla definida (${unpaired.length})</p>`;
-          html += unpaired.map(super8RosterRow).join("");
-        }
-        return html || '<p class="profile-data-note">Nenhum jogador confirmado ainda.</p>';
-      }
       return players.length
         ? players.map(super8RosterRow).join("")
         : '<p class="profile-data-note">Nenhum jogador confirmado ainda.</p>';
@@ -2165,7 +2171,15 @@
     const area = $("[data-super8-player-detail-join-area]");
     if (!area) return;
     area.innerHTML = "";
-    if (tournament.status === "finalizado" || tournament.status === "cancelado") return;
+    // Leave is only possible while registrations are open; after games are
+    // generated the roster is locked, so hide the action area entirely.
+    if (
+      tournament.status === "finalizado" ||
+      tournament.status === "cancelado" ||
+      tournament.status === "gerado" ||
+      tournament.status === "em_andamento"
+    )
+      return;
 
     if (tournament.mode !== "duplas_fixas") {
       // Rotação
