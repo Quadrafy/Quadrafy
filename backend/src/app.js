@@ -3386,7 +3386,7 @@ export async function createApp(overrides = {}) {
           "As duplas só se aplicam à modalidade duplas fixas.",
         );
       }
-      if (current.status !== "em_configuracao") {
+      if (["gerado", "em_andamento", "finalizado", "cancelado"].includes(current.status)) {
         throw new ApiError(
           409,
           "super8_pairs_unavailable",
