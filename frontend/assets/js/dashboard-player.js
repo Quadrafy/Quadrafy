@@ -2297,8 +2297,9 @@
           const enrolledIds = new Set(
             (tournament.players ?? []).map((p) => p.id),
           );
+          const myId = state.session?.user?.id;
           const players = (data.players ?? []).filter(
-            (p) => !enrolledIds.has(p.id),
+            (p) => !enrolledIds.has(p.id) && p.id !== myId,
           );
           if (!players.length) {
             results.innerHTML =

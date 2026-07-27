@@ -3794,6 +3794,13 @@ export async function createApp(overrides = {}) {
       let newPlayers;
       if (partnerId && current.mode === "duplas_fixas") {
         // Pair registration: validate partner and add both
+        if (partnerId === user.id) {
+          throw new ApiError(
+            422,
+            "validation_failed",
+            "Você não pode se inscrever como parceiro de si mesmo.",
+          );
+        }
         const partner = users.findById(partnerId);
         if (!partner || partner.role !== "player") {
           throw new ApiError(
@@ -3940,6 +3947,13 @@ export async function createApp(overrides = {}) {
       const { targetPlayerId } = await readJson(request);
       if (!targetPlayerId || typeof targetPlayerId !== "string") {
         throw new ApiError(422, "validation_failed", "targetPlayerId é obrigatório.");
+      }
+      if (targetPlayerId === user.id) {
+        throw new ApiError(
+          422,
+          "validation_failed",
+          "Você não pode se parear consigo mesmo.",
+        );
       }
       // Target must be enrolled solo (partnerId === null)
       const targetEntry = current.players.find((p) => p.id === targetPlayerId);
