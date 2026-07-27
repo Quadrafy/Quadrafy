@@ -1452,9 +1452,12 @@
         : "";
     // TASK-32: o organizador pode remover qualquer outro jogador
     // posicionado (nunca a si mesmo — para isso existe o cancelamento).
+    // Bloqueado após o início da partida (histórico e resultados).
     const canRemove =
       (interactive || removable) &&
       match.isOrganizer &&
+      match.status !== "cancelled" &&
+      !matchStarted(match) &&
       player.id &&
       player.id !== state.session?.user?.id;
     const removeControl = canRemove
