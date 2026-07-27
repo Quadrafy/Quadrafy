@@ -718,13 +718,22 @@
       ? Math.round((finished.length / games.length) * 100)
       : 0;
 
-    // TASK-74: quadro completo, duplas fixas ainda não definidas (vagas
-    // preenchidas via inscrição espontânea/manual depois da criação).
+    // TASK-74: quadro completo, duplas fixas ainda não definidas.
+    // Não precisa definir se todos já têm parceiro via partnerId.
+    const allPairedViaPartnerId =
+      tournament.mode === "duplas_fixas" &&
+      tournament.players.length > 0 &&
+      tournament.players.every(
+        (p) =>
+          p.partnerId != null &&
+          tournament.players.some((q) => q.id === p.partnerId),
+      );
     const needsPairs =
       tournament.mode === "duplas_fixas" &&
       tournament.status === "em_configuracao" &&
       tournament.players.length === tournament.size &&
       !tournament.pairs &&
+      !allPairedViaPartnerId &&
       !games.length;
 
     let primaryAction = "";
