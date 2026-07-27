@@ -761,26 +761,69 @@
             tournament.pairs.length > 0;
           let playersHTML = '<p class="profile-data-note">Nenhum jogador ainda.</p>';
           if (tournament.players.length) {
-            if (isDuplasWithPairs) {
-              const pairedIdx = new Set(tournament.pairs.flat());
-              const rows = tournament.pairs
-                .map(([a, b]) => {
-                  const pa = tournament.players[a];
-                  const pb = tournament.players[b];
-                  if (!pa || !pb) return "";
-                  const chip = (p) =>
-                    `<span class="super8-chip">${escapeHTML(p.name)}${p.id ? "" : ' <em>convidado</em>'}</span>`;
-                  return `<div class="super8-pair-row-display">${chip(pa)}<span class="super8-pair-plus" aria-hidden="true">+</span>${chip(pb)}</div>`;
-                })
-                .join("");
-              const unpaired = tournament.players
-                .filter((_, i) => !pairedIdx.has(i))
-                .map(
-                  (p) =>
-                    `<span class="super8-chip">${escapeHTML(p.name)}${p.id ? "" : ' <em>convidado</em>'}</span>`,
-                )
-                .join("");
-              playersHTML = rows + (unpaired ? `<p class="micro-label" style="margin-top:8px">Sem dupla</p>${unpaired}` : "");
+            if (tournament.mode === "duplas_fixas") {
+              const chip = (p) =>
+                `<span class="super8-chip">${escapeHTML(p.name)}${p.id ? "" : ' <em>convidado</em>'}</span>`;
+              let pairRows = "";
+              let soloChips = "";
+              if (isDuplasWithPairs) {
+                pairRows = tournament.pairs
+                  .map(([a, b]) => {
+                    const pa = tournament.players[a];
+                    const pb = tournament.players[b];
+                    if (!pa || !pb) return "";
+                    return `<div class="super8-pair-row-display">${chip(pa)}<span class="super8-pair-plus" aria-hidden="true">+</span>${chip(pb)}</div>`;
+                  })
+                  .join("");
+                const pairedIdx = new Set(tournament.pairs.flat());
+                const notInClubPairs = tournament.players
+                  .map((p, i) => ({ p, i }))
+                  .filter(({ i }) => !pairedIdx.has(i));
+                const seenFree = new Set();
+                const freeRows = [];
+                const soloArr = [];
+                for (const { p } of notInClubPairs) {
+                  if (seenFree.has(p.id)) continue;
+                  if (p.partnerId) {
+                    const partner = tournament.players.find((q) => q.id === p.partnerId);
+                    if (partner) {
+                      freeRows.push(`<div class="super8-pair-row-display">${chip(p)}<span class="super8-pair-plus" aria-hidden="true">+</span>${chip(partner)}</div>`);
+                      seenFree.add(p.id);
+                      seenFree.add(p.partnerId);
+                      continue;
+                    }
+                  }
+                  soloArr.push(chip(p));
+                  if (p.id) seenFree.add(p.id);
+                }
+                pairRows += freeRows.join("");
+                soloChips = soloArr.join("");
+              } else {
+                const seen = new Set();
+                const freeRows = [];
+                const soloArr = [];
+                for (const p of tournament.players) {
+                  if (seen.has(p.id)) continue;
+                  if (p.partnerId) {
+                    const partner = tournament.players.find((q) => q.id === p.partnerId);
+                    if (partner && !seen.has(partner.id)) {
+                      freeRows.push(`<div class="super8-pair-row-display">${chip(p)}<span class="super8-pair-plus" aria-hidden="true">+</span>${chip(partner)}</div>`);
+                      seen.add(p.id);
+                      seen.add(partner.id);
+                      continue;
+                    }
+                  }
+                  soloArr.push(chip(p));
+                  seen.add(p.id);
+                }
+                pairRows = freeRows.join("");
+                soloChips = soloArr.join("");
+              }
+              playersHTML =
+                pairRows +
+                (soloChips
+                  ? `<p class="micro-label" style="margin-top:8px">Sem dupla</p><div class="super8-player-chips">${soloChips}</div>`
+                  : "");
             } else {
               playersHTML = `<div class="super8-player-chips">${tournament.players.map((player) => `<span class="super8-chip">${escapeHTML(player.name)}${player.id ? "" : ' <em title="Convidado sem conta">convidado</em>'}</span>`).join("")}</div>`;
             }
