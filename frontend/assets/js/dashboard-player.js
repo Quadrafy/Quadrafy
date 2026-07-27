@@ -4129,7 +4129,7 @@
     if (l < 1)   return { name: "Iniciante",               cat: "7ª Categoria"   };
     if (l < 2)   return { name: "Iniciante Intermediário",  cat: "6ª Categoria"   };
     if (l < 3.5) return { name: "Intermediário",            cat: "5ª Categoria"   };
-    if (l < 5.3) return { name: "Intermediário Avançado",   cat: "4ª Categoria"   };
+    if (l < 5.2) return { name: "Intermediário Avançado",   cat: "4ª Categoria"   };
     if (l < 6.2) return { name: "Avançado",                 cat: "3ª Categoria"   };
     if (l < 6.8) return { name: "Avançado Elevado",         cat: "2ª Categoria"   };
     return               { name: "Elite",                   cat: "Categoria Open" };
