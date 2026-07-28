@@ -4114,11 +4114,22 @@
 
   /* ── Level-test helpers ─────────────────────────────────── */
 
-  function ltScoreToLevel(score) {
-    if (score <= 9)  return 0.5 + ((score - 6)  / 3) * 0.7;
-    if (score <= 14) return 1.3 + ((score - 10) / 4) * 1.1;
-    if (score <= 19) return 2.5 + ((score - 15) / 4) * 1.4;
-    return 4.0 + ((score - 20) / 4) * 1.6;
+  function ltTechScoreToLevel(score) {
+    return Math.round((0.5 + (score - 7) / 27 * 5.7) * 100) / 100;
+  }
+
+  function ltTourneyLevel(cat, stage) {
+    const cats = { "7":{floor:0.0,ceil:1.0},"6":{floor:1.0,ceil:2.0},"5":{floor:2.0,ceil:3.5},"4":{floor:3.5,ceil:5.2},"3":{floor:5.2,ceil:6.2},"2":{floor:6.2,ceil:6.8},"open":{floor:6.8,ceil:7.0} };
+    const factors = { grupo:-0.25, quartas:0.00, final:0.80 };
+    const c = cats[cat]; const f = factors[stage];
+    return Math.round(Math.min(7.0, Math.max(0.3, c.floor + f * (c.ceil - c.floor))) * 100) / 100;
+  }
+
+  function ltComputeLevel(techScore, hasPlayed, cat, stage) {
+    const tl = ltTechScoreToLevel(techScore);
+    if (!hasPlayed) return Math.round(Math.min(2.0, Math.max(0.5, tl)) * 100) / 100;
+    const tl2 = ltTourneyLevel(cat, stage);
+    return Math.round(Math.min(7.0, Math.max(0.5, 0.10 * tl + 0.90 * tl2)) * 100) / 100;
   }
 
   function ltRoundToHalf(n) {
@@ -4164,18 +4175,20 @@
   }
 
   function ltShowResult(modal) {
-    const names = ["tempo_pratica","frequencia_semanal","experiencia_esportes_raquete","autoavaliacao_golpes","experiencia_competicoes","tatica_posicionamento"];
+    const techNames = ["q1","q2","q3","q4","q5","q6","q7"];
     const answers = {};
-    names.forEach((name) => {
-      const checked = $(`[name="${name}"]:checked`, modal);
-      answers[name] = checked ? Number(checked.value) : 0;
+    techNames.forEach((n) => {
+      const checked = $(`[name="${n}"]:checked`, modal);
+      answers[n] = checked ? Number(checked.value) : 0;
     });
-    const score = Object.values(answers).reduce((s, v) => s + v, 0);
-    const rawLevel = ltScoreToLevel(score);
-    const baseLevel = Math.min(6.2, ltRoundToHalf(rawLevel));
+    const techScore = techNames.reduce((s, n) => s + answers[n], 0);
+    const q8 = !!modal._ltQ8;
+    const cat = modal._ltCat || null;
+    const stage = modal._ltStage || null;
+    const baseLevel = ltComputeLevel(techScore, q8, cat, stage);
     const canAdjust = baseLevel <= 5.2;
 
-    state.lt = { answers, score, baseLevel, currentLevel: baseLevel, canAdjust };
+    state.lt = { answers, techScore, q8, cat, stage, baseLevel, currentLevel: baseLevel, canAdjust };
 
     $("[data-lt-step='questions']", modal).hidden = true;
     const resultStep = $("[data-lt-step='result']", modal);
@@ -4209,23 +4222,33 @@
     $("[data-lt-step='questions']", modal).hidden = false;
     $("[data-lt-step='result']", modal).hidden = true;
     $("[data-lt-err]", modal).hidden = true;
-    // Clear selections
+    // Clear radio selections
     $$(".lt-opt", modal).forEach((label) => label.classList.remove("lt-selected"));
     $$("input[type=radio]", modal).forEach((input) => { input.checked = false; });
     $$(".lt-qnum", modal).forEach((badge) => badge.classList.remove("lt-answered"));
+    // Clear tournament state
+    delete modal._ltQ8;
+    delete modal._ltCat;
+    delete modal._ltStage;
+    $$("[data-lt-q8]", modal).forEach((b) => b.classList.remove("lt-q8-active"));
+    $$("[data-lt-cat]", modal).forEach((b) => b.classList.remove("lt-cat-active"));
+    $$("[data-lt-stage]", modal).forEach((b) => b.classList.remove("lt-stage-active"));
+    $("[data-lt-q8-sub]", modal).hidden = true;
     const fill = $("[data-lt-fill]", modal);
     if (fill) fill.style.width = "0%";
     const count = $("[data-lt-count]", modal);
-    if (count) count.textContent = "0 / 6 respondidas";
+    if (count) count.textContent = "0 / 8 respondidas";
     state.lt = {};
 
-    openAccessibleModal(modal, '[name="tempo_pratica"]');
+    openAccessibleModal(modal, '[name="q1"]');
   }
 
   async function ltConfirm(modal) {
     const button = $("[data-lt-confirm]", modal);
-    const { answers, currentLevel, canAdjust } = state.lt;
-    const body = { ...answers };
+    const { answers, currentLevel, canAdjust, q8, cat, stage } = state.lt;
+    const body = { ...answers, q8: !!q8 };
+    if (q8 && cat) body.cat = cat;
+    if (q8 && stage) body.stage = stage;
     if (canAdjust && currentLevel !== state.lt.baseLevel) {
       body.adjusted_level = currentLevel;
     }
@@ -4270,36 +4293,79 @@
     // Level-test: radio selection, progress, two-step flow
     const ltModal = $("[data-level-test-modal]");
     if (ltModal) {
+      const ltQnames = ["q1","q2","q3","q4","q5","q6","q7"];
+
+      function ltUpdateProgress() {
+        const techAnswered = ltQnames.filter((n) => $(`[name="${n}"]:checked`, ltModal)).length;
+        const q8Answered = ltModal._ltQ8 !== undefined ? 1 : 0;
+        const answered = techAnswered + q8Answered;
+        const countEl = $("[data-lt-count]", ltModal);
+        if (countEl) countEl.textContent = `${answered} / 8 respondidas`;
+        const fill = $("[data-lt-fill]", ltModal);
+        if (fill) fill.style.width = `${(answered / 8) * 100}%`;
+        if (answered >= 8) $("[data-lt-err]", ltModal).hidden = true;
+      }
+
       ltModal.addEventListener("change", (e) => {
         if (!e.target.matches("input[type=radio]")) return;
         const name = e.target.name;
-        // Mark the option as selected
         $$(`[name="${name}"]`, ltModal).forEach((input) => {
           input.closest(".lt-opt")?.classList.remove("lt-selected");
         });
         e.target.closest(".lt-opt")?.classList.add("lt-selected");
-        // Mark question number badge as answered
-        const qnames = ["tempo_pratica","frequencia_semanal","experiencia_esportes_raquete","autoavaliacao_golpes","experiencia_competicoes","tatica_posicionamento"];
-        const qIndex = qnames.indexOf(name);
-        if (qIndex >= 0) {
-          $(`#lt-n${qIndex + 1}`, ltModal)?.classList.add("lt-answered");
-        }
-        // Update count + progress
-        const answered = qnames.filter((n) => $(`[name="${n}"]:checked`, ltModal)).length;
-        const countEl = $("[data-lt-count]", ltModal);
-        if (countEl) countEl.textContent = `${answered} / 6 respondidas`;
-        const fill = $("[data-lt-fill]", ltModal);
-        if (fill) fill.style.width = `${(answered / 6) * 100}%`;
-        // Hide error if now fully answered
-        if (answered === 7) $("[data-lt-err]", ltModal).hidden = true;
+        const qIndex = ltQnames.indexOf(name);
+        if (qIndex >= 0) $(`#lt-n${qIndex + 1}`, ltModal)?.classList.add("lt-answered");
+        ltUpdateProgress();
+      });
+
+      $$("[data-lt-q8]", ltModal).forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const val = btn.dataset.ltQ8 === "true";
+          ltModal._ltQ8 = val;
+          $$("[data-lt-q8]", ltModal).forEach((b) => b.classList.remove("lt-q8-active"));
+          btn.classList.add("lt-q8-active");
+          $("#lt-n8", ltModal)?.classList.add("lt-answered");
+          $("[data-lt-q8-sub]", ltModal).hidden = !val;
+          if (!val) {
+            delete ltModal._ltCat;
+            delete ltModal._ltStage;
+            $$("[data-lt-cat]", ltModal).forEach((b) => b.classList.remove("lt-cat-active"));
+            $$("[data-lt-stage]", ltModal).forEach((b) => b.classList.remove("lt-stage-active"));
+          }
+          ltUpdateProgress();
+        });
+      });
+
+      $$("[data-lt-cat]", ltModal).forEach((btn) => {
+        btn.addEventListener("click", () => {
+          ltModal._ltCat = btn.dataset.ltCat;
+          $$("[data-lt-cat]", ltModal).forEach((b) => b.classList.remove("lt-cat-active"));
+          btn.classList.add("lt-cat-active");
+        });
+      });
+
+      $$("[data-lt-stage]", ltModal).forEach((btn) => {
+        btn.addEventListener("click", () => {
+          ltModal._ltStage = btn.dataset.ltStage;
+          $$("[data-lt-stage]", ltModal).forEach((b) => b.classList.remove("lt-stage-active"));
+          btn.classList.add("lt-stage-active");
+        });
       });
 
       $("[data-lt-calc]", ltModal)?.addEventListener("click", () => {
-        const qnames = ["tempo_pratica","frequencia_semanal","experiencia_esportes_raquete","autoavaliacao_golpes","experiencia_competicoes","tatica_posicionamento"];
-        const answered = qnames.filter((n) => $(`[name="${n}"]:checked`, ltModal)).length;
-        if (answered < 6) {
-          $("[data-lt-err]", ltModal).hidden = false;
-          $("[data-lt-err]", ltModal).scrollIntoView({ block: "nearest", behavior: "smooth" });
+        const techAnswered = ltQnames.filter((n) => $(`[name="${n}"]:checked`, ltModal)).length;
+        const q8Answered = ltModal._ltQ8 !== undefined;
+        const errEl = $("[data-lt-err]", ltModal);
+        if (techAnswered < 7 || !q8Answered) {
+          errEl.textContent = "Responda todas as 8 perguntas para continuar.";
+          errEl.hidden = false;
+          errEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          return;
+        }
+        if (ltModal._ltQ8 === true && (!ltModal._ltCat || !ltModal._ltStage)) {
+          errEl.textContent = "Selecione a categoria e a fase do torneio para continuar.";
+          errEl.hidden = false;
+          errEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
           return;
         }
         ltShowResult(ltModal);

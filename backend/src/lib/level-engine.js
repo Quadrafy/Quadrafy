@@ -10,9 +10,9 @@
 export const LEVEL_FLOOR = 0;
 export const LEVEL_CEILING = 7;
 
-// Teto do nível inicial pelo questionário: ninguém começa acima de 6.2
-// (pontuação perfeita 34/34) — só resultados de partidas levam além disso.
-export const INITIAL_LEVEL_CAP = 6.2;
+// Sem histórico de torneio o jogador não ultrapassa 2,0 (início da 5ª);
+// com torneio pode chegar até 7,0.
+export const INITIAL_LEVEL_CAP = 7.0;
 export const INITIAL_RELIABILITY = 35; // % (TASK-26/27)
 
 // Pote Base (TASK-28): igual para as duas duplas na mesma partida.
@@ -55,69 +55,83 @@ export function classificationFor(level) {
 }
 
 /* ------------------------------------------------------------------ */
-/* TASK-26 — questionário determinístico                               */
+/* TASK-26 v2 — Questionário de 8 perguntas com torneio opcional       */
 /* ------------------------------------------------------------------ */
 
-// Faixas de pontuação → nível inicial, com interpolação linear dentro de
-// cada faixa (ex.: pontuação 12 na faixa 10–14 fica na metade → nível na
-// metade de 1.3–2.4).
-export const SCORE_BANDS = [
-  { minScore: 6,  maxScore: 9,  minLevel: 0.5, maxLevel: 1.2 },
-  { minScore: 10, maxScore: 14, minLevel: 1.3, maxLevel: 2.4 },
-  { minScore: 15, maxScore: 19, minLevel: 2.5, maxLevel: 3.9 },
-  { minScore: 20, maxScore: 24, minLevel: 4.0, maxLevel: 5.6 },
+export const TOURNEY_CATS = [
+  { value: "7",    label: "7ª Categoria",   floor: 0.0, ceil: 1.0 },
+  { value: "6",    label: "6ª Categoria",   floor: 1.0, ceil: 2.0 },
+  { value: "5",    label: "5ª Categoria",   floor: 2.0, ceil: 3.5 },
+  { value: "4",    label: "4ª Categoria",   floor: 3.5, ceil: 5.2 },
+  { value: "3",    label: "3ª Categoria",   floor: 5.2, ceil: 6.2 },
+  { value: "2",    label: "2ª Categoria",   floor: 6.2, ceil: 6.8 },
+  { value: "open", label: "Categoria Open", floor: 6.8, ceil: 7.0 },
 ];
 
-export function initialLevelForScore(score) {
-  const numeric = Number(score);
-  if (!Number.isInteger(numeric) || numeric < 6 || numeric > 24) return null;
-  const band = SCORE_BANDS.find(
-    (candidate) => numeric >= candidate.minScore && numeric <= candidate.maxScore,
-  );
-  const position =
-    band.maxScore === band.minScore
-      ? 0
-      : (numeric - band.minScore) / (band.maxScore - band.minScore);
-  const level = band.minLevel + (band.maxLevel - band.minLevel) * position;
-  return Math.min(INITIAL_LEVEL_CAP, Math.round(level * 100) / 100);
+export const TOURNEY_STAGES = [
+  { value: "grupo",   label: "Grupo / Oitavas",    factor: -0.25 },
+  { value: "quartas", label: "Quartas / Semifinal", factor:  0.00 },
+  { value: "final",   label: "Final",               factor:  0.80 },
+];
+
+function r2(n) {
+  return Math.round(n * 100) / 100;
 }
 
-// Textos fixos por faixa de pontuação (sem custo de API) — 2 variações por
-// faixa, escolhidas de forma determinística pela pontuação.
-const SCORE_BAND_TEXTS = [
-  [
-    "Você está começando no padel. Seu nível inicial reflete isso e vai se ajustar rápido conforme você jogar partidas confirmadas.",
-    "Perfil de iniciante: foque em consistência nos golpes básicos. Cada partida confirmada vai calibrar seu nível rapidamente.",
-  ],
-  [
-    "Você já sustenta trocas e conhece o jogo. Seu nível vai se refinar conforme você enfrentar duplas de força parecida.",
-    "Perfil em evolução: seu nível inicial considera sua rotina de jogo e experiência com raquete. As próximas partidas confirmadas farão o ajuste fino.",
-  ],
-  [
-    "Jogador intermediário com boa vivência de quadra. O motor vai calibrar seu nível com precisão nas primeiras partidas confirmadas.",
-    "Você domina os fundamentos e usa as paredes. Seu nível será lapidado pelos resultados contra duplas do seu patamar.",
-  ],
-  [
-    "Perfil avançado: experiência competitiva e domínio técnico. Seus resultados em partidas confirmadas dirão até onde seu nível vai.",
-    "Você chega com bagagem forte. O nível inicial reflete sua experiência; as partidas confirmadas vão calibrá-lo com precisão.",
-  ],
+// Pontuação técnica (7–34) → nível (0,5–6,2).
+export function techScoreToLevel(score) {
+  const pct = (score - 7) / 27;
+  return r2(0.5 + pct * 5.7);
+}
+
+// Nível calculado a partir da categoria e fase do torneio.
+export function tourneyLevelFor(catValue, stageValue) {
+  const cat   = TOURNEY_CATS.find((c) => c.value === catValue);
+  const stage = TOURNEY_STAGES.find((s) => s.value === stageValue);
+  const range = cat.ceil - cat.floor;
+  return r2(Math.min(7.0, Math.max(0.3, cat.floor + stage.factor * range)));
+}
+
+const ANALYSIS_TEXTS = [
+  "Você está começando no padel. Seu nível inicial reflete isso e vai se ajustar rapidamente conforme você jogar partidas confirmadas.",
+  "Você já tem alguma vivência em quadra. Seu nível vai se refinar conforme você enfrentar duplas de força parecida.",
+  "Jogador com boa base técnica. O motor vai calibrar seu nível com precisão nas primeiras partidas confirmadas.",
+  "Perfil intermediário avançado com boa vivência de quadra. Seus resultados em partidas confirmadas definirão até onde seu nível vai.",
+  "Perfil avançado com experiência competitiva. O motor vai acompanhar seus resultados para calibrar seu nível com precisão.",
+  "Perfil de alto nível com histórico competitivo expressivo. As partidas confirmadas vão definir seu nível com exatidão.",
+  "Perfil de elite. Seus resultados em partidas confirmadas definirão seu exato posicionamento no topo.",
 ];
 
+function buildAnalysis(level, hasPlayed) {
+  let idx = LEVEL_BANDS.findIndex((band) => level >= band.min && level < band.max);
+  if (idx < 0) idx = LEVEL_BANDS.length - 1;
+  const base = ANALYSIS_TEXTS[idx] ?? ANALYSIS_TEXTS[ANALYSIS_TEXTS.length - 1];
+  return hasPlayed
+    ? base
+    : base + " Participar de torneios vai destravar categorias superiores no seu nivelamento.";
+}
+
 export function assessQuestionnaire(answers) {
-  const values = Object.values(answers);
-  const score = values.reduce((sum, value) => sum + Number(value), 0);
-  const level = initialLevelForScore(score);
-  const bandIndex = SCORE_BANDS.findIndex(
-    (band) => score >= band.minScore && score <= band.maxScore,
+  const techScore = ["q1", "q2", "q3", "q4", "q5", "q6", "q7"].reduce(
+    (sum, k) => sum + (Number(answers[k]) || 0),
+    0,
   );
-  const texts = SCORE_BAND_TEXTS[bandIndex];
-  const classification = classificationFor(level);
+  const techLevel = techScoreToLevel(techScore);
+  const hasPlayed = !!answers.q8;
+  let nivel_inicial;
+  if (hasPlayed) {
+    const tl = tourneyLevelFor(answers.cat, answers.stage);
+    nivel_inicial = r2(Math.min(7.0, Math.max(0.5, 0.10 * techLevel + 0.90 * tl)));
+  } else {
+    nivel_inicial = r2(Math.min(2.0, Math.max(0.5, techLevel)));
+  }
+  const classification = classificationFor(nivel_inicial);
   return {
-    score,
-    nivel_inicial: level,
+    score: techScore,
+    nivel_inicial,
     confiabilidade_inicial: INITIAL_RELIABILITY,
     categoria_sugerida: classification.technical,
-    analise_tecnica: texts[score % texts.length],
+    analise_tecnica: buildAnalysis(nivel_inicial, hasPlayed),
   };
 }
 

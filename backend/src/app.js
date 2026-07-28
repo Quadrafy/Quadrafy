@@ -1506,9 +1506,9 @@ export async function createApp(overrides = {}) {
       levelTestLimiter.consume(user.id);
       const body = await readJson(request);
       const answers = validateLevelTest(body);
-      // TASKS-07 / TASK-26: avaliação 100% determinística — nenhuma chamada
-      // de IA externa. Pontuação 7–34 → nível interpolado (teto 6.2),
-      // fiabilidade inicial sempre 35%.
+      // TASKS-07 / TASK-26 v2: avaliação 100% determinística — nenhuma chamada
+      // de IA externa. 7 perguntas técnicas (7–34) + torneio opcional;
+      // sem torneio: nível máximo 2,0; com torneio: até 7,0.
       const result = assessQuestionnaire(answers);
 
       // Ajuste manual opcional: o jogador pode subir/descer ±0.5 no cliente,

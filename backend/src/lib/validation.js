@@ -86,15 +86,9 @@ function assertSuper8FutureDateTime(date, startTime) {
 }
 
 const MAX_BOOKING_HORIZON_MS = 90 * 24 * 60 * 60 * 1_000;
-// Questionário de 6 perguntas: todas valem 1–4 (total 6–24).
-export const LEVEL_TEST_QUESTIONS = [
-  "tempo_pratica",
-  "frequencia_semanal",
-  "experiencia_esportes_raquete",
-  "autoavaliacao_golpes",
-  "experiencia_competicoes",
-  "tatica_posicionamento",
-];
+// Questionário de 8 perguntas: q1 vale 1–4; q2–q7 valem 1–5 (total 7–34).
+// q8 é booleano (torneio); se verdadeiro, exige cat (categoria) e stage (fase).
+export const LEVEL_TEST_QUESTIONS = ["q1", "q2", "q3", "q4", "q5", "q6", "q7"];
 
 
 function text(value, field, { min = 2, max = 120 } = {}) {
@@ -989,13 +983,33 @@ export function validatePlayerProfile(body) {
   return filtered;
 }
 
+const VALID_TOURNEY_CATS   = new Set(["7", "6", "5", "4", "3", "2", "open"]);
+const VALID_TOURNEY_STAGES = new Set(["grupo", "quartas", "final"]);
+
 export function validateLevelTest(body) {
-  return Object.fromEntries(
-    LEVEL_TEST_QUESTIONS.map((question) => [
-      question,
-      questionScore(body?.[question], question, 4),
-    ]),
-  );
+  const answers = {
+    q1: questionScore(body?.q1, "q1", 4),
+    q2: questionScore(body?.q2, "q2", 5),
+    q3: questionScore(body?.q3, "q3", 5),
+    q4: questionScore(body?.q4, "q4", 5),
+    q5: questionScore(body?.q5, "q5", 5),
+    q6: questionScore(body?.q6, "q6", 5),
+    q7: questionScore(body?.q7, "q7", 5),
+    q8: body?.q8 === true || body?.q8 === "true",
+  };
+  if (answers.q8) {
+    const cat = String(body?.cat ?? "").trim();
+    if (!VALID_TOURNEY_CATS.has(cat)) {
+      throw new ApiError(422, "validation_failed", "Escolha uma categoria de torneio válida.", { field: "cat" });
+    }
+    const stage = String(body?.stage ?? "").trim();
+    if (!VALID_TOURNEY_STAGES.has(stage)) {
+      throw new ApiError(422, "validation_failed", "Escolha uma fase de torneio válida.", { field: "stage" });
+    }
+    answers.cat = cat;
+    answers.stage = stage;
+  }
+  return answers;
 }
 
 export function validateMatchMessage(body) {
