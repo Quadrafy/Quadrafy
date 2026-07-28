@@ -2942,6 +2942,12 @@ em {
 .level-score strong {
   color: var(--coral);
   font: 600 46px/0.9 var(--mono);
+  font-feature-settings: "zero" 0;
+}
+.female-level-box .level-score strong {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-feature-settings: "zero" 0;
 }
 .level-score span {
   font-weight: 700;
