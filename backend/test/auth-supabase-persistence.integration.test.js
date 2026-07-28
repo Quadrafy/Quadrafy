@@ -109,6 +109,7 @@ test("registration and session survive an application restart through the databa
       },
       body: JSON.stringify({
         role: "player",
+        gender: "male",
         firstName: "Ana",
         lastName: "Banco",
         email: "ana.banco@example.com",

@@ -158,6 +158,7 @@ test("invalid credentials, duplicate e-mail and anonymous access use honest erro
     method: "POST",
     body: {
       role: "player",
+      gender: "male",
       firstName: "Outra",
       lastName: "Pessoa",
       email: "ana@example.com",

@@ -26,6 +26,7 @@ test("permite a origem do Vercel em mutações e bloqueia origens não listadas"
     const url = `http://127.0.0.1:${port}/api/v1/auth/register`;
     const body = {
       role: "player",
+      gender: "male",
       firstName: "Origem",
       lastName: "Confiável",
       email: "origem-confiavel@example.com",

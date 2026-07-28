@@ -82,6 +82,7 @@ async function registerPlayer(api, suffix, { answers = MID_LOW_ANSWERS } = {}) {
     method: "POST",
     body: {
       role: "player",
+      gender: "male",
       firstName: "Ana",
       lastName: `Silva ${suffix}`,
       email: `jogador-tasks18-${suffix}@example.com`,

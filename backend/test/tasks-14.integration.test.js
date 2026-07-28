@@ -62,6 +62,7 @@ async function registerPlayer(api, suffix, extra = {}) {
     method: "POST",
     body: {
       role: "player",
+      gender: "male",
       firstName: "Ana",
       lastName: `Silva ${suffix}`,
       email: `jogador-tasks14-${suffix}@example.com`,
@@ -140,6 +141,7 @@ test("TASK-58: phone required on registration, normalized, editable later; legac
       method: "POST",
       body: {
         role: "player",
+        gender: "male",
         firstName: "Ana",
         lastName: "Sem Telefone",
         email: "sem-telefone@example.com",

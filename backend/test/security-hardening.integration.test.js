@@ -71,6 +71,7 @@ async function registerPlayer(api, suffix) {
     method: "POST",
     body: {
       role: "player",
+      gender: "male",
       firstName: "Jogador",
       lastName: "Seguro",
       email: `security-player-${suffix}@example.com`,

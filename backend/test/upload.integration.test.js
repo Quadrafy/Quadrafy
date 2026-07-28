@@ -65,6 +65,7 @@ async function registerPlayer(suffix = "principal") {
     method: "POST",
     body: {
       role: "player",
+      gender: "male",
       firstName: "Ana",
       lastName: "Silva",
       email: `upload-player-${suffix}@example.com`,
