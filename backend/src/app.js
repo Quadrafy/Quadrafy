@@ -2697,10 +2697,15 @@ export async function createApp(overrides = {}) {
         team2: booking.teams.team2.filter(Boolean),
       };
       const allPlayerIds = [...teams.team1, ...teams.team2];
+      const isFemaleGame = booking.genderCategory === "women_only";
       const playerLevels = Object.fromEntries(
         allPlayerIds.map((playerId) => {
-          const level = Number(users.findById(playerId)?.profile?.level);
-          return [playerId, Number.isFinite(level) ? level : 3.5];
+          const profile = users.findById(playerId)?.profile ?? {};
+          const raw =
+            isFemaleGame && profile.gender === "female"
+              ? Number(profile.levelFemale ?? profile.level)
+              : Number(profile.level);
+          return [playerId, Number.isFinite(raw) ? raw : 3.5];
         }),
       );
       const playerReliabilities = Object.fromEntries(
@@ -2719,6 +2724,7 @@ export async function createApp(overrides = {}) {
         sets,
         winningTeam,
         reportedBy: user.id,
+        genderContext: booking.genderCategory ?? null,
       });
       await auditLog.record({
         actorId: user.id,
@@ -2766,6 +2772,7 @@ export async function createApp(overrides = {}) {
         winningTeam: entry.winningTeam,
       });
 
+      const isFemaleGame = entry.genderContext === "women_only";
       const levelChanges = {};
       for (const player of players) {
         const update = updates[player.id];
@@ -2773,14 +2780,33 @@ export async function createApp(overrides = {}) {
         const wins = (Number(profile.wins) || 0) + (update.won ? 1 : 0);
         const winRate =
           Math.round((wins / update.matchesPlayed) * 1000) / 10;
-        await users.updateProfile(player.id, {
-          level: update.level,
-          levelConfidence: update.reliability,
-          levelCategory: update.classification.technical,
-          matchesPlayed: update.matchesPlayed,
-          wins,
-          winRate,
-        });
+        const isFemalePlayer = isFemaleGame && profile.gender === "female";
+        if (isFemalePlayer) {
+          // update.level é o novo levelFemale; level geral é derivado por conversão.
+          const generalLevel = womenToGeneralLevel(update.level);
+          const generalCategory =
+            classificationFor(generalLevel)?.technical ??
+            update.classification.technical;
+          await users.updateProfile(player.id, {
+            levelFemale: update.level,
+            levelCategoryFemale: update.classification.technical,
+            level: generalLevel,
+            levelConfidence: update.reliability,
+            levelCategory: generalCategory,
+            matchesPlayed: update.matchesPlayed,
+            wins,
+            winRate,
+          });
+        } else {
+          await users.updateProfile(player.id, {
+            level: update.level,
+            levelConfidence: update.reliability,
+            levelCategory: update.classification.technical,
+            matchesPlayed: update.matchesPlayed,
+            wins,
+            winRate,
+          });
+        }
         levelChanges[player.id] = {
           previousLevel: update.previousLevel,
           level: update.level,

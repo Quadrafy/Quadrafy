@@ -62,6 +62,7 @@ export class MatchResultStore {
     sets,
     winningTeam,
     reportedBy,
+    genderContext = null,
   }) {
     return this.enqueueWrite(async () => {
       const existing = this.findByMatch(matchId);
@@ -92,6 +93,7 @@ export class MatchResultStore {
         // Fiabilidades (%) no momento do lançamento — usadas pelo motor
         // (TASK-28) e pelo explicador passo a passo (TASK-29).
         playerReliabilities: { ...playerReliabilities },
+        genderContext,
         sets: sets.map((set) => ({
           team1: set.team1,
           team2: set.team2,
