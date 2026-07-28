@@ -1191,9 +1191,9 @@
     "Iniciante":                { min: 0,   max: 1   },
     "Iniciante Intermediário":  { min: 1,   max: 2   },
     "Intermediário":            { min: 2,   max: 3.5 },
-    "Intermediário Avançado":   { min: 3.5, max: 5.5 },
-    "Avançado":                 { min: 5.5, max: 6.5 },
-    "Avançado Elevado":         { min: 6.5, max: 6.8 },
+    "Intermediário Avançado":   { min: 3.5, max: 5.2 },
+    "Avançado":                 { min: 5.2, max: 6.2 },
+    "Avançado Elevado":         { min: 6.2, max: 6.8 },
     "Elite":                    { min: 6.8, max: 7   },
   };
 
@@ -1201,9 +1201,9 @@
     { name: "Iniciante",               min: 0,   max: 1   },
     { name: "Iniciante Intermediário", min: 1,   max: 2   },
     { name: "Intermediário",           min: 2,   max: 3.5 },
-    { name: "Intermediário Avançado",  min: 3.5, max: 5.5 },
-    { name: "Avançado",                min: 5.5, max: 6.5 },
-    { name: "Avançado Elevado",        min: 6.5, max: 6.8 },
+    { name: "Intermediário Avançado",  min: 3.5, max: 5.2 },
+    { name: "Avançado",                min: 5.2, max: 6.2 },
+    { name: "Avançado Elevado",        min: 6.2, max: 6.8 },
     { name: "Elite",                   min: 6.8, max: 7   },
   ];
 
@@ -3395,13 +3395,13 @@
     { min: 2, max: 3.5, technical: "Intermediário", category: "5ª Categoria" },
     {
       min: 3.5,
-      max: 5.5,
+      max: 5.2,
       technical: "Intermediário Avançado",
       category: "4ª Categoria",
     },
-    { min: 5.5, max: 6.5, technical: "Avançado", category: "3ª Categoria" },
+    { min: 5.2, max: 6.2, technical: "Avançado", category: "3ª Categoria" },
     {
-      min: 6.5,
+      min: 6.2,
       max: 6.8,
       technical: "Avançado Elevado",
       category: "2ª Categoria",
