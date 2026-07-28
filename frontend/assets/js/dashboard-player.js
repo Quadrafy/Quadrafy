@@ -3551,20 +3551,19 @@
     const generalLabel = $("[data-profile-general-label]");
 
     if (hasLevelFemale) {
-      // Feminino é o nível principal; geral (derivado) fica na caixa secundária.
-      const femaleBand = levelBandFor(profile.levelFemale);
-      if (generalLabel) generalLabel.textContent = "Nível Feminino";
-      $("[data-profile-score]").textContent = formatLevel(profile.levelFemale);
-      $("[data-profile-level]").textContent = femaleBand
-        ? `${femaleBand.technical} · ${femaleBand.category}`
-        : profile.levelCategoryFemale || "Categoria em análise";
+      // Geral é o nível principal; feminino fica na caixa secundária abaixo.
+      if (generalLabel) generalLabel.textContent = "Nível Padelfy";
+      $("[data-profile-score]").textContent = formatLevel(profile.level);
+      $("[data-profile-level]").textContent = band
+        ? `${band.technical} · ${band.category}`
+        : profile.levelCategory || "Categoria em análise";
       if (femaleBox) {
         femaleBox.hidden = false;
-        $("[data-profile-score-female]").textContent = formatLevel(profile.level);
-        const generalBand = levelBandFor(profile.level);
-        $("[data-profile-level-female]").textContent = generalBand
-          ? `${generalBand.technical} · ${generalBand.category}`
-          : profile.levelCategory || "";
+        $("[data-profile-score-female]").textContent = formatLevel(profile.levelFemale);
+        const femaleBand = levelBandFor(profile.levelFemale);
+        $("[data-profile-level-female]").textContent = femaleBand
+          ? `${femaleBand.technical} · ${femaleBand.category}`
+          : profile.levelCategoryFemale || "";
       }
     } else {
       if (generalLabel) generalLabel.textContent = "Nível Padelfy";
@@ -3986,10 +3985,12 @@
     const modal = $("[data-level-info-modal]");
     const content = $("[data-level-info-content]", modal);
     const profile = state.session?.user?.profile || {};
-    const level = Number(profile.level);
+    const isFemale = profile.gender === "female";
+    const hasFemale = Boolean(profile.levelAssessmentCompleted) && isFemale && profile.levelFemale != null;
+    const rawLevel = hasFemale ? Number(profile.levelFemale) : Number(profile.level);
     const hasLevel =
-      Boolean(profile.levelAssessmentCompleted) && Number.isFinite(level);
-    const currentBand = hasLevel ? levelBandFor(level) : null;
+      Boolean(profile.levelAssessmentCompleted) && Number.isFinite(rawLevel);
+    const currentBand = hasLevel ? levelBandFor(rawLevel) : null;
     const rows = LEVEL_BANDS.map((band) => {
       const isCurrent = currentBand === band;
       return `<tr class="${isCurrent ? "current-band" : ""}"><td>${band.min.toLocaleString("pt-BR", { minimumFractionDigits: 1 })} – ${band.max.toLocaleString("pt-BR", { minimumFractionDigits: 1 })}</td><td>${escapeHTML(band.technical)}${isCurrent ? ' <span class="band-you">você está aqui</span>' : ""}</td><td>${escapeHTML(band.category)}</td></tr>`;
@@ -3997,10 +3998,11 @@
     const nextBand = currentBand
       ? LEVEL_BANDS[LEVEL_BANDS.indexOf(currentBand) + 1]
       : null;
+    const levelLabel = hasFemale ? "Seu nível feminino" : "Seu nível atual";
     const progressNote = hasLevel
       ? nextBand
-        ? `<p class="profile-data-note">Seu nível atual é <strong>${escapeHTML(formatLevel(level))}</strong>. Faltam <strong>${(Math.round((nextBand.min - level) * 100) / 100).toLocaleString("pt-BR")}</strong> pontos para alcançar a faixa ${escapeHTML(nextBand.technical)} (${escapeHTML(nextBand.category)}).</p>`
-        : `<p class="profile-data-note">Seu nível atual é <strong>${escapeHTML(formatLevel(level))}</strong> — você está na faixa mais alta do Padelfy.</p>`
+        ? `<p class="profile-data-note">${levelLabel} é <strong>${escapeHTML(formatLevel(rawLevel))}</strong>. Faltam <strong>${(Math.round((nextBand.min - rawLevel) * 100) / 100).toLocaleString("pt-BR")}</strong> pontos para alcançar a faixa ${escapeHTML(nextBand.technical)} (${escapeHTML(nextBand.category)}).</p>`
+        : `<p class="profile-data-note">${levelLabel} é <strong>${escapeHTML(formatLevel(rawLevel))}</strong> — você está na faixa mais alta do Padelfy.</p>`
       : '<p class="profile-data-note">Complete o teste de nível para descobrir sua faixa.</p>';
     content.innerHTML = `<table class="level-bands-table"><thead><tr><th scope="col">Nível</th><th scope="col">Classificação técnica</th><th scope="col">Categoria equivalente</th></tr></thead><tbody>${rows}</tbody></table>${progressNote}`;
     openAccessibleModal(modal, "[data-modal-close]");
