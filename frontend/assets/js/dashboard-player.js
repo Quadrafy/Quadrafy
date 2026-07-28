@@ -1552,8 +1552,8 @@
 
   // TASKS-11 — rótulos da categoria de gênero.
   const GENDER_CATEGORY_LABELS = {
-    women_only: "Só mulheres",
-    men_only: "Só homens",
+    women_only: "Feminino",
+    men_only: "Masculino",
     mixed: "Misto",
   };
 
@@ -1561,22 +1561,22 @@
     const gender = state.session?.user?.profile?.gender;
     if (gender === "female") {
       return [
-        { value: "women_only", label: "Só Mulheres" },
+        { value: "women_only", label: "Feminino" },
         { value: "all",        label: "Todos" },
         { value: "mixed",      label: "Misto" },
       ];
     }
     if (gender === "male") {
       return [
-        { value: "men_only", label: "Só Homens" },
+        { value: "men_only", label: "Masculino" },
         { value: "all",      label: "Todos" },
         { value: "mixed",    label: "Misto" },
       ];
     }
     return [
       { value: "all",        label: "Todos" },
-      { value: "women_only", label: "Só Mulheres" },
-      { value: "men_only",   label: "Só Homens" },
+      { value: "women_only", label: "Feminino" },
+      { value: "men_only",   label: "Masculino" },
       { value: "mixed",      label: "Misto" },
     ];
   }
