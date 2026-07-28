@@ -3042,6 +3042,9 @@ em {
   font-size: 21px;
   letter-spacing: -0.03em;
 }
+.level-card .panel-heading h2 + .micro-label {
+  margin-top: 8px;
+}
 .profile-data-note {
   margin: 18px 0 0;
   padding-top: 14px;
