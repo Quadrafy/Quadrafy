@@ -62,15 +62,15 @@ export function classificationFor(level) {
 // cada faixa (ex.: pontuação 12 na faixa 10–14 fica na metade → nível na
 // metade de 1.3–2.4).
 export const SCORE_BANDS = [
-  { minScore: 7,  maxScore: 13, minLevel: 0.5, maxLevel: 1.2 },
-  { minScore: 14, maxScore: 20, minLevel: 1.3, maxLevel: 2.4 },
-  { minScore: 21, maxScore: 27, minLevel: 2.5, maxLevel: 4.0 },
-  { minScore: 28, maxScore: 34, minLevel: 4.1, maxLevel: 6.2 },
+  { minScore: 6,  maxScore: 9,  minLevel: 0.5, maxLevel: 1.2 },
+  { minScore: 10, maxScore: 14, minLevel: 1.3, maxLevel: 2.4 },
+  { minScore: 15, maxScore: 19, minLevel: 2.5, maxLevel: 3.9 },
+  { minScore: 20, maxScore: 24, minLevel: 4.0, maxLevel: 5.6 },
 ];
 
 export function initialLevelForScore(score) {
   const numeric = Number(score);
-  if (!Number.isInteger(numeric) || numeric < 7 || numeric > 34) return null;
+  if (!Number.isInteger(numeric) || numeric < 6 || numeric > 24) return null;
   const band = SCORE_BANDS.find(
     (candidate) => numeric >= candidate.minScore && numeric <= candidate.maxScore,
   );

@@ -4115,10 +4115,10 @@
   /* ── Level-test helpers ─────────────────────────────────── */
 
   function ltScoreToLevel(score) {
-    if (score <= 13) return 0.5 + ((score - 7) / 6) * 0.7;
-    if (score <= 20) return 1.3 + ((score - 14) / 6) * 1.1;
-    if (score <= 27) return 2.5 + ((score - 21) / 6) * 1.5;
-    return 4.1 + ((score - 28) / 6) * 2.1;
+    if (score <= 9)  return 0.5 + ((score - 6)  / 3) * 0.7;
+    if (score <= 14) return 1.3 + ((score - 10) / 4) * 1.1;
+    if (score <= 19) return 2.5 + ((score - 15) / 4) * 1.4;
+    return 4.0 + ((score - 20) / 4) * 1.6;
   }
 
   function ltRoundToHalf(n) {
@@ -4164,7 +4164,7 @@
   }
 
   function ltShowResult(modal) {
-    const names = ["tempo_pratica","aulas_treino","consistencia_erros","condicao_fisica","golpes_fundo","jogo_voleio","golpes_aereos"];
+    const names = ["tempo_pratica","frequencia_semanal","experiencia_esportes_raquete","autoavaliacao_golpes","experiencia_competicoes","tatica_posicionamento"];
     const answers = {};
     names.forEach((name) => {
       const checked = $(`[name="${name}"]:checked`, modal);
@@ -4216,7 +4216,7 @@
     const fill = $("[data-lt-fill]", modal);
     if (fill) fill.style.width = "0%";
     const count = $("[data-lt-count]", modal);
-    if (count) count.textContent = "0 / 7 respondidas";
+    if (count) count.textContent = "0 / 6 respondidas";
     state.lt = {};
 
     openAccessibleModal(modal, '[name="tempo_pratica"]');
@@ -4279,7 +4279,7 @@
         });
         e.target.closest(".lt-opt")?.classList.add("lt-selected");
         // Mark question number badge as answered
-        const qnames = ["tempo_pratica","aulas_treino","consistencia_erros","condicao_fisica","golpes_fundo","jogo_voleio","golpes_aereos"];
+        const qnames = ["tempo_pratica","frequencia_semanal","experiencia_esportes_raquete","autoavaliacao_golpes","experiencia_competicoes","tatica_posicionamento"];
         const qIndex = qnames.indexOf(name);
         if (qIndex >= 0) {
           $(`#lt-n${qIndex + 1}`, ltModal)?.classList.add("lt-answered");
@@ -4287,17 +4287,17 @@
         // Update count + progress
         const answered = qnames.filter((n) => $(`[name="${n}"]:checked`, ltModal)).length;
         const countEl = $("[data-lt-count]", ltModal);
-        if (countEl) countEl.textContent = `${answered} / 7 respondidas`;
+        if (countEl) countEl.textContent = `${answered} / 6 respondidas`;
         const fill = $("[data-lt-fill]", ltModal);
-        if (fill) fill.style.width = `${(answered / 7) * 100}%`;
+        if (fill) fill.style.width = `${(answered / 6) * 100}%`;
         // Hide error if now fully answered
         if (answered === 7) $("[data-lt-err]", ltModal).hidden = true;
       });
 
       $("[data-lt-calc]", ltModal)?.addEventListener("click", () => {
-        const qnames = ["tempo_pratica","aulas_treino","consistencia_erros","condicao_fisica","golpes_fundo","jogo_voleio","golpes_aereos"];
+        const qnames = ["tempo_pratica","frequencia_semanal","experiencia_esportes_raquete","autoavaliacao_golpes","experiencia_competicoes","tatica_posicionamento"];
         const answered = qnames.filter((n) => $(`[name="${n}"]:checked`, ltModal)).length;
-        if (answered < 7) {
+        if (answered < 6) {
           $("[data-lt-err]", ltModal).hidden = false;
           $("[data-lt-err]", ltModal).scrollIntoView({ block: "nearest", behavior: "smooth" });
           return;
