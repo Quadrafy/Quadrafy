@@ -34,6 +34,45 @@ export const LEVEL_BANDS = [
 // qualquer feature que precise restringir por categoria (ex.: Super 8).
 export const LEVEL_CATEGORY_NAMES = LEVEL_BANDS.map((band) => band.technical);
 
+// Tabela de conversão entre escala uniforme (7 categorias × 1 unidade) e escala real.
+const UNIFORM_BANDS = [
+  { uMin: 0, uMax: 1, rMin: 0.0, rMax: 1.0 },
+  { uMin: 1, uMax: 2, rMin: 1.0, rMax: 2.0 },
+  { uMin: 2, uMax: 3, rMin: 2.0, rMax: 3.5 },
+  { uMin: 3, uMax: 4, rMin: 3.5, rMax: 5.2 },
+  { uMin: 4, uMax: 5, rMin: 5.2, rMax: 6.2 },
+  { uMin: 5, uMax: 6, rMin: 6.2, rMax: 6.8 },
+  { uMin: 6, uMax: 7, rMin: 6.8, rMax: 7.0 },
+];
+
+function realToUniform(real) {
+  for (const b of UNIFORM_BANDS) {
+    if (real >= b.rMin && (real < b.rMax || b.uMax === 7)) {
+      return b.uMin + (real - b.rMin) / (b.rMax - b.rMin);
+    }
+  }
+  return 0;
+}
+
+function uniformToReal(u) {
+  const clamped = Math.min(7, Math.max(0, u));
+  for (const b of UNIFORM_BANDS) {
+    if (clamped >= b.uMin && (clamped < b.uMax || b.uMax === 7)) {
+      return b.rMin + ((clamped - b.uMin) / (b.uMax - b.uMin)) * (b.rMax - b.rMin);
+    }
+  }
+  return 0;
+}
+
+// Converte nível feminino → nível geral subtraindo 1,5 categorias na escala uniforme.
+// Exemplo: 5ª a 75% (nível 3,125) → uniforme 2,75 → 1,25 → 6ª a 25% (nível 1,25).
+export function womenToGeneralLevel(femaleLevel) {
+  const clamped = clampDynamicLevel(femaleLevel);
+  if (clamped === null) return null;
+  const uGeneral = Math.max(0, realToUniform(clamped) - 1.5);
+  return r2(uniformToReal(uGeneral));
+}
+
 export function clampDynamicLevel(value) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return null;

@@ -3502,6 +3502,23 @@
     const profile = state.session.user.profile || {};
     const hasAssessment = Boolean(profile.levelAssessmentCompleted);
     const band = hasAssessment ? levelBandFor(profile.level) : null;
+
+    const isFemale = profile.gender === "female";
+    const hasLevelFemale = hasAssessment && isFemale && profile.levelFemale != null;
+    const femaleBox = $("[data-profile-female-box]");
+    if (femaleBox) {
+      femaleBox.hidden = !hasLevelFemale;
+      if (hasLevelFemale) {
+        const femaleBand = levelBandFor(profile.levelFemale);
+        $("[data-profile-score-female]").textContent = formatLevel(profile.levelFemale);
+        $("[data-profile-level-female]").textContent = femaleBand
+          ? `${femaleBand.technical} · ${femaleBand.category}`
+          : profile.levelCategoryFemale || "";
+      }
+    }
+    const generalLabel = $("[data-profile-general-label]");
+    if (generalLabel) generalLabel.textContent = hasLevelFemale ? "Nível Geral" : "Nível Padelfy";
+
     $("[data-profile-level]").textContent = hasAssessment
       ? band
         ? `${band.technical} · ${band.category}`
@@ -4262,10 +4279,16 @@
       state.levelTestRequired = false;
       closeModal(modal);
       renderProfile();
+      const isFemaleUser = user.profile?.gender === "female";
+      const hasFemaleLvl = isFemaleUser && user.profile?.levelFemale != null;
       showGenericModal({
         eyebrow: "Nível confirmado",
-        title: user.profile?.levelCategory || result.categoria_sugerida || "Nivelamento concluído",
-        text: result.analise_tecnica || "Seu perfil foi atualizado com sucesso.",
+        title: hasFemaleLvl
+          ? (user.profile.levelCategoryFemale || result.categoria_sugerida || "Nivelamento concluído")
+          : (user.profile?.levelCategory || result.categoria_sugerida || "Nivelamento concluído"),
+        text: hasFemaleLvl
+          ? `${result.analise_tecnica || "Seu perfil foi atualizado."}\n\nNível geral (mistos): ${user.profile.levelCategory || "calculado automaticamente"}`
+          : (result.analise_tecnica || "Seu perfil foi atualizado com sucesso."),
       });
     } catch (error) {
       showToast(error.message);

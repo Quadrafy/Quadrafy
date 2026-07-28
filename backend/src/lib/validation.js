@@ -661,6 +661,15 @@ export function validateRegistration(body) {
   };
 
   if (role === "player") {
+    const genderValue = String(body.gender ?? "").trim();
+    if (genderValue !== "male" && genderValue !== "female") {
+      throw new ApiError(
+        422,
+        "validation_failed",
+        "Escolha um gênero para continuar.",
+        { field: "gender" },
+      );
+    }
     return {
       ...credentials,
       profile: {
@@ -670,6 +679,7 @@ export function validateRegistration(body) {
         // TASK-58: telefone obrigatório no cadastro para futura
         // verificação por SMS.
         phone: phone(body.phone),
+        gender: genderValue,
         level: "Iniciante",
         levelAssessmentCompleted: false,
       },

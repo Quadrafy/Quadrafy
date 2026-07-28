@@ -7775,3 +7775,13 @@ button.super8-open-row:focus-visible {
 .lt-stage-btn { width: 100%; padding: 9px 12px; border: 1.5px solid var(--line); border-radius: var(--radius-sm); background: transparent; font-size: .86rem; font-weight: 600; color: var(--ink); cursor: pointer; text-align: left; transition: border-color .15s, background .15s, color .15s; }
 .lt-stage-btn:hover { border-color: var(--green); background: rgba(43,130,101,.05); }
 .lt-stage-btn.lt-stage-active { border-color: var(--green); background: rgba(43,130,101,.09); color: var(--green); }
+/* Gender picker (login registration) */
+.gender-picker { display: flex; gap: 8px; margin-top: 4px; }
+.gender-card { flex: 1; display: flex; align-items: center; justify-content: center; padding: 12px 16px; border: 1.5px solid var(--line); border-radius: var(--radius-sm); cursor: pointer; font-size: .92rem; font-weight: 600; color: var(--ink); transition: border-color .15s, background .15s, color .15s; position: relative; }
+.gender-card input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
+.gender-card:has(input:checked) { border-color: var(--green); background: rgba(43,130,101,.09); color: var(--green); }
+.gender-card:hover:not(:has(input:checked)) { border-color: var(--ink-soft); }
+/* Female dual-level display */
+.female-level-box { margin-bottom: 10px; }
+.female-level-box .level-score { margin-bottom: 0; }
+.micro-note { font-weight: 400; opacity: .7; font-size: .78rem; }

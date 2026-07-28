@@ -75,6 +75,7 @@ import {
   classificationFor,
   computeMatchOutcome,
   normalizeReliability,
+  womenToGeneralLevel,
 } from "./lib/level-engine.js";
 import { MatchMessageStore } from "./stores/match-message-store.js";
 import { SessionStore } from "./stores/session-store.js";
@@ -1528,14 +1529,33 @@ export async function createApp(overrides = {}) {
         }
       }
 
-      const updated = await users.updateProfile(user.id, {
-        level: finalLevel,
-        levelConfidence: result.confiabilidade_inicial,
-        levelCategory: finalCategory,
-        levelAnalysis: result.analise_tecnica,
-        levelAssessmentCompleted: true,
-        levelAssessedAt: new Date().toISOString(),
-      });
+      const isFemale = user.profile?.gender === "female";
+      let profileUpdate;
+      if (isFemale) {
+        const generalLevel = womenToGeneralLevel(finalLevel);
+        const generalCategory =
+          classificationFor(generalLevel)?.technical ?? finalCategory;
+        profileUpdate = {
+          levelFemale: finalLevel,
+          levelCategoryFemale: finalCategory,
+          level: generalLevel,
+          levelConfidence: result.confiabilidade_inicial,
+          levelCategory: generalCategory,
+          levelAnalysis: result.analise_tecnica,
+          levelAssessmentCompleted: true,
+          levelAssessedAt: new Date().toISOString(),
+        };
+      } else {
+        profileUpdate = {
+          level: finalLevel,
+          levelConfidence: result.confiabilidade_inicial,
+          levelCategory: finalCategory,
+          levelAnalysis: result.analise_tecnica,
+          levelAssessmentCompleted: true,
+          levelAssessedAt: new Date().toISOString(),
+        };
+      }
+      const updated = await users.updateProfile(user.id, profileUpdate);
       await levelTests.create({
         playerId: user.id,
         answers,
