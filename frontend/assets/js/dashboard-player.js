@@ -3550,12 +3550,10 @@
     const femaleBox = $("[data-profile-female-box]");
     const generalLabel = $("[data-profile-general-label]");
 
-    const levelTitle = $("[data-profile-level-title]");
     if (hasLevelFemale) {
       // Feminino é o nível principal (cima); geral fica na caixa secundária abaixo.
       const femaleBand = levelBandFor(profile.levelFemale);
-      if (generalLabel) generalLabel.textContent = "Seu nível de jogo";
-      if (levelTitle) levelTitle.textContent = "Nível Feminino";
+      if (generalLabel) generalLabel.textContent = "Nível Feminino";
       $("[data-profile-score]").textContent = formatLevel(profile.levelFemale);
       $("[data-profile-level]").textContent = femaleBand
         ? `${femaleBand.technical} · ${femaleBand.category}`
@@ -3569,7 +3567,6 @@
       }
     } else {
       if (generalLabel) generalLabel.textContent = "Nível Padelfy";
-      if (levelTitle) levelTitle.textContent = "Seu nível de jogo";
       if (femaleBox) femaleBox.hidden = true;
       $("[data-profile-level]").textContent = hasAssessment
         ? band
