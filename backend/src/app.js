@@ -601,8 +601,11 @@ export async function createApp(overrides = {}) {
       id: user.id,
       displayName: displayName(user),
       initials: initials(user),
+      gender: user.profile.gender ?? null,
       level: user.profile.level ?? null,
       levelCategory: user.profile.levelCategory ?? null,
+      levelFemale: user.profile.levelFemale ?? null,
+      levelCategoryFemale: user.profile.levelCategoryFemale ?? null,
       photoUrl: user.profile.photoUrl ?? "",
     };
   }

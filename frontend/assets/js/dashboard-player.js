@@ -1380,11 +1380,15 @@
     return match.participantIds?.includes(state.session?.user?.id) || false;
   }
 
-  function matchPlayerLevel(player) {
-    if (Number.isFinite(Number(player?.level))) {
-      return `Nível ${formatLevel(player.level)}`;
+  function matchPlayerLevel(player, match = null) {
+    const isWomenGame = match?.genderCategory === "women_only";
+    const useFemale = isWomenGame && player?.gender === "female" && player?.levelFemale != null;
+    const lvl = useFemale ? player.levelFemale : player?.level;
+    if (Number.isFinite(Number(lvl))) {
+      return `Nível ${formatLevel(lvl)}`;
     }
-    return player?.levelCategory || player?.level || "Nível não informado";
+    const cat = useFemale ? player?.levelCategoryFemale : player?.levelCategory;
+    return cat || lvl || "Nível não informado";
   }
 
   function normalizedMatchTeams(match) {
@@ -1440,7 +1444,7 @@
       return `<${tag} class="match-player-row match-position-empty"${attributes}><span class="empty" aria-hidden="true">+</span><div><strong>Vaga livre</strong><small>${canMove ? "Mover-me para esta vaga" : canJoin ? "Escolher esta vaga" : "Disponível"}</small></div></${tag}>`;
     }
     const name = player.displayName || player.name || "Jogador";
-    const level = matchPlayerLevel(player);
+    const level = matchPlayerLevel(player, match);
     const initials = player.initials || initialsFor(name) || "—";
     const photoUrl = safePhotoUrl(player.photoUrl);
     const avatar = photoUrl
