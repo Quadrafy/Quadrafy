@@ -13,23 +13,23 @@ const frontendDirectory = path.resolve(testDirectory, "../../frontend");
 let baseUrl;
 let dataDirectory;
 let server;
-const verifications = [];
+const messages = [];
 
 before(async () => {
-  dataDirectory = await mkdtemp(path.join(os.tmpdir(), "padelfy-verify-test-"));
+  dataDirectory = await mkdtemp(path.join(os.tmpdir(), "padelfy-phone-test-"));
   const app = await createApp({
     environment: "test",
     dataDirectory,
     frontendDirectory,
     sessionTtlHours: 1,
-    mailer: {
+    whatsapp: {
       enabled: true,
-      async sendPasswordReset() {
+      async sendVerificationCode(payload) {
+        messages.push(payload);
         return { id: "test" };
       },
-      async sendEmailVerification(payload) {
-        verifications.push(payload);
-        return { id: "test-verify" };
+      async sendText() {
+        return { id: "test" };
       },
     },
   });
@@ -56,68 +56,54 @@ async function api(pathname, { method = "GET", body, cookie } = {}) {
   });
 }
 
-const email = "verify-user@example.com";
 let cookie;
 
-test("registration sends a verification e-mail and creates an unverified account", async () => {
+test("phone verification sends a code by WhatsApp and confirms the number", async () => {
   const registration = await api("/api/v1/auth/register", {
     method: "POST",
     body: {
       role: "player",
-      firstName: "Caio",
-      lastName: "Lima",
-      email,
+      firstName: "Bia",
+      lastName: "Nunes",
+      email: "phone-user@example.com",
       password: "SenhaSegura123",
-      phone: "11912345678",
+      phone: "11987654321",
       level: "Iniciante",
-      city: "Recife",
-      gender: "male",
+      city: "Curitiba",
+      gender: "female",
     },
   });
   assert.equal(registration.status, 201);
   cookie = registration.headers.get("set-cookie").split(";", 1)[0];
-  assert.equal(verifications.length, 1);
-  assert.equal(verifications[0].to, email);
 
-  const me = await api("/api/v1/auth/me", { cookie });
-  assert.equal((await me.json()).data.user.profile.emailVerified, false);
-});
+  const send = await api("/api/v1/auth/phone/send", { method: "POST", cookie });
+  assert.equal(send.status, 200);
+  assert.equal(messages.length, 1);
+  const code = messages[0].code;
+  assert.match(code, /^\d{6}$/);
 
-test("resend-verification issues a fresh link for the logged-in user", async () => {
-  const response = await api("/api/v1/auth/resend-verification", {
+  // Código errado é rejeitado.
+  const wrong = await api("/api/v1/auth/phone/verify", {
     method: "POST",
     cookie,
+    body: { code: "000000" },
   });
-  assert.equal(response.status, 200);
-  assert.equal((await response.json()).data.verified, false);
-  assert.equal(verifications.length, 2);
-});
+  assert.equal(wrong.status, 400);
 
-test("verifying with the token activates the account and is single-use", async () => {
-  const token = new URL(verifications[1].verifyUrl).searchParams.get("token");
-  assert.ok(token && token.length >= 20);
-
-  const verify = await api("/api/v1/auth/verify-email", {
+  // Código certo confirma.
+  const verify = await api("/api/v1/auth/phone/verify", {
     method: "POST",
-    body: { token },
+    cookie,
+    body: { code },
   });
   assert.equal(verify.status, 200);
+  assert.equal((await verify.json()).data.verified, true);
 
   const me = await api("/api/v1/auth/me", { cookie });
-  assert.equal((await me.json()).data.user.profile.emailVerified, true);
-
-  const reused = await api("/api/v1/auth/verify-email", {
-    method: "POST",
-    body: { token },
-  });
-  assert.equal(reused.status, 400);
-  assert.equal((await reused.json()).error.code, "invalid_verification_token");
+  assert.equal((await me.json()).data.user.profile.phoneVerified, true);
 });
 
-test("verify-email rejects a malformed token", async () => {
-  const response = await api("/api/v1/auth/verify-email", {
-    method: "POST",
-    body: { token: "curto" },
-  });
-  assert.equal(response.status, 400);
+test("phone endpoints require authentication", async () => {
+  const send = await api("/api/v1/auth/phone/send", { method: "POST" });
+  assert.equal(send.status, 401);
 });

@@ -19,12 +19,15 @@ import { createAuthenticationRepository } from "./lib/authentication-repository.
 import {
   createId,
   createSessionToken,
+  createVerificationCode,
   digestToken,
   hashPassword,
   normalizeEmail,
   verifyPassword,
 } from "./lib/security.js";
 import { createMailer } from "./lib/mailer.js";
+import { createGoogleOAuth } from "./lib/google-oauth.js";
+import { createWhatsApp } from "./lib/whatsapp.js";
 import {
   validateBookingUpdate,
   validateBooking,
@@ -53,6 +56,7 @@ import { AuditLogStore } from "./stores/audit-log-store.js";
 import { BookingStore } from "./stores/booking-store.js";
 import { PasswordResetStore } from "./stores/password-reset-store.js";
 import { EmailVerificationStore } from "./stores/email-verification-store.js";
+import { PhoneVerificationStore } from "./stores/phone-verification-store.js";
 import { ClubStore } from "./stores/club-store.js";
 import { CourtStore } from "./stores/court-store.js";
 import { LevelTestStore } from "./stores/level-test-store.js";
@@ -304,7 +308,10 @@ export async function createApp(overrides = {}) {
   const achievements = new AchievementStore(config.dataDirectory);
   const passwordResets = new PasswordResetStore(config.dataDirectory);
   const emailVerifications = new EmailVerificationStore(config.dataDirectory);
+  const phoneVerifications = new PhoneVerificationStore(config.dataDirectory);
   const mailer = overrides.mailer ?? createMailer(config);
+  const googleOAuth = overrides.googleOAuth ?? createGoogleOAuth(config);
+  const whatsapp = overrides.whatsapp ?? createWhatsApp(config);
   const supabaseEnabled = Boolean(config.supabaseUrl && config.supabaseSecretKey);
   const loginIpLimiter = new RateLimiter({
     limit: 30,
@@ -361,6 +368,16 @@ export async function createApp(overrides = {}) {
     windowMs: 60 * 60 * 1000,
     maxEntries: 50_000,
   });
+  const googleAuthLimiter = new RateLimiter({
+    limit: 30,
+    windowMs: 15 * 60 * 1000,
+    maxEntries: 10_000,
+  });
+  const phoneVerificationLimiter = new RateLimiter({
+    limit: 5,
+    windowMs: 60 * 60 * 1000,
+    maxEntries: 50_000,
+  });
   await Promise.all([
     users.initialize(),
     sessions.initialize(),
@@ -376,6 +393,7 @@ export async function createApp(overrides = {}) {
     achievements.initialize(),
     passwordResets.initialize(),
     emailVerifications.initialize(),
+    phoneVerifications.initialize(),
   ]);
   const achievementsEngine = createAchievementsEngine({
     users,
@@ -419,6 +437,29 @@ export async function createApp(overrides = {}) {
         requestId: request.requestId,
       });
     }
+  }
+
+  // Cookie temporário de proteção CSRF do fluxo OAuth do Google.
+  function oauthStateCookie(value, maxAgeSeconds) {
+    const parts = [
+      `padelfy_oauth_state=${encodeURIComponent(value)}`,
+      "Path=/",
+      "HttpOnly",
+      "SameSite=Lax",
+      `Max-Age=${maxAgeSeconds}`,
+    ];
+    if (config.isProduction) parts.push("Secure");
+    return parts.join("; ");
+  }
+
+  function redirectTo(response, location, extraHeaders = {}) {
+    response.writeHead(302, {
+      Location: location,
+      "Cache-Control": "no-store",
+      ...extraHeaders,
+    });
+    response.end();
+    return true;
   }
 
   let agendaWriteQueue = Promise.resolve();
@@ -1273,6 +1314,231 @@ export async function createApp(overrides = {}) {
       sendData(response, 200, {
         message: "Enviamos um novo link de confirmação para o seu e-mail.",
         verified: false,
+      });
+      return true;
+    }
+
+    if (request.method === "GET" && pathname === "/api/v1/auth/providers") {
+      sendData(response, 200, {
+        google: googleOAuth.enabled,
+        whatsapp: whatsapp.enabled,
+      });
+      return true;
+    }
+
+    if (request.method === "GET" && pathname === "/api/v1/auth/google/start") {
+      googleAuthLimiter.consume(clientAddress(request));
+      if (!googleOAuth.enabled) {
+        return redirectTo(response, "/login.html?error=google_unavailable");
+      }
+      const state = createSessionToken();
+      return redirectTo(response, googleOAuth.authorizationUrl(state), {
+        "Set-Cookie": oauthStateCookie(state, 600),
+      });
+    }
+
+    if (
+      request.method === "GET" &&
+      pathname === "/api/v1/auth/google/callback"
+    ) {
+      googleAuthLimiter.consume(clientAddress(request));
+      const clearState = oauthStateCookie("", 0);
+      if (!googleOAuth.enabled) {
+        return redirectTo(response, "/login.html?error=google_unavailable");
+      }
+      const params = url.searchParams;
+      const code = params.get("code");
+      const state = params.get("state");
+      const cookieState = parseCookies(request).padelfy_oauth_state;
+      if (
+        params.get("error") ||
+        !code ||
+        !state ||
+        !cookieState ||
+        state !== cookieState
+      ) {
+        return redirectTo(response, "/login.html?error=google_failed", {
+          "Set-Cookie": clearState,
+        });
+      }
+      try {
+        const tokens = await googleOAuth.exchangeCode(code);
+        const info = await googleOAuth.fetchUserInfo(tokens.access_token);
+        const email = normalizeEmail(info.email);
+        if (!email || info.email_verified === false) {
+          return redirectTo(response, "/login.html?error=google_email", {
+            "Set-Cookie": clearState,
+          });
+        }
+        let user = users.findByEmail(email);
+        if (!user) {
+          // Conta nova pelo Google entra como jogador (clube usa o cadastro
+          // normal, que exige CNPJ etc.). Sem senha utilizável.
+          user = await users.create({
+            role: "player",
+            email,
+            passwordHash: await hashPassword(createSessionToken()),
+            profile: {
+              firstName: info.given_name ?? info.name ?? "",
+              lastName: info.family_name ?? "",
+              googleId: info.sub,
+              emailVerified: true,
+              emailVerifiedAt: new Date().toISOString(),
+            },
+          });
+          await auditLog.record({
+            actorId: user.id,
+            action: "auth.google_registered",
+            resourceType: "auth",
+            resourceId: user.id,
+            after: { role: user.role },
+            requestId: request.requestId,
+          });
+        } else if (!user.profile?.googleId || !user.profile?.emailVerified) {
+          await users.updateProfile(user.id, {
+            googleId: info.sub,
+            emailVerified: true,
+            emailVerifiedAt:
+              user.profile?.emailVerifiedAt ?? new Date().toISOString(),
+          });
+        }
+        await sessions.revoke(parseCookies(request).padelfy_session);
+        const token = await sessions.create(user.id);
+        await auditLog.record({
+          actorId: user.id,
+          action: "auth.google_logged_in",
+          resourceType: "auth",
+          resourceId: user.id,
+          requestId: request.requestId,
+        });
+        return redirectTo(response, dashboardPath(user.role), {
+          "Set-Cookie": [
+            sessionCookie(
+              token,
+              Math.floor(config.sessionTtlMs / 1000),
+              config.isProduction,
+            ),
+            clearState,
+          ],
+        });
+      } catch (error) {
+        await auditLog.record({
+          actorId: null,
+          action: "auth.google_failed",
+          resourceType: "auth",
+          resourceId: null,
+          after: { message: String(error.message).slice(0, 200) },
+          requestId: request.requestId,
+        });
+        return redirectTo(response, "/login.html?error=google_failed", {
+          "Set-Cookie": clearState,
+        });
+      }
+    }
+
+    if (request.method === "POST" && pathname === "/api/v1/auth/phone/send") {
+      assertSameOrigin(request);
+      const user = requireUser(request);
+      phoneVerificationLimiter.consume(user.id);
+      if (user.profile?.phoneVerified) {
+        sendData(response, 200, {
+          verified: true,
+          message: "Seu telefone já está confirmado.",
+        });
+        return true;
+      }
+      const phone = user.profile?.phone;
+      if (!phone) {
+        throw new ApiError(
+          422,
+          "phone_missing",
+          "Cadastre um telefone no seu perfil antes de verificar.",
+          { field: "phone" },
+        );
+      }
+      const code = createVerificationCode();
+      const codeHash = digestToken(code);
+      const expiresAt = new Date(
+        Date.now() + config.phoneVerificationTtlMs,
+      ).toISOString();
+      await phoneVerifications.create({
+        userId: user.id,
+        phone,
+        codeHash,
+        expiresAt,
+      });
+      try {
+        await whatsapp.sendVerificationCode({
+          to: phone,
+          code,
+          appName: config.appName,
+        });
+      } catch (error) {
+        await auditLog.record({
+          actorId: user.id,
+          action: "auth.phone_code_failed",
+          resourceType: "auth",
+          resourceId: user.id,
+          after: { message: String(error.message).slice(0, 200) },
+          requestId: request.requestId,
+        });
+        throw new ApiError(
+          502,
+          "phone_send_failed",
+          "Não foi possível enviar o código agora. Tente novamente em instantes.",
+        );
+      }
+      const masked = String(phone).replace(/\d(?=\d{2})/g, "•");
+      sendData(response, 200, {
+        sent: true,
+        enabled: whatsapp.enabled,
+        phone: masked,
+        message: whatsapp.enabled
+          ? "Enviamos um código pelo WhatsApp."
+          : "Verificação por WhatsApp ainda não está ativa.",
+      });
+      return true;
+    }
+
+    if (request.method === "POST" && pathname === "/api/v1/auth/phone/verify") {
+      assertSameOrigin(request);
+      const user = requireUser(request);
+      phoneVerificationLimiter.consume(user.id);
+      const body = await readJson(request);
+      const code = String(body?.code ?? "").trim();
+      const entry = phoneVerifications.findByUser(user.id);
+      const invalid =
+        !entry || entry.usedAt || Date.parse(entry.expiresAt) <= Date.now();
+      if (invalid || (entry?.attempts ?? 0) >= 5) {
+        throw new ApiError(
+          400,
+          "invalid_phone_code",
+          "Código inválido ou expirado. Peça um novo.",
+        );
+      }
+      await phoneVerifications.registerAttempt(user.id);
+      if (!/^\d{6}$/.test(code) || digestToken(code) !== entry.codeHash) {
+        throw new ApiError(
+          400,
+          "invalid_phone_code",
+          "Código incorreto. Verifique e tente de novo.",
+        );
+      }
+      await users.updateProfile(user.id, {
+        phoneVerified: true,
+        phoneVerifiedAt: new Date().toISOString(),
+      });
+      await phoneVerifications.consume(user.id);
+      await auditLog.record({
+        actorId: user.id,
+        action: "auth.phone_verified",
+        resourceType: "auth",
+        resourceId: user.id,
+        requestId: request.requestId,
+      });
+      sendData(response, 200, {
+        verified: true,
+        message: "Telefone confirmado com sucesso!",
       });
       return true;
     }

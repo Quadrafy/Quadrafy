@@ -1170,8 +1170,57 @@ em {
   position: relative;
   overflow: hidden;
   padding: 120px 0;
-  background: var(--coral);
+  background:
+    linear-gradient(
+      rgba(231, 84, 53, 0.88),
+      rgba(231, 84, 53, 0.88)
+    ),
+    url("../images/padel-court.jpg") center / cover no-repeat;
   color: #fff;
+}
+.experience-band {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: 440px;
+  padding: 56px 0;
+  background:
+    linear-gradient(
+      to top,
+      rgba(20, 23, 31, 0.86),
+      rgba(20, 23, 31, 0.1)
+    ),
+    url("../images/padel-hero.jpg") center 40% / cover no-repeat;
+  color: #fff;
+}
+.experience-inner {
+  position: relative;
+  z-index: 2;
+}
+.experience-inner h2 {
+  margin: 10px 0 0;
+  font-family: var(--serif);
+  font-size: clamp(34px, 5vw, 62px);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1.02;
+}
+.experience-inner h2 em {
+  color: var(--coral);
+}
+.experience-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+.experience-tags span {
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  backdrop-filter: blur(2px);
 }
 .final-cta .container {
   position: relative;
@@ -1538,6 +1587,40 @@ em {
 }
 .auth-note {
   margin: 17px 0 0;
+}
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  color: var(--ink-soft);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+.button-google {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font-weight: 600;
+}
+.button-google:hover {
+  border-color: var(--ink-soft);
+  background: #fafafa;
+}
+.button-google svg {
+  flex-shrink: 0;
 }
 .auth-legal {
   max-width: 470px;

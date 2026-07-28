@@ -515,6 +515,35 @@
   }
 
   function setupAuth() {
+    // Revela o "Continuar com Google" só quando o backend está configurado.
+    apiRequest("/api/v1/auth/providers")
+      .then((providers) => {
+        if (providers?.google) {
+          $$("[data-google-login]").forEach((element) =>
+            element.removeAttribute("hidden"),
+          );
+        }
+      })
+      .catch(() => {});
+    // Mensagem de erro vinda do callback do Google (?error=...).
+    const authError = new URLSearchParams(location.search).get("error");
+    if (authError) {
+      const messages = {
+        google_unavailable:
+          "Login com Google ainda não está disponível. Tente por e-mail.",
+        google_failed:
+          "Não foi possível entrar com o Google. Tente novamente.",
+        google_email:
+          "Não foi possível confirmar seu e-mail do Google. Tente por e-mail.",
+      };
+      const loginForm = $('[data-auth-form="login"]');
+      if (loginForm) {
+        setFormFeedback(
+          loginForm,
+          messages[authError] || "Não foi possível concluir o login.",
+        );
+      }
+    }
     const switchTab = (name) => {
       $$("[data-auth-tab]").forEach((button) => {
         const active = button.dataset.authTab === name;

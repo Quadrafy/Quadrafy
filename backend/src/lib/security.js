@@ -1,6 +1,7 @@
 import {
   createHash,
   randomBytes,
+  randomInt,
   randomUUID,
   scrypt as scryptCallback,
   timingSafeEqual,
@@ -26,6 +27,11 @@ export function createSessionToken() {
 
 export function digestToken(token) {
   return createHash("sha256").update(token).digest("hex");
+}
+
+// Código numérico de 6 dígitos para verificação (ex.: OTP de telefone).
+export function createVerificationCode() {
+  return String(randomInt(100000, 1000000));
 }
 
 export async function hashPassword(password) {

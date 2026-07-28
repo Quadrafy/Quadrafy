@@ -70,6 +70,7 @@ test("full password recovery flow updates the password and consumes the token", 
       phone: "11912345678",
       level: "Iniciante",
       city: "Santos",
+      gender: "female",
     },
   });
   assert.equal(registration.status, 201);

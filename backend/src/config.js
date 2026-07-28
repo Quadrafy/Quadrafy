@@ -102,5 +102,28 @@ export function loadConfig(overrides = {}) {
       60 *
       60 *
       1000,
+    googleClientId:
+      overrides.googleClientId ?? process.env.GOOGLE_CLIENT_ID ?? "",
+    googleClientSecret:
+      overrides.googleClientSecret ?? process.env.GOOGLE_CLIENT_SECRET ?? "",
+    googleRedirectUri:
+      overrides.googleRedirectUri ?? process.env.GOOGLE_REDIRECT_URI ?? "",
+    evolutionUrl: (
+      overrides.evolutionUrl ??
+      process.env.EVOLUTION_URL ??
+      ""
+    ).replace(/\/+$/, ""),
+    evolutionApiKey:
+      overrides.evolutionApiKey ?? process.env.EVOLUTION_API_KEY ?? "",
+    evolutionInstance:
+      overrides.evolutionInstance ?? process.env.EVOLUTION_INSTANCE ?? "",
+    phoneVerificationTtlMs:
+      positiveInteger(
+        overrides.phoneVerificationTtlMinutes ??
+          process.env.PHONE_VERIFICATION_TTL_MINUTES,
+        10,
+      ) *
+      60 *
+      1000,
   };
 }
