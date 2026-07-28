@@ -3551,19 +3551,19 @@
     const generalLabel = $("[data-profile-general-label]");
 
     if (hasLevelFemale) {
-      // Geral é o nível principal; feminino fica na caixa secundária abaixo.
-      if (generalLabel) generalLabel.textContent = "Nível Padelfy";
-      $("[data-profile-score]").textContent = formatLevel(profile.level);
-      $("[data-profile-level]").textContent = band
-        ? `${band.technical} · ${band.category}`
-        : profile.levelCategory || "Categoria em análise";
+      // Feminino é o nível principal (cima); geral fica na caixa secundária abaixo.
+      const femaleBand = levelBandFor(profile.levelFemale);
+      if (generalLabel) generalLabel.textContent = "Nível Feminino";
+      $("[data-profile-score]").textContent = formatLevel(profile.levelFemale);
+      $("[data-profile-level]").textContent = femaleBand
+        ? `${femaleBand.technical} · ${femaleBand.category}`
+        : profile.levelCategoryFemale || "Categoria em análise";
       if (femaleBox) {
         femaleBox.hidden = false;
-        $("[data-profile-score-female]").textContent = formatLevel(profile.levelFemale);
-        const femaleBand = levelBandFor(profile.levelFemale);
-        $("[data-profile-level-female]").textContent = femaleBand
-          ? `${femaleBand.technical} · ${femaleBand.category}`
-          : profile.levelCategoryFemale || "";
+        $("[data-profile-score-female]").textContent = formatLevel(profile.level);
+        $("[data-profile-level-female]").textContent = band
+          ? `${band.technical} · ${band.category}`
+          : profile.levelCategory || "";
       }
     } else {
       if (generalLabel) generalLabel.textContent = "Nível Padelfy";
