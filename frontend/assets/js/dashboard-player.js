@@ -838,8 +838,7 @@
         <div><small>${escapeHTML(matchDayStr(match.startAt))}</small><strong>${escapeHTML(slotTimeRange(match.startAt, match.slotDuration))}</strong></div>`;
     }
     renderEditMatchPlayers(match);
-    const genderSelect = $("[data-edit-gender-category]");
-    if (genderSelect) genderSelect.value = match.genderCategory ?? "all";
+    applyGenderSelect($("[data-edit-gender-category]"), match.genderCategory ?? null);
     const { min, max } = levelCategoriesToRange(match.levelCategories);
     const minInput = $("[data-edit-level-range-min]");
     const maxInput = $("[data-edit-level-range-max]");
@@ -921,6 +920,7 @@
       closeModal($("[data-slot-selection-modal]"));
       resetInvitePlayers();
       resetBookingCategories();
+      applyGenderSelect($("[data-booking-gender-category]"), null);
       openAccessibleModal(
         $("[data-booking-modal]"),
         "[data-level-range-min]",
@@ -1556,6 +1556,40 @@
     men_only: "Só homens",
     mixed: "Misto",
   };
+
+  function genderOptionsForUser() {
+    const gender = state.session?.user?.profile?.gender;
+    if (gender === "female") {
+      return [
+        { value: "women_only", label: "Só Mulheres" },
+        { value: "all",        label: "Todos" },
+        { value: "mixed",      label: "Misto" },
+      ];
+    }
+    if (gender === "male") {
+      return [
+        { value: "men_only", label: "Só Homens" },
+        { value: "all",      label: "Todos" },
+        { value: "mixed",    label: "Misto" },
+      ];
+    }
+    return [
+      { value: "all",        label: "Todos" },
+      { value: "women_only", label: "Só Mulheres" },
+      { value: "men_only",   label: "Só Homens" },
+      { value: "mixed",      label: "Misto" },
+    ];
+  }
+
+  function applyGenderSelect(select, currentValue) {
+    if (!select) return;
+    const opts = genderOptionsForUser();
+    select.innerHTML = opts
+      .map((o) => `<option value="${escapeHTML(o.value)}">${escapeHTML(o.label)}</option>`)
+      .join("");
+    const validValues = new Set(opts.map((o) => o.value));
+    select.value = currentValue && validValues.has(currentValue) ? currentValue : opts[0].value;
+  }
 
   function genderCategoryBadge(match) {
     const label = GENDER_CATEGORY_LABELS[match.genderCategory];
