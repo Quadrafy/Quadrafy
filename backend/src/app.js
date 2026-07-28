@@ -556,7 +556,11 @@ export async function createApp(overrides = {}) {
 
   // TASK-92 — a faixa numérica de nível vira seleção de categorias oficiais
   // (mesmo padrão de restrição já usado no Super 8, TASK-77).
-  function assertPlayerLevelCategoryAllowed(user, { levelCategories }) {
+  // Em jogos femininos, jogadoras são avaliadas pelo levelCategoryFemale.
+  function assertPlayerLevelCategoryAllowed(
+    user,
+    { levelCategories, genderCategory = null },
+  ) {
     if (user.profile.levelAssessmentCompleted !== true) {
       throw new ApiError(
         409,
@@ -565,7 +569,13 @@ export async function createApp(overrides = {}) {
       );
     }
     if (!levelCategories) return;
-    const category = playerLevelCategory(user);
+    const isFemaleGame =
+      genderCategory === "women_only" && user.profile?.gender === "female";
+    const category = isFemaleGame
+      ? (user.profile?.levelCategoryFemale ??
+          classificationFor(user.profile?.levelFemale)?.technical ??
+          playerLevelCategory(user))
+      : playerLevelCategory(user);
     if (!category || !levelCategories.includes(category)) {
       throw new ApiError(
         409,

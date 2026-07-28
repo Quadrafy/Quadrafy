@@ -2946,6 +2946,9 @@ em {
 .level-score span {
   font-weight: 700;
 }
+.level-score-sm strong { font-size: 28px; }
+.level-score-sm span { font-size: .85rem; font-weight: 600; }
+.female-level-box { padding: 10px 0 4px; border-top: 1px solid var(--line); margin-top: 4px; }
 .progress-bar {
   height: 6px;
   border-radius: 3px;

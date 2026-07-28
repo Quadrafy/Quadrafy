@@ -1602,7 +1602,11 @@
     const profile = state.session?.user?.profile;
     if (!profile) return true;
     if (match.levelCategories?.length) {
-      const myCat = profile.levelCategory;
+      const isWomenGame = match.genderCategory === "women_only";
+      const myCat =
+        isWomenGame && profile.gender === "female"
+          ? (profile.levelCategoryFemale || profile.levelCategory)
+          : profile.levelCategory;
       if (!myCat || !match.levelCategories.includes(myCat)) return false;
     }
     const gc = match.genderCategory ?? "all";
@@ -3540,27 +3544,36 @@
     const isFemale = profile.gender === "female";
     const hasLevelFemale = hasAssessment && isFemale && profile.levelFemale != null;
     const femaleBox = $("[data-profile-female-box]");
-    if (femaleBox) {
-      femaleBox.hidden = !hasLevelFemale;
-      if (hasLevelFemale) {
-        const femaleBand = levelBandFor(profile.levelFemale);
-        $("[data-profile-score-female]").textContent = formatLevel(profile.levelFemale);
-        $("[data-profile-level-female]").textContent = femaleBand
-          ? `${femaleBand.technical} · ${femaleBand.category}`
-          : profile.levelCategoryFemale || "";
-      }
-    }
     const generalLabel = $("[data-profile-general-label]");
-    if (generalLabel) generalLabel.textContent = hasLevelFemale ? "Nível Geral" : "Nível Padelfy";
 
-    $("[data-profile-level]").textContent = hasAssessment
-      ? band
-        ? `${band.technical} · ${band.category}`
-        : profile.levelCategory || "Categoria em análise"
-      : "Teste pendente";
-    $("[data-profile-score]").textContent = hasAssessment
-      ? formatLevel(profile.level)
-      : "—";
+    if (hasLevelFemale) {
+      // Feminino é o nível principal; geral (derivado) fica na caixa secundária.
+      const femaleBand = levelBandFor(profile.levelFemale);
+      if (generalLabel) generalLabel.textContent = "Nível Feminino";
+      $("[data-profile-score]").textContent = formatLevel(profile.levelFemale);
+      $("[data-profile-level]").textContent = femaleBand
+        ? `${femaleBand.technical} · ${femaleBand.category}`
+        : profile.levelCategoryFemale || "Categoria em análise";
+      if (femaleBox) {
+        femaleBox.hidden = false;
+        $("[data-profile-score-female]").textContent = formatLevel(profile.level);
+        const generalBand = levelBandFor(profile.level);
+        $("[data-profile-level-female]").textContent = generalBand
+          ? `${generalBand.technical} · ${generalBand.category}`
+          : profile.levelCategory || "";
+      }
+    } else {
+      if (generalLabel) generalLabel.textContent = "Nível Padelfy";
+      if (femaleBox) femaleBox.hidden = true;
+      $("[data-profile-level]").textContent = hasAssessment
+        ? band
+          ? `${band.technical} · ${band.category}`
+          : profile.levelCategory || "Categoria em análise"
+        : "Teste pendente";
+      $("[data-profile-score]").textContent = hasAssessment
+        ? formatLevel(profile.level)
+        : "—";
+    }
     $("[data-profile-level-note]").textContent = hasAssessment
       ? profile.levelAnalysis ||
         "Jogue partidas com resultado confirmado para calibrar seu nível."
