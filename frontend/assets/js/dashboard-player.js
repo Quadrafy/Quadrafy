@@ -1666,10 +1666,12 @@
       : "";
     return `<article class="match-card card-hover${isCancelled ? " match-card-cancelled" : ""}" data-match-id="${escapeHTML(match.id)}" tabindex="0" role="button" aria-label="Ver detalhes do jogo em ${escapeHTML(match.clubName)}">
       <div class="match-top">
-        <span class="match-day-line">${escapeHTML(matchDayStr(match.startAt))}</span>
-        <div class="match-time-row">
-          <span class="match-time-range">${escapeHTML(slotTimeRange(match.startAt, match.slotDuration))}</span>
-          <span class="match-duration-pill">${escapeHTML(formatDuration(match.slotDuration))}</span>
+        <div class="match-top-left">
+          <span class="match-day-line">${escapeHTML(matchDayStr(match.startAt))}</span>
+          <div class="match-time-row">
+            <span class="match-time-range">${escapeHTML(slotTimeRange(match.startAt, match.slotDuration))}</span>
+            <span class="match-duration-pill">${escapeHTML(formatDuration(match.slotDuration))}</span>
+          </div>
         </div>
         <div class="match-card-badges">${historyBadge}${genderCategoryBadge(match)}${matchTypeBadge(match)}${catBadge}${expiresChip}</div>
       </div>

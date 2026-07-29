@@ -5150,6 +5150,11 @@ button.match-player-row:focus-visible strong {
   padding: 12px 14px 10px;
   border-top: 3px solid var(--coral);
 }
+.match-top-left {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
 .match-day-line {
   display: block;
   font: 600 10px/1.2 var(--sans);
