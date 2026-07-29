@@ -216,6 +216,7 @@ export class BookingStore {
     levelCategories = null,
     maxPlayers = 4,
     genderCategory = "all",
+    matchType = "competitive",
     participantIds = [],
     status = "confirmed",
     allowConflict = false,
@@ -248,6 +249,7 @@ export class BookingStore {
         ...(durationMinutes != null ? { durationMinutes } : {}),
         // TASK-49: "all" | "women_only" | "men_only" | "mixed"
         genderCategory,
+        matchType,
         levelCategories,
         maxPlayers,
         participantIds: participantIdsFromTeams(teams),
@@ -543,6 +545,9 @@ export class BookingStore {
         booking.levelCategories = update.levelCategories;
         if (update.genderCategory !== undefined) {
           booking.genderCategory = update.genderCategory;
+        }
+        if (update.matchType !== undefined) {
+          booking.matchType = update.matchType;
         }
         booking.maxPlayers = update.maxPlayers;
         ensureTeams(booking);

@@ -668,6 +668,7 @@ export async function createApp(overrides = {}) {
       levelCategories: booking.levelCategories ?? null,
       maxPlayers: booking.maxPlayers,
       genderCategory: booking.genderCategory ?? "all",
+      matchType: booking.matchType ?? "competitive",
       openSpots: Math.max(0, booking.maxPlayers - participantIds.length),
       participantIds,
       teams: booking.teams ?? null,
@@ -712,6 +713,7 @@ export async function createApp(overrides = {}) {
       levelCategories: base.levelCategories,
       maxPlayers: base.maxPlayers,
       genderCategory: base.genderCategory,
+      matchType: base.matchType ?? "competitive",
       participantIds,
       teams,
       teamIds,
@@ -3028,6 +3030,9 @@ export async function createApp(overrides = {}) {
       requireResultEligibleMatch(matchId, user);
       const entry = await matchResults.confirm(matchId, user.id);
 
+      const _confirmBooking = bookings.findById(matchId);
+      const isFriendly = _confirmBooking?.matchType === "friendly";
+
       // TASKS-07 / TASK-28 — dispara o motor "Playtomic Engine" (pote de
       // pontos + distribuição inversa) para os 4 jogadores, usando níveis e
       // fiabilidades capturados no momento do lançamento (determinístico).
@@ -3053,60 +3058,62 @@ export async function createApp(overrides = {}) {
 
       const isFemaleGame = entry.genderContext === "women_only";
       const levelChanges = {};
-      for (const player of players) {
-        const update = updates[player.id];
-        const profile = users.findById(player.id)?.profile ?? {};
-        const wins = (Number(profile.wins) || 0) + (update.won ? 1 : 0);
-        const winRate =
-          Math.round((wins / update.matchesPlayed) * 1000) / 10;
-        const isFemalePlayer = isFemaleGame && profile.gender === "female";
-        if (isFemalePlayer) {
-          // update.level é o novo levelFemale; level geral é derivado por conversão.
-          const generalLevel = womenToGeneralLevel(update.level);
-          const generalCategory =
-            classificationFor(generalLevel)?.technical ??
-            update.classification.technical;
-          await users.updateProfile(player.id, {
-            levelFemale: update.level,
-            levelCategoryFemale: update.classification.technical,
-            level: generalLevel,
-            levelConfidence: update.reliability,
-            levelCategory: generalCategory,
-            matchesPlayed: update.matchesPlayed,
-            wins,
-            winRate,
-          });
-        } else {
-          await users.updateProfile(player.id, {
+      if (!isFriendly) {
+        for (const player of players) {
+          const update = updates[player.id];
+          const profile = users.findById(player.id)?.profile ?? {};
+          const wins = (Number(profile.wins) || 0) + (update.won ? 1 : 0);
+          const winRate =
+            Math.round((wins / update.matchesPlayed) * 1000) / 10;
+          const isFemalePlayer = isFemaleGame && profile.gender === "female";
+          if (isFemalePlayer) {
+            // update.level é o novo levelFemale; level geral é derivado por conversão.
+            const generalLevel = womenToGeneralLevel(update.level);
+            const generalCategory =
+              classificationFor(generalLevel)?.technical ??
+              update.classification.technical;
+            await users.updateProfile(player.id, {
+              levelFemale: update.level,
+              levelCategoryFemale: update.classification.technical,
+              level: generalLevel,
+              levelConfidence: update.reliability,
+              levelCategory: generalCategory,
+              matchesPlayed: update.matchesPlayed,
+              wins,
+              winRate,
+            });
+          } else {
+            await users.updateProfile(player.id, {
+              level: update.level,
+              levelConfidence: update.reliability,
+              levelCategory: update.classification.technical,
+              matchesPlayed: update.matchesPlayed,
+              wins,
+              winRate,
+            });
+          }
+          levelChanges[player.id] = {
+            previousLevel: update.previousLevel,
             level: update.level,
-            levelConfidence: update.reliability,
-            levelCategory: update.classification.technical,
-            matchesPlayed: update.matchesPlayed,
-            wins,
-            winRate,
-          });
+            delta: update.delta,
+            won: update.won,
+          };
         }
-        levelChanges[player.id] = {
-          previousLevel: update.previousLevel,
-          level: update.level,
-          delta: update.delta,
-          won: update.won,
-        };
+        // TASK-36: persiste o ΔNível junto ao resultado para consulta futura
+        // por qualquer um dos 4 jogadores.
+        await matchResults.attachOutcome(matchId, { breakdown, levelChanges });
+        await levelHistory.recordMany(
+          players.map((player) => ({
+            playerId: player.id,
+            level: updates[player.id].level,
+            levelCategory: updates[player.id].classification.technical,
+            // TASK-30: histórico também guarda a fiabilidade de cada mudança.
+            levelConfidence: updates[player.id].reliability,
+            source: "match_result",
+            matchId,
+          })),
+        );
       }
-      // TASK-36: persiste o ΔNível junto ao resultado para consulta futura
-      // por qualquer um dos 4 jogadores.
-      await matchResults.attachOutcome(matchId, { breakdown, levelChanges });
-      await levelHistory.recordMany(
-        players.map((player) => ({
-          playerId: player.id,
-          level: updates[player.id].level,
-          levelCategory: updates[player.id].classification.technical,
-          // TASK-30: histórico também guarda a fiabilidade de cada mudança.
-          levelConfidence: updates[player.id].reliability,
-          source: "match_result",
-          matchId,
-        })),
-      );
       await auditLog.record({
         actorId: user.id,
         action: "match.result_confirmed",

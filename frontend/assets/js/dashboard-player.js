@@ -839,6 +839,8 @@
     }
     renderEditMatchPlayers(match);
     applyGenderSelect($("[data-edit-gender-category]"), match.genderCategory ?? null);
+    const matchTypeEl = $("[data-edit-match-type]");
+    if (matchTypeEl) matchTypeEl.value = match.matchType ?? "competitive";
     const { min, max } = levelCategoriesToRange(match.levelCategories);
     const minInput = $("[data-edit-level-range-min]");
     const maxInput = $("[data-edit-level-range-max]");
@@ -868,11 +870,12 @@
       parseFloat($("[data-edit-level-range-max]")?.value ?? 7),
     );
     const genderCategory = $("[data-edit-gender-category]")?.value ?? "all";
+    const matchType = $("[data-edit-match-type]")?.value ?? "competitive";
     setBusy(button, true, "Salvando…");
     try {
       await apiRequest(
         `/api/v1/player/bookings/${encodeURIComponent(state.currentMatch.id)}`,
-        { method: "PATCH", body: { levelCategories, genderCategory } },
+        { method: "PATCH", body: { levelCategories, genderCategory, matchType } },
       );
       closeModal($("[data-match-edit-modal]"));
       await Promise.all([loadMatches(), loadBookings()]);
@@ -1033,6 +1036,7 @@
           allowConflict,
           levelCategories,
           genderCategory: $("[data-booking-gender-category]")?.value || "all",
+          matchType: $("[data-booking-match-type]")?.value || "competitive",
           // TASK-60: convidados confirmados desde a criação
           ...(inviteState.players.length
             ? {
@@ -1602,6 +1606,12 @@
       : "";
   }
 
+  function matchTypeBadge(match) {
+    return match?.matchType === "friendly"
+      ? `<span class="status-badge friendly-badge">Amigável</span>`
+      : "";
+  }
+
   function playerCanJoin(match) {
     const profile = state.session?.user?.profile;
     if (!profile) return true;
@@ -1661,7 +1671,7 @@
           <span class="match-time-range">${escapeHTML(slotTimeRange(match.startAt, match.slotDuration))}</span>
           <span class="match-duration-pill">${escapeHTML(formatDuration(match.slotDuration))}</span>
         </div>
-        <div class="match-card-badges">${historyBadge}${genderCategoryBadge(match)}${catBadge}${expiresChip}</div>
+        <div class="match-card-badges">${historyBadge}${genderCategoryBadge(match)}${matchTypeBadge(match)}${catBadge}${expiresChip}</div>
       </div>
       <div class="match-player-list" aria-label="Jogadores e vagas">${matchPlayerSlots(match)}</div>
       <div class="match-info-strip">
@@ -2587,7 +2597,7 @@
           <h2 class="match-detail-club-name">${escapeHTML(match.clubName)}</h2>
         </div>
         <p class="match-detail-datetime">${escapeHTML(matchDayStr(match.startAt))} · ${escapeHTML(slotTimeRange(match.startAt, match.slotDuration))} · ${escapeHTML(formatDuration(match.slotDuration))}${match.courtName ? ` · ${escapeHTML(match.courtName)}` : ""}</p>
-        <div class="match-card-badges">${genderCategoryBadge(match)}${catBadge}</div>
+        <div class="match-card-badges">${genderCategoryBadge(match)}${matchTypeBadge(match)}${catBadge}</div>
       </div>
       <div class="match-detail-info-row">
         <div><small>Gênero</small><strong>${escapeHTML(genderLabel)}</strong></div>
@@ -2642,7 +2652,7 @@
     }
     const winnerLabel = result.winningTeam === "team1" ? "Dupla 1" : "Dupla 2";
     if (result.status === "confirmed") {
-      return `<section class="info-card match-result-card"><div class="panel-heading"><div><p class="micro-label">Resultado confirmado</p><h3>${escapeHTML(winnerLabel)} venceu</h3></div><span class="status-badge">Confirmado</span></div><p class="match-result-sets">${escapeHTML(setsLine(result.sets))}</p>${levelChangesPanel(result)}</section>`;
+      return `<section class="info-card match-result-card"><div class="panel-heading"><div><p class="micro-label">Resultado confirmado</p><h3>${escapeHTML(winnerLabel)} venceu</h3></div><span class="status-badge">Confirmado</span></div><p class="match-result-sets">${escapeHTML(setsLine(result.sets))}</p>${levelChangesPanel(result, match)}</section>`;
     }
     if (result.canConfirm) {
       return `<section class="info-card match-result-card"><div class="panel-heading"><div><p class="micro-label">Aguardando você</p><h3>Confirmar resultado</h3></div><span class="status-badge">Pendente</span></div><p class="match-result-sets">${escapeHTML(setsLine(result.sets))} · vitória da ${escapeHTML(winnerLabel)}</p><p class="profile-data-note">Lançado por ${escapeHTML(result.reporterName || "um jogador")}. Confirme para efetivar o resultado e atualizar os níveis.</p><button class="button button-primary button-block" type="button" data-confirm-result>Confirmar resultado</button><button class="button button-outline button-block" type="button" data-open-result-form>Corrigir placar</button></section>`;
@@ -2652,7 +2662,10 @@
 
   // TASK-36 — variação de nível dos 4 jogadores, persistida junto ao
   // resultado e visível sempre que a partida for revisitada no Histórico.
-  function levelChangesPanel(result) {
+  function levelChangesPanel(result, match = null) {
+    if (match?.matchType === "friendly") {
+      return '<p class="profile-data-note">Jogo amigável — nível não alterado.</p>';
+    }
     const changes = result.levelChanges;
     if (!changes || !Object.keys(changes).length) {
       return '<p class="profile-data-note">O nível dos 4 jogadores foi recalculado com este resultado.</p>';

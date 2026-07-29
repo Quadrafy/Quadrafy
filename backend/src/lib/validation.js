@@ -934,15 +934,23 @@ export function validateBooking(body) {
     genderCategory = normalized;
   }
 
+  let matchType = "competitive";
+  if (body.matchType !== undefined && body.matchType !== null) {
+    const mt = String(body.matchType).trim();
+    if (mt !== "competitive" && mt !== "friendly") {
+      throw new ApiError(422, "validation_failed", "Tipo de jogo inválido.", { field: "matchType" });
+    }
+    matchType = mt;
+  }
+
   return {
     clubId: identifier(body.clubId, "clubId"),
     courtId: identifier(body.courtId, "courtId"),
     startAt: startAt.toISOString(),
     genderCategory,
+    matchType,
     levelCategories,
     maxPlayers: 4,
-    // TASK-79 — o jogador já confirmou (fora do app) que reservou esse
-    // horário mesmo vendo o aviso de conflito com outro jogo criado.
     allowConflict: Boolean(body.allowConflict),
   };
 }
@@ -1043,9 +1051,19 @@ export function validateBookingUpdate(body) {
     }
     genderCategory = normalized;
   }
+  let matchType;
+  if (body.matchType !== undefined && body.matchType !== null) {
+    const mt = String(body.matchType).trim();
+    if (mt !== "competitive" && mt !== "friendly") {
+      throw new ApiError(422, "validation_failed", "Tipo de jogo inválido.", { field: "matchType" });
+    }
+    matchType = mt;
+  }
+
   return {
     levelCategories: parseLevelCategories(body.levelCategories),
     genderCategory,
+    ...(matchType !== undefined ? { matchType } : {}),
     maxPlayers: 4,
   };
 }

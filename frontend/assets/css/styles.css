@@ -7236,6 +7236,11 @@ button.match-player-row:focus-visible strong {
   background: rgba(26, 127, 79, 0.14);
   color: #1a7f4f;
 }
+.friendly-badge {
+  background: rgba(90, 120, 200, 0.14);
+  color: #3a5fc8;
+  font-weight: 700;
+}
 
 /* TASKS-12 — Super 8 redesign */
 .super8-status-inscricoes_abertas {
