@@ -133,13 +133,26 @@ export function clearSessionCookie(secure = false) {
 
 export function assertSameOrigin(request, allowedOrigins = []) {
   const origin = request.headers.origin;
-  if (!origin) return;
+  const referer = request.headers.referer;
+
+  // Derive effective origin: prefer Origin header, fall back to Referer
+  let effectiveOrigin = origin;
+  if (!effectiveOrigin && referer) {
+    try {
+      effectiveOrigin = new URL(referer).origin;
+    } catch {
+      throw new ApiError(403, "invalid_origin", "Origem da requisição inválida.");
+    }
+  }
+
+  // Neither header present — non-browser server-to-server client, skip check
+  if (!effectiveOrigin) return;
 
   const host = request.headers.host;
   let originHost;
   let normalizedOrigin;
   try {
-    const parsedOrigin = new URL(origin);
+    const parsedOrigin = new URL(effectiveOrigin);
     originHost = parsedOrigin.host;
     normalizedOrigin = parsedOrigin.origin;
   } catch {

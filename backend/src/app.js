@@ -1130,6 +1130,21 @@ export async function createApp(overrides = {}) {
           "E-mail ou senha incorretos.",
         );
       }
+      if (!user.profile?.emailVerified) {
+        await auditLog.record({
+          actorId: user.id,
+          action: "auth.login_failed",
+          resourceType: "auth",
+          resourceId: user.id,
+          after: { reason: "email_not_verified" },
+          requestId: request.requestId,
+        });
+        throw new ApiError(
+          403,
+          "email_not_verified",
+          "Confirme seu e-mail antes de entrar.",
+        );
+      }
       loginAccountLimiter.clear(accountKey);
       await sessions.revoke(parseCookies(request).padelfy_session);
       const token = await sessions.create(user.id);
