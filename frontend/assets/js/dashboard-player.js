@@ -1607,9 +1607,10 @@
   }
 
   function matchTypeBadge(match) {
-    return match?.matchType === "friendly"
-      ? `<span class="status-badge friendly-badge">Amigável</span>`
-      : "";
+    if (match?.matchType === "friendly") {
+      return `<span class="status-badge friendly-badge">Amigável</span>`;
+    }
+    return `<span class="status-badge competitive-badge">Competitivo</span>`;
   }
 
   function playerCanJoin(match) {
@@ -1671,7 +1672,7 @@
           <span class="match-time-range">${escapeHTML(slotTimeRange(match.startAt, match.slotDuration))}</span>
           <span class="match-duration-pill">${escapeHTML(formatDuration(match.slotDuration))}</span>
         </div>
-        <div class="match-card-badges">${historyBadge}${genderCategoryBadge(match)}${matchTypeBadge(match)}${catBadge}${expiresChip}</div>
+        <div class="match-card-badges">${historyBadge}${genderCategoryBadge(match)}${catBadge}${expiresChip}</div>
       </div>
       <div class="match-player-list" aria-label="Jogadores e vagas">${matchPlayerSlots(match)}</div>
       <div class="match-info-strip">
@@ -1682,6 +1683,7 @@
             <small>${escapeHTML(match.courtName || "")}</small>
           </div>
         </div>
+        ${matchTypeBadge(match)}
         <button class="match-detail-btn" data-match-open-detail type="button">Ver detalhes${unreadBadge}</button>
       </div>
       ${actionsHtml}
