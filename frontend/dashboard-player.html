@@ -484,6 +484,34 @@
                   <dd data-profile-play-style>—</dd>
                 </div>
               </dl>
+              <div class="phone-verify" data-phone-verify hidden>
+                <div class="phone-verify-status" data-phone-verify-status></div>
+                <button
+                  class="button button-outline button-small"
+                  type="button"
+                  data-phone-verify-start
+                >
+                  Verificar por WhatsApp
+                </button>
+                <div class="phone-verify-code hidden" data-phone-verify-code-wrap>
+                  <input
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="6"
+                    placeholder="Código de 6 dígitos"
+                    aria-label="Código de verificação"
+                    data-phone-verify-code
+                  />
+                  <button
+                    class="button button-primary button-small"
+                    type="button"
+                    data-phone-verify-confirm
+                  >
+                    Confirmar
+                  </button>
+                </div>
+                <p class="profile-data-note" data-phone-verify-feedback></p>
+              </div>
               <div class="preferred-times-summary">
                 <p class="micro-label">Horários de preferência</p>
                 <div data-profile-preferred-times>

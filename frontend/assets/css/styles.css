@@ -1622,6 +1622,9 @@ em {
 .button-google svg {
   flex-shrink: 0;
 }
+.role-hidden {
+  display: none !important;
+}
 .auth-legal {
   max-width: 470px;
   margin: 35px 0 0;
@@ -3067,6 +3070,41 @@ em {
 .info-card .profile-data-note {
   margin-top: 6px;
 }
+.phone-verify {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.phone-verify-status {
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.phone-verify-status .verify-ok {
+  color: #2e9e6b;
+  font-weight: 600;
+}
+.phone-verify-code {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.phone-verify-code input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: 600 15px/1 var(--mono);
+  letter-spacing: 0.12em;
+}
+.phone-verify-code input:focus-visible {
+  outline: 2px solid var(--coral);
+  outline-offset: 1px;
+}
+.phone-verify [data-phone-verify-feedback]:empty {
+  display: none;
+}
 
 .profile-photo-upload {
   display: grid;
@@ -3634,17 +3672,38 @@ em {
 }
 .schedule-cell span {
   display: flex;
+  flex-direction: column;
+  gap: 2px;
   height: 100%;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
-  background: rgba(43, 130, 101, 0.06);
+  border-radius: 5px;
+  background: rgba(43, 130, 101, 0.1);
   color: var(--green);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+.schedule-cell span small {
   font-size: 7px;
+  font-weight: 500;
+  opacity: 0.75;
 }
 .schedule-cell.booked span {
   background: rgba(27, 42, 74, 0.1);
   color: var(--indigo);
+}
+/* Bloqueado precisa ser visualmente distinto de "Jogo criado" (ambos usam a
+   classe .booked no markup): hachura cinza deixa claro que está fora de uso. */
+.schedule-cell.blocked span {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(98, 103, 114, 0.09),
+    rgba(98, 103, 114, 0.09) 5px,
+    rgba(98, 103, 114, 0.17) 5px,
+    rgba(98, 103, 114, 0.17) 10px
+  );
+  color: var(--ink-soft);
 }
 .reservation-table-wrap {
   overflow: auto;

@@ -569,6 +569,11 @@
         $$("[data-role-form]").forEach((form) =>
           form.classList.toggle("hidden", form.dataset.roleForm !== role),
         );
+        // Google cria conta de jogador (precisa de e-mail/nome apenas). Clube
+        // exige CNPJ/arena, então some com o Google quando "arena" é escolhida.
+        $$("[data-google-signup]").forEach((element) =>
+          element.classList.toggle("role-hidden", role === "club"),
+        );
       }),
     );
     // Navegação interna dos cartões (ex.: "Esqueci minha senha" ↔ "Voltar").

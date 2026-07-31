@@ -3554,6 +3554,94 @@
     container.innerHTML = `<div class="times-summary-grid" role="img" aria-label="Horários preferidos: ${escapeHTML(readable)}"><span></span>${header}${rows}</div>`;
   }
 
+  let phoneProvidersPromise = null;
+
+  // Widget de verificação de telefone por WhatsApp (aparece só quando o
+  // backend tem a Evolution configurada e o jogador tem telefone).
+  function setupPhoneVerification() {
+    const block = $("[data-phone-verify]");
+    if (!block) return;
+    const statusEl = $("[data-phone-verify-status]", block);
+    const startBtn = $("[data-phone-verify-start]", block);
+    const codeWrap = $("[data-phone-verify-code-wrap]", block);
+    const codeInput = $("[data-phone-verify-code]", block);
+    const confirmBtn = $("[data-phone-verify-confirm]", block);
+    const feedback = $("[data-phone-verify-feedback]", block);
+
+    const renderStatus = () => {
+      const verified = state.session?.user?.profile?.phoneVerified;
+      statusEl.innerHTML = verified
+        ? '<span class="verify-ok">✓ Telefone confirmado</span>'
+        : "Seu telefone ainda não foi confirmado.";
+      startBtn.classList.toggle("hidden", Boolean(verified));
+      if (verified) codeWrap.classList.add("hidden");
+    };
+
+    const markVerified = () => {
+      if (state.session?.user?.profile) {
+        state.session.user.profile.phoneVerified = true;
+      }
+      feedback.textContent = "Telefone confirmado com sucesso!";
+      renderStatus();
+    };
+
+    if (!block.dataset.wired) {
+      block.dataset.wired = "1";
+      startBtn.addEventListener("click", async () => {
+        startBtn.disabled = true;
+        feedback.textContent = "Enviando código pelo WhatsApp…";
+        try {
+          const data = await apiRequest("/api/v1/auth/phone/send", {
+            method: "POST",
+          });
+          if (data?.verified) return markVerified();
+          codeWrap.classList.remove("hidden");
+          codeInput.focus();
+          feedback.textContent =
+            data?.message || "Enviamos um código pelo WhatsApp.";
+        } catch (error) {
+          feedback.textContent =
+            error.message || "Não foi possível enviar o código agora.";
+        } finally {
+          startBtn.disabled = false;
+        }
+      });
+      confirmBtn.addEventListener("click", async () => {
+        const code = (codeInput.value || "").trim();
+        if (!/^\d{6}$/.test(code)) {
+          feedback.textContent = "Digite o código de 6 dígitos.";
+          return;
+        }
+        confirmBtn.disabled = true;
+        try {
+          await apiRequest("/api/v1/auth/phone/verify", {
+            method: "POST",
+            body: { code },
+          });
+          markVerified();
+        } catch (error) {
+          feedback.textContent =
+            error.message || "Código incorreto. Tente de novo.";
+        } finally {
+          confirmBtn.disabled = false;
+        }
+      });
+    }
+
+    if (!phoneProvidersPromise) {
+      phoneProvidersPromise = apiRequest("/api/v1/auth/providers").catch(
+        () => ({}),
+      );
+    }
+    phoneProvidersPromise.then((providers) => {
+      const profile = state.session?.user?.profile || {};
+      if (providers?.whatsapp && profile.phone) {
+        block.removeAttribute("hidden");
+        renderStatus();
+      }
+    });
+  }
+
   function renderProfile() {
     if (!state.session) return;
     const profile = state.session.user.profile || {};
@@ -3623,6 +3711,7 @@
         ? profile.phone.replace(/^(\d{2})(\d{4,5})(\d{4})$/, "($1) $2-$3")
         : "—";
     }
+    setupPhoneVerification();
     const genderCell = $("[data-profile-gender-value]");
     if (genderCell) {
       genderCell.textContent = profileValue(profile.gender, {
