@@ -2529,6 +2529,7 @@ export async function createApp(overrides = {}) {
             );
           }
           assertPlayerLevelCategoryAllowed(invited, input);
+          assertGenderAllowed({ genderCategory: input.genderCategory }, invited);
           return invited;
         });
       }
