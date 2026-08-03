@@ -3666,6 +3666,14 @@
       (Array.isArray(profile.preferredTimes) && profile.preferredTimes.length),
     );
     $("[data-profile-info-empty]").classList.toggle("hidden", hasPreferences);
+    const retakeSection = $("[data-level-retake-section]");
+    if (retakeSection) {
+      const canRetake =
+        profile.levelAssessmentCompleted === true &&
+        !profile.levelTestRetakeUsed &&
+        !Number(profile.matchesPlayed);
+      retakeSection.hidden = !canRetake;
+    }
     applyPlayerIdentity();
   }
 
@@ -4271,26 +4279,17 @@
     const cat = modal._ltCat || null;
     const stage = modal._ltStage || null;
     const baseLevel = ltComputeLevel(techScore, q8, cat, stage);
-    const canAdjust = baseLevel <= 5.2;
 
-    state.lt = { answers, techScore, q8, cat, stage, baseLevel, currentLevel: baseLevel, canAdjust };
+    state.lt = { answers, techScore, q8, cat, stage, baseLevel };
 
     $("[data-lt-step='questions']", modal).hidden = true;
     const resultStep = $("[data-lt-step='result']", modal);
     resultStep.hidden = false;
 
-    $("[data-lt-adj-section]", modal).hidden = !canAdjust;
-    $("[data-lt-adj-locked]", modal).hidden = canAdjust;
-
     const info = ltLevelInfo(baseLevel);
     $("[data-lt-rname]", modal).textContent = info.name;
     $("[data-lt-rcat]", modal).textContent = info.cat;
     ltUpdateGauge(modal, baseLevel);
-    if (canAdjust) {
-      $("[data-lt-adj-display]", modal).textContent = ltFmtLevel(baseLevel);
-      $("[data-lt-minus]", modal).disabled = baseLevel <= 0.5;
-      $("[data-lt-plus]", modal).disabled = baseLevel >= 5.2;
-    }
     $("[data-lt-meta]", modal).textContent = `Nível calculado pelo questionário: ${ltFmtLevel(baseLevel)}`;
 
     resultStep.scrollIntoView({ block: "start", behavior: "smooth" });
@@ -4330,13 +4329,10 @@
 
   async function ltConfirm(modal) {
     const button = $("[data-lt-confirm]", modal);
-    const { answers, currentLevel, canAdjust, q8, cat, stage } = state.lt;
+    const { answers, q8, cat, stage } = state.lt;
     const body = { ...answers, q8: !!q8 };
     if (q8 && cat) body.cat = cat;
     if (q8 && stage) body.stage = stage;
-    if (canAdjust && currentLevel !== state.lt.baseLevel) {
-      body.adjusted_level = currentLevel;
-    }
     setBusy(button, true, "Salvando…");
     try {
       const { result, user } = await apiRequest("/api/v1/player/level-test", {
@@ -4460,18 +4456,6 @@
           return;
         }
         ltShowResult(ltModal);
-      });
-
-      $("[data-lt-minus]", ltModal)?.addEventListener("click", () => {
-        if (state.lt.currentLevel <= 0.5) return;
-        state.lt.currentLevel = Math.round((state.lt.currentLevel - 0.5) * 10) / 10;
-        ltUpdateAdjDisplay(ltModal);
-      });
-
-      $("[data-lt-plus]", ltModal)?.addEventListener("click", () => {
-        if (state.lt.currentLevel >= 5.2) return;
-        state.lt.currentLevel = Math.round((state.lt.currentLevel + 0.5) * 10) / 10;
-        ltUpdateAdjDisplay(ltModal);
       });
 
       $("[data-lt-confirm]", ltModal)?.addEventListener("click", () => ltConfirm(ltModal));

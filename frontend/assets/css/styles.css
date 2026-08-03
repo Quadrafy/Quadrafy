@@ -2282,6 +2282,18 @@ em {
   justify-content: space-between;
   gap: 20px;
 }
+.level-retake-hint {
+  font-size: 11px;
+  color: var(--ink-soft);
+  margin: 0 0 6px;
+  line-height: 1.4;
+  text-align: right;
+}
+.level-retake-hint span {
+  display: block;
+  font-style: italic;
+  opacity: 0.75;
+}
 .panel-heading h2 {
   margin: 0;
   font-family: var(--serif);

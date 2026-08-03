@@ -1786,6 +1786,17 @@ export async function createApp(overrides = {}) {
       assertSameOrigin(request);
       const user = requireUser(request, "player");
       levelTestLimiter.consume(user.id);
+
+      const isRetake = user.profile?.levelAssessmentCompleted === true;
+      if (isRetake) {
+        if (user.profile?.levelTestRetakeUsed) {
+          throw new ApiError(403, "level_test_retake_limit", "Você já refez o teste de nível uma vez.");
+        }
+        if (Number(user.profile?.matchesPlayed) > 0) {
+          throw new ApiError(403, "level_test_has_matches", "Não é possível refazer o teste após disputar partidas.");
+        }
+      }
+
       const body = await readJson(request);
       const answers = validateLevelTest(body);
       // TASKS-07 / TASK-26 v2: avaliação 100% determinística — nenhuma chamada
@@ -1793,23 +1804,8 @@ export async function createApp(overrides = {}) {
       // sem torneio: nível máximo 2,0; com torneio: até 7,0.
       const result = assessQuestionnaire(answers);
 
-      // Ajuste manual opcional: o jogador pode subir/descer ±0.5 no cliente,
-      // mas só se o nível calculado for ≤ 5.2, e o teto do ajuste é 5.2.
-      let finalLevel = result.nivel_inicial;
-      let finalCategory = result.categoria_sugerida;
-      if (result.nivel_inicial <= 5.2 && body.adjusted_level !== undefined) {
-        const adj = Number(body.adjusted_level);
-        if (
-          Number.isFinite(adj) &&
-          adj >= 0.5 &&
-          adj <= 5.2 &&
-          Math.round(adj * 2) === adj * 2
-        ) {
-          finalLevel = adj;
-          finalCategory = classificationFor(adj)?.technical ?? result.categoria_sugerida;
-        }
-      }
-
+      const finalLevel = result.nivel_inicial;
+      const finalCategory = result.categoria_sugerida;
       const isFemale = user.profile?.gender === "female";
       let profileUpdate;
       if (isFemale) {
@@ -1825,6 +1821,7 @@ export async function createApp(overrides = {}) {
           levelAnalysis: result.analise_tecnica,
           levelAssessmentCompleted: true,
           levelAssessedAt: new Date().toISOString(),
+          ...(isRetake ? { levelTestRetakeUsed: true } : {}),
         };
       } else {
         profileUpdate = {
@@ -1834,6 +1831,7 @@ export async function createApp(overrides = {}) {
           levelAnalysis: result.analise_tecnica,
           levelAssessmentCompleted: true,
           levelAssessedAt: new Date().toISOString(),
+          ...(isRetake ? { levelTestRetakeUsed: true } : {}),
         };
       }
       const updated = await users.updateProfile(user.id, profileUpdate);
