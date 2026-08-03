@@ -125,5 +125,22 @@ export function loadConfig(overrides = {}) {
       ) *
       60 *
       1000,
+    // Em produção o clube nasce pendente (precisa de aprovação de admin). Nos
+    // testes de integração o clube é aprovado automaticamente para não exigir
+    // um passo de aprovação em cada cenário; o teste de aprovação desliga isso.
+    autoApproveClubs: overrides.autoApproveClubs ?? environment === "test",
+    // Admins master: validam solicitações de clube. E-mails separados por vírgula.
+    adminEmails: [
+      ...new Set(
+        String(
+          overrides.adminEmails ??
+            process.env.ADMIN_EMAILS ??
+            "enzo95me@gmail.com,enzophi06@gmail.com",
+        )
+          .split(",")
+          .map((value) => value.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    ],
   };
 }

@@ -877,6 +877,46 @@
       </div>
     </div>
 
+    <div class="modal-backdrop" data-gender-modal aria-hidden="true">
+      <div
+        class="modal-card gender-modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="gender-modal-title"
+      >
+        <div class="auth-heading" style="text-align: center">
+          <p class="eyebrow dark">Complete seu cadastro</p>
+          <h2 id="gender-modal-title">Qual sua categoria?</h2>
+          <p>
+            Isso define seu nível e as partidas compatíveis. Dá pra ajustar
+            depois no perfil.
+          </p>
+        </div>
+        <div
+          class="gender-choice"
+          role="radiogroup"
+          aria-label="Selecione seu gênero"
+        >
+          <button class="gender-option" type="button" data-gender-choice="male">
+            Masculino
+          </button>
+          <button
+            class="gender-option"
+            type="button"
+            data-gender-choice="female"
+          >
+            Feminino
+          </button>
+        </div>
+        <p
+          class="auth-feedback hidden"
+          role="alert"
+          aria-live="polite"
+          data-gender-feedback
+        ></p>
+      </div>
+    </div>
+
     <div class="modal-backdrop" data-match-result-modal aria-hidden="true">
       <div
         class="modal-card court-form-modal"

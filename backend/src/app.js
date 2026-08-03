@@ -296,7 +296,9 @@ export async function createApp(overrides = {}) {
     config.sessionTtlMs,
     authenticationRepository,
   );
-  const clubs = new ClubStore(config.dataDirectory);
+  const clubs = new ClubStore(config.dataDirectory, {
+    autoApprove: config.autoApproveClubs,
+  });
   const courts = new CourtStore(config.dataDirectory);
   const bookings = new BookingStore(config.dataDirectory);
   const levelTests = new LevelTestStore(config.dataDirectory);
@@ -490,6 +492,24 @@ export async function createApp(overrides = {}) {
         403,
         "role_forbidden",
         "Sua conta não possui acesso a este painel.",
+      );
+    }
+    return user;
+  }
+
+  function isAdmin(user) {
+    return Boolean(
+      user?.email && config.adminEmails.includes(normalizeEmail(user.email)),
+    );
+  }
+
+  function requireAdmin(request) {
+    const user = requireUser(request);
+    if (!isAdmin(user)) {
+      throw new ApiError(
+        403,
+        "admin_only",
+        "Acesso restrito aos administradores.",
       );
     }
     return user;
@@ -1082,6 +1102,28 @@ export async function createApp(overrides = {}) {
         requestId: request.requestId,
       });
       await issueEmailVerification(user, request);
+      if (user.role === "club") {
+        // Clube já nasce pendente; avisa os admins para validarem o acesso.
+        const club = await clubs.ensureForUser(user);
+        try {
+          if (config.adminEmails.length) {
+            await mailer.sendClubApplication({
+              to: config.adminEmails,
+              club,
+              ownerEmail: user.email,
+            });
+          }
+        } catch (error) {
+          await auditLog.record({
+            actorId: user.id,
+            action: "club.application_email_failed",
+            resourceType: "club",
+            resourceId: club?.id ?? null,
+            after: { message: String(error.message).slice(0, 200) },
+            requestId: request.requestId,
+          });
+        }
+      }
       await sessions.revoke(parseCookies(request).padelfy_session);
       const token = await sessions.create(user.id);
       sendData(
@@ -1664,7 +1706,105 @@ export async function createApp(overrides = {}) {
       sendData(response, 200, {
         user: toPublicUser(user),
         redirectTo: dashboardPath(user.role),
+        isAdmin: isAdmin(user),
       });
+      return true;
+    }
+
+    if (request.method === "GET" && pathname === "/api/v1/admin/clubs") {
+      requireAdmin(request);
+      const status = url.searchParams.get("status") || "pending";
+      const source =
+        status === "all" ? clubs.list() : clubs.listByStatus(status);
+      const list = source
+        .map((club) => {
+          const owner = users.findById(club.ownerId);
+          return {
+            id: club.id,
+            name: club.name,
+            cnpj: club.cnpj,
+            responsibleName: club.responsibleName,
+            status: club.status,
+            rejectionReason: club.rejectionReason ?? null,
+            createdAt: club.createdAt,
+            ownerEmail: owner?.email ?? null,
+            ownerPhone: owner?.profile?.phone ?? null,
+          };
+        })
+        .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+      sendData(response, 200, { clubs: list });
+      return true;
+    }
+
+    const adminApproveRoute = pathname.match(
+      /^\/api\/v1\/admin\/clubs\/([^/]+)\/approve$/,
+    );
+    if (adminApproveRoute && request.method === "POST") {
+      assertSameOrigin(request);
+      const admin = requireAdmin(request);
+      const club = await clubs.setStatus(
+        decodeURIComponent(adminApproveRoute[1]),
+        "active",
+      );
+      if (!club) {
+        throw new ApiError(404, "club_not_found", "Clube não encontrado.");
+      }
+      const owner = users.findById(club.ownerId);
+      await auditLog.record({
+        actorId: admin.id,
+        action: "club.approved",
+        resourceType: "club",
+        resourceId: club.id,
+        requestId: request.requestId,
+      });
+      if (owner?.email) {
+        try {
+          await mailer.sendClubApproved({ to: owner.email, clubName: club.name });
+        } catch {
+          /* não bloqueia a aprovação se o e-mail falhar */
+        }
+      }
+      sendData(response, 200, { club: { id: club.id, status: club.status } });
+      return true;
+    }
+
+    const adminRejectRoute = pathname.match(
+      /^\/api\/v1\/admin\/clubs\/([^/]+)\/reject$/,
+    );
+    if (adminRejectRoute && request.method === "POST") {
+      assertSameOrigin(request);
+      const admin = requireAdmin(request);
+      const body = await readJson(request).catch(() => ({}));
+      const reason = String(body?.reason ?? "").slice(0, 400);
+      const club = await clubs.setStatus(
+        decodeURIComponent(adminRejectRoute[1]),
+        "rejected",
+        { reason },
+      );
+      if (!club) {
+        throw new ApiError(404, "club_not_found", "Clube não encontrado.");
+      }
+      const owner = users.findById(club.ownerId);
+      await auditLog.record({
+        actorId: admin.id,
+        action: "club.rejected",
+        resourceType: "club",
+        resourceId: club.id,
+        after: { reason },
+        requestId: request.requestId,
+      });
+      if (owner?.email) {
+        try {
+          await mailer.sendClubRejected({
+            to: owner.email,
+            clubName: club.name,
+            reason,
+          });
+        } catch {
+          /* não bloqueia a recusa se o e-mail falhar */
+        }
+      }
+      sendData(response, 200, { club: { id: club.id, status: club.status } });
       return true;
     }
 
@@ -1884,6 +2024,8 @@ export async function createApp(overrides = {}) {
           subtitle: "Administrador",
           arenaName: club.name,
         },
+        clubStatus: club.status,
+        rejectionReason: club.rejectionReason ?? null,
         club: clubView(club, { includeCourts: true }),
         courts: clubCourts.map(courtView),
         summary: {

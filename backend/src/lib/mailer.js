@@ -159,10 +159,36 @@ function emailVerificationTemplate({ appName, verifyUrl, name, ttlLabel }) {
 </html>`;
 }
 
+// Template branded genérico para avisos (solicitação/aprovação de clube etc.).
+function genericNoticeTemplate({ appName, heading, paragraphs = [], cta }) {
+  const body = paragraphs
+    .map(
+      (text) =>
+        `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#626772;">${text}</p>`,
+    )
+    .join("");
+  const button = cta
+    ? `<tr><td align="center" style="padding:8px 32px 28px;"><a href="${escapeHtml(cta.url)}" style="display:inline-block;background:#ff6b4a;color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:14px 34px;border-radius:999px;">${escapeHtml(cta.label)}</a></td></tr>`
+    : "";
+  return `<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta name="color-scheme" content="light only" /></head>
+  <body style="margin:0;padding:0;background:#f4f2ee;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#14171f;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f2ee;padding:32px 12px;"><tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 12px 40px rgba(20,23,31,0.08);">
+        <tr><td style="background:#14171f;padding:28px 32px;"><span style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:#ffffff;">${escapeHtml(appName)}<span style="color:#ff6b4a;">.</span></span></td></tr>
+        <tr><td style="padding:34px 32px 8px;"><h1 style="margin:0 0 14px;font-size:21px;line-height:1.3;color:#14171f;">${escapeHtml(heading)}</h1>${body}</td></tr>
+        ${button}
+        <tr><td style="padding:14px 32px 26px;border-top:1px solid #eceae5;"><p style="margin:0;font-size:12px;color:#a7abb3;">© ${escapeHtml(appName)} · e-mail automático.</p></td></tr>
+      </table>
+    </td></tr></table>
+  </body></html>`;
+}
+
 export function createMailer(config) {
   const apiKey = config.resendApiKey;
   const from = config.resendFrom;
   const appName = config.appName;
+  const appBaseUrl = config.appBaseUrl;
   const enabled = Boolean(apiKey && from);
 
   async function send({ to, subject, html, text }) {
@@ -178,7 +204,13 @@ export function createMailer(config) {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ from, to: [to], subject, html, text }),
+      body: JSON.stringify({
+        from,
+        to: Array.isArray(to) ? to : [to],
+        subject,
+        html,
+        text,
+      }),
     });
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
@@ -227,5 +259,74 @@ export function createMailer(config) {
     return send({ to, subject, html, text });
   }
 
-  return { enabled, send, sendPasswordReset, sendEmailVerification };
+  async function sendClubApplication({ to, club, ownerEmail }) {
+    const subject = `Nova solicitação de clube • ${appName}`;
+    const html = genericNoticeTemplate({
+      appName,
+      heading: "Nova solicitação de clube para validar",
+      paragraphs: [
+        `<strong>${escapeHtml(club.name || "Arena sem nome")}</strong>`,
+        `CNPJ: ${escapeHtml(club.cnpj || "—")}`,
+        `Responsável: ${escapeHtml(club.responsibleName || "—")}`,
+        `E-mail: ${escapeHtml(ownerEmail || "—")}`,
+        "Acesse o painel de administração para aprovar ou recusar.",
+      ],
+      cta: { label: "Abrir painel admin", url: `${appBaseUrl}/admin.html` },
+    });
+    return send({
+      to,
+      subject,
+      html,
+      text: `Nova solicitação de clube: ${club.name} (CNPJ ${club.cnpj}, ${ownerEmail}). Valide em ${appBaseUrl}/admin.html`,
+    });
+  }
+
+  async function sendClubApproved({ to, clubName }) {
+    const subject = `Sua arena foi aprovada • ${appName}`;
+    const html = genericNoticeTemplate({
+      appName,
+      heading: "Sua arena foi aprovada! 🎉",
+      paragraphs: [
+        `A arena <strong>${escapeHtml(clubName || "")}</strong> foi validada e já está ativa no ${escapeHtml(appName)}.`,
+        "Você já pode cadastrar suas quadras e configurar a grade de horários.",
+      ],
+      cta: { label: "Acessar meu painel", url: `${appBaseUrl}/dashboard-club.html` },
+    });
+    return send({
+      to,
+      subject,
+      html,
+      text: `Sua arena ${clubName} foi aprovada no ${appName}. Acesse ${appBaseUrl}/dashboard-club.html`,
+    });
+  }
+
+  async function sendClubRejected({ to, clubName, reason }) {
+    const subject = `Sobre a sua solicitação de arena • ${appName}`;
+    const html = genericNoticeTemplate({
+      appName,
+      heading: "Sua solicitação não foi aprovada",
+      paragraphs: [
+        `Infelizmente a arena <strong>${escapeHtml(clubName || "")}</strong> não foi aprovada no momento.`,
+        reason
+          ? `Motivo: ${escapeHtml(reason)}`
+          : "Verifique os dados enviados e, se precisar, entre em contato.",
+      ],
+    });
+    return send({
+      to,
+      subject,
+      html,
+      text: `Sua solicitação de arena ${clubName} não foi aprovada.${reason ? ` Motivo: ${reason}` : ""}`,
+    });
+  }
+
+  return {
+    enabled,
+    send,
+    sendPasswordReset,
+    sendEmailVerification,
+    sendClubApplication,
+    sendClubApproved,
+    sendClubRejected,
+  };
 }

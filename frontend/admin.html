@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR" data-page="admin">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Administração Padelfy." />
+    <meta name="robots" content="noindex" />
+    <title>Administração — Padelfy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=Montserrat:wght@400;500;600;700&family=Poppins:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/css/styles.css" />
+  </head>
+  <body class="app-page">
+    <header class="app-nav">
+      <a class="brand brand--image" href="index.html" aria-label="Padelfy, início">
+        <span class="brand-logo-surface brand-logo-surface--nav">
+          <img class="brand-logo brand-logo--full brand-logo--nav" src="assets/images/padelfy-logo.png" alt="" width="1600" height="560">
+        </span>
+      </a>
+      <div class="profile-menu">
+        <button class="button button-outline button-small" type="button" data-logout>Sair</button>
+      </div>
+    </header>
+    <main class="app-main">
+      <div class="app-container narrow-app">
+        <div class="app-heading">
+          <div>
+            <p class="eyebrow dark">Administração</p>
+            <h1>Solicitações de <em>clube</em></h1>
+          </div>
+        </div>
+        <div class="admin-tabs" role="tablist">
+          <button class="active" type="button" data-admin-filter="pending">Pendentes</button>
+          <button type="button" data-admin-filter="active">Aprovados</button>
+          <button type="button" data-admin-filter="rejected">Recusados</button>
+        </div>
+        <div data-admin-list>
+          <p class="profile-data-note">Carregando…</p>
+        </div>
+      </div>
+    </main>
+    <script src="assets/js/admin.js" defer></script>
+  </body>
+</html>

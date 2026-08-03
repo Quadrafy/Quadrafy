@@ -3,10 +3,11 @@ import path from "node:path";
 import { createId } from "../lib/security.js";
 
 export class ClubStore {
-  constructor(dataDirectory) {
+  constructor(dataDirectory, { autoApprove = false } = {}) {
     this.dataDirectory = dataDirectory;
     this.filePath = path.join(dataDirectory, "clubs.json");
     this.clubs = [];
+    this.autoApprove = autoApprove;
     this.writeQueue = Promise.resolve();
   }
 
@@ -51,11 +52,30 @@ export class ClubStore {
         name: user.profile?.arenaName ?? "",
         responsibleName: user.profile?.responsibleName ?? "",
         cnpj: user.profile?.cnpj ?? "",
-        status: "active",
+        // Novo clube nasce pendente: só aparece pros jogadores após um admin
+        // aprovar (a lista pública já filtra por status === "active"). Em
+        // ambientes com autoApprove (testes) já entra ativo.
+        status: this.autoApprove ? "active" : "pending",
         createdAt: now,
         updatedAt: now,
       };
       this.clubs.push(club);
+      await this.persist();
+      return club;
+    });
+  }
+
+  listByStatus(status) {
+    return this.clubs.filter((club) => club.status === status);
+  }
+
+  async setStatus(clubId, status, { reason } = {}) {
+    return this.enqueueWrite(async () => {
+      const club = this.clubs.find((item) => item.id === clubId);
+      if (!club) return null;
+      club.status = status;
+      club.updatedAt = new Date().toISOString();
+      if (status === "rejected") club.rejectionReason = reason ?? "";
       await this.persist();
       return club;
     });

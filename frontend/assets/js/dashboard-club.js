@@ -2679,11 +2679,40 @@
     loadSchedule();
   }
 
+  function renderClubStatusBanner() {
+    const status = state.session?.clubStatus;
+    let banner = $("[data-club-status-banner]");
+    if (!status || status === "active") {
+      if (banner) banner.remove();
+      return;
+    }
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.setAttribute("data-club-status-banner", "");
+      banner.className = "club-status-banner";
+      const host = $(".app-main") || document.body;
+      host.insertBefore(banner, host.firstChild);
+    }
+    if (status === "rejected") {
+      banner.classList.add("rejected");
+      banner.innerHTML = `<strong>Sua solicitação de arena não foi aprovada.</strong> ${
+        state.session?.rejectionReason
+          ? escapeHTML(state.session.rejectionReason)
+          : "Revise seus dados ou entre em contato com o suporte."
+      }`;
+    } else {
+      banner.classList.remove("rejected");
+      banner.innerHTML =
+        "<strong>Sua arena está em análise.</strong> Assim que um administrador validar o cadastro, ela ficará visível para os jogadores e você poderá operar normalmente.";
+    }
+  }
+
   async function refreshDashboard() {
     state.session = await loadDashboard("club");
     if (!state.session) return false;
     state.club = state.session.club;
     state.courts = state.session.courts || [];
+    renderClubStatusBanner();
     await loadBookings();
     renderDashboardSummary(state.session.summary);
     renderArena();

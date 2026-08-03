@@ -3105,6 +3105,118 @@ em {
 .phone-verify [data-phone-verify-feedback]:empty {
   display: none;
 }
+.gender-modal-card {
+  max-width: 440px;
+  text-align: center;
+}
+.gender-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 22px;
+}
+.gender-option {
+  padding: 20px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.gender-option:hover {
+  border-color: var(--coral);
+  background: rgba(255, 107, 74, 0.06);
+}
+.gender-option:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.club-status-banner {
+  padding: 13px 20px;
+  background: #fff4e8;
+  border-bottom: 1px solid #f0d8bd;
+  color: #7a4a12;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
+.club-status-banner.rejected {
+  background: #fdecec;
+  border-bottom-color: #f3c3c3;
+  color: #8a2b2b;
+}
+.club-status-banner strong {
+  font-weight: 700;
+}
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 18px 0 20px;
+  flex-wrap: wrap;
+}
+.admin-tabs button {
+  padding: 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.admin-tabs button.active {
+  border-color: var(--coral);
+  background: var(--coral);
+  color: #fff;
+}
+.admin-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 18px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.6);
+}
+.admin-card-body h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+.admin-card-body p {
+  margin: 2px 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.admin-card-body .admin-reason {
+  color: #8a2b2b;
+}
+.admin-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.admin-status {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.admin-status--active {
+  background: rgba(43, 130, 101, 0.12);
+  color: var(--green);
+}
+.admin-status--rejected {
+  background: #fdecec;
+  color: #8a2b2b;
+}
 
 .profile-photo-upload {
   display: grid;

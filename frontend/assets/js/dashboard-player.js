@@ -4610,6 +4610,43 @@
     ).forEach((button) => button.addEventListener("click", restoreModalFocus));
   }
 
+  function needsGenderCompletion() {
+    const gender = state.session?.user?.profile?.gender;
+    return !gender || gender === "unspecified";
+  }
+
+  function openGenderModal(onDone) {
+    const modal = $("[data-gender-modal]");
+    if (!modal) return onDone?.();
+    const feedback = $("[data-gender-feedback]", modal);
+    const buttons = $$("[data-gender-choice]", modal);
+    openModal(modal);
+    buttons.forEach((button) => {
+      button.onclick = async () => {
+        const gender = button.dataset.genderChoice;
+        buttons.forEach((other) => (other.disabled = true));
+        feedback.classList.add("hidden");
+        try {
+          await apiRequest("/api/v1/player/profile", {
+            method: "PATCH",
+            body: { gender },
+          });
+          if (state.session?.user?.profile) {
+            state.session.user.profile.gender = gender;
+          }
+          closeModal(modal);
+          renderProfile();
+          onDone?.();
+        } catch (error) {
+          feedback.textContent =
+            error.message || "Não foi possível salvar. Tente de novo.";
+          feedback.classList.remove("hidden");
+          buttons.forEach((other) => (other.disabled = false));
+        }
+      };
+    });
+  }
+
   async function initialize() {
     setupTabs();
     setupClubFilters();
@@ -4624,8 +4661,17 @@
     if (!state.session) return;
     applyPlayerIdentity();
     renderProfile();
-    if (!state.session.user.profile?.levelAssessmentCompleted) {
-      openLevelTest(true);
+    const startLevelTestIfNeeded = () => {
+      if (!state.session.user.profile?.levelAssessmentCompleted) {
+        openLevelTest(true);
+      }
+    };
+    // Contas criadas pelo Google não têm gênero (o Google não fornece). Pede
+    // antes do teste de nível, pois o nível depende da categoria.
+    if (needsGenderCompletion()) {
+      openGenderModal(startLevelTestIfNeeded);
+    } else {
+      startLevelTestIfNeeded();
     }
     await Promise.all([loadClubs(), loadBookings(), loadMatches(), loadSuper8Count()]);
     loadProfileExtras();
