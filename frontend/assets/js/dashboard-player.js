@@ -4045,6 +4045,11 @@
         <ol class="level-explainer-steps">
           <li><strong>Médias das duplas:</strong> ${myTeamLabel} ${fmt(explanation.averages[explanation.myTeam])} × ${fmt(explanation.averages[opponentTeam])} ${teamLabel(opponentTeam)} (diferença ${fmt(explanation.difference)}). A ${teamLabel(explanation.favorite)} era a favorita.</li>
           <li><strong>Pote base:</strong> ${fmt(explanation.potBase)} — ${explanation.upset ? "vitória da zebra (surpresa), pote cheio" : "vitória da favorita, pote reduzido"}.</li>
+          ${
+            explanation.margin !== undefined && explanation.margin !== 1
+              ? `<li><strong>Margem de vitória:</strong> ×${fmt(explanation.margin, 3)} — ${explanation.margin > 1 ? "placar folgado, pote aumentado" : "placar apertado, pote reduzido"}.</li>`
+              : ""
+          }
           <li><strong>Multiplicador de fiabilidade da sua dupla:</strong> ×${fmt(explanation.multiplier)} (fiabilidade média ${fmt(explanation.reliabilities[explanation.myTeam], 0)}%) → pote total ${fmt(explanation.pot, 3)}.</li>
           <li><strong>Sua fatia (distribuição inversa):</strong> peso ${fmt(explanation.weight, 3)} → ${explanation.won ? "ganho" : "perda"} de ${signedDelta} no seu nível (${fmt(explanation.previousLevel)} → ${fmt(explanation.newLevel)}).</li>
         </ol>

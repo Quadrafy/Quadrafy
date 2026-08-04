@@ -3208,6 +3208,7 @@ export async function createApp(overrides = {}) {
       const { updates, breakdown } = computeMatchOutcome({
         players,
         winningTeam: entry.winningTeam,
+        sets: entry.sets,
       });
 
       const isFemaleGame = entry.genderContext === "women_only";
@@ -3316,6 +3317,7 @@ export async function createApp(overrides = {}) {
       const { updates, breakdown } = computeMatchOutcome({
         players,
         winningTeam: entry.winningTeam,
+        sets: entry.sets,
       });
       const me = updates[user.id];
       const profile = user.profile ?? {};
@@ -3337,6 +3339,7 @@ export async function createApp(overrides = {}) {
           favorite: breakdown.favorite,
           upset: breakdown.upset,
           potBase: breakdown.potBase,
+          margin: breakdown.margin,
           multiplier: breakdown.multipliers[myTeam],
           pot: breakdown.pots[myTeam],
           weight: me.weight,

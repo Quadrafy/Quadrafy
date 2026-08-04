@@ -255,6 +255,47 @@ export function reliabilityMultiplier(averageReliability) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Margem de vitória                                                    */
+/* ------------------------------------------------------------------ */
+
+// Antes só importava quem venceu: uma virada em 3 sets valia o mesmo que um
+// atropelo. A margem escala o pote pela diferença total de games, de 0,8×
+// (vitória sofrida) a 1,2× (atropelo), com 1,0× numa vitória "padrão" de 6
+// games de diferença.
+//
+// Não interfere na monotonicidade da variação por partida: o fator depende
+// só do placar, não do histórico do jogador, então para um mesmo placar o
+// delta continua caindo a cada partida disputada.
+export const MARGIN_FACTOR_MIN = 0.8;
+export const MARGIN_FACTOR_MAX = 1.2;
+const MARGIN_PIVOT_GAMES = 6;
+const MARGIN_SPAN_GAMES = 6;
+
+export function marginFactor(sets, winningTeam) {
+  // Resultados antigos (gravados antes desta regra) e chamadas sem placar
+  // continuam neutros.
+  if (!Array.isArray(sets) || sets.length === 0) return 1;
+  let winnerGames = 0;
+  let loserGames = 0;
+  for (const set of sets) {
+    const team1 = Number(set?.team1);
+    const team2 = Number(set?.team2);
+    if (!Number.isFinite(team1) || !Number.isFinite(team2)) return 1;
+    winnerGames += winningTeam === "team1" ? team1 : team2;
+    loserGames += winningTeam === "team1" ? team2 : team1;
+  }
+  const factor =
+    1 +
+    ((winnerGames - loserGames - MARGIN_PIVOT_GAMES) / MARGIN_SPAN_GAMES) *
+      (MARGIN_FACTOR_MAX - 1);
+  return (
+    Math.round(
+      Math.min(MARGIN_FACTOR_MAX, Math.max(MARGIN_FACTOR_MIN, factor)) * 1000,
+    ) / 1000
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* TASK-28 — Pote de Pontos + Distribuição Inversa                      */
 /* ------------------------------------------------------------------ */
 
@@ -284,9 +325,10 @@ function inverseWeights(pair) {
 }
 
 // players: [{ id, team: "team1"|"team2", level, reliability (%), matchesPlayed }]
+// sets: [{ team1, team2 }] — opcional; sem placar a margem de vitória é neutra.
 // Retorna { updates: { id → {...} }, breakdown } — o breakdown alimenta o
 // explicador passo a passo da TASK-29.
-export function computeMatchOutcome({ players, winningTeam }) {
+export function computeMatchOutcome({ players, winningTeam, sets = null }) {
   const byTeam = {
     team1: players.filter((player) => player.team === "team1"),
     team2: players.filter((player) => player.team === "team2"),
@@ -313,9 +355,10 @@ export function computeMatchOutcome({ players, winningTeam }) {
     team1: reliabilityMultiplier(reliabilities.team1),
     team2: reliabilityMultiplier(reliabilities.team2),
   };
+  const margin = marginFactor(sets, winningTeam);
   const pots = {
-    team1: potBase * multipliers.team1,
-    team2: potBase * multipliers.team2,
+    team1: potBase * multipliers.team1 * margin,
+    team2: potBase * multipliers.team2 * margin,
   };
   const updates = {};
   for (const team of ["team1", "team2"]) {
@@ -357,6 +400,7 @@ export function computeMatchOutcome({ players, winningTeam }) {
       favorite,
       upset,
       potBase,
+      margin,
       multipliers,
       pots: {
         team1: Math.round(pots.team1 * 1000) / 1000,
