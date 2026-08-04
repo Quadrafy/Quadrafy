@@ -134,12 +134,13 @@ function bookingStartAt(dateKey, time) {
 
 function levelTestAnswers() {
   return {
-    tempo_pratica: 2,
-        frequencia_semanal: 2,
-        experiencia_esportes_raquete: 2,
-        autoavaliacao_golpes: 2,
-        experiencia_competicoes: 2,
-        tatica_posicionamento: 2,
+    q1: 2,
+    q2: 2,
+    q3: 2,
+    q4: 2,
+    q5: 2,
+    q6: 2,
+    q7: 2,
   };
 }
 

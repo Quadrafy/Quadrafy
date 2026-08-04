@@ -78,23 +78,22 @@ async function registerPlayer(api, suffix, gender) {
     method: "POST",
     cookie,
     body: {
-      tempo_pratica: 2,
-      frequencia_semanal: 2,
-      experiencia_esportes_raquete: 2,
-      autoavaliacao_golpes: 2,
-      experiencia_competicoes: 2,
-      tatica_posicionamento: 2,
+      q1: 2,
+      q2: 2,
+      q3: 2,
+      q4: 2,
+      q5: 2,
+      q6: 2,
+      q7: 2,
     },
   });
   assert.equal(levelTest.status, 200);
-  if (gender) {
-    const update = await api("/api/v1/player/profile", {
-      method: "PATCH",
-      cookie,
-      body: { gender },
-    });
-    assert.equal(update.status, 200);
-  }
+  const update = await api("/api/v1/player/profile", {
+    method: "PATCH",
+    cookie,
+    body: { gender: gender ?? "unspecified" },
+  });
+  assert.equal(update.status, 200);
   return { cookie, user: payload.data.user };
 }
 

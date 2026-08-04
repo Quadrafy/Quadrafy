@@ -62,12 +62,13 @@ async function completeLevelTest(api, cookie, answers) {
     method: "POST",
     cookie,
     body: {
-      tempo_pratica: 2,
-      frequencia_semanal: 2,
-      experiencia_esportes_raquete: 2,
-      autoavaliacao_golpes: 2,
-      experiencia_competicoes: 2,
-      tatica_posicionamento: 2,
+      q1: 2,
+      q2: 2,
+      q3: 2,
+      q4: 2,
+      q5: 2,
+      q6: 2,
+      q7: 2,
       ...answers,
     },
   });
@@ -250,20 +251,22 @@ test("TASK-12: participant moves only their own position into an empty slot", as
 test("TASK-14: ranking orders players by level and reports the caller's own rank", async () => {
   await withTestServer(async ({ api }) => {
     const strong = await registerPlayer(api, "top", {
-      tempo_pratica: 4,
-      frequencia_semanal: 4,
-      experiencia_esportes_raquete: 4,
-      autoavaliacao_golpes: 4,
-      experiencia_competicoes: 4,
-      tatica_posicionamento: 4,
+      q1: 4,
+      q2: 4,
+      q3: 4,
+      q4: 4,
+      q5: 4,
+      q6: 4,
+      q7: 4,
     });
     const weak = await registerPlayer(api, "base", {
-      tempo_pratica: 1,
-      frequencia_semanal: 1,
-      experiencia_esportes_raquete: 1,
-      autoavaliacao_golpes: 1,
-      experiencia_competicoes: 1,
-      tatica_posicionamento: 1,
+      q1: 1,
+      q2: 1,
+      q3: 1,
+      q4: 1,
+      q5: 1,
+      q6: 1,
+      q7: 1,
     });
 
     const response = await api("/api/v1/players/ranking", {

@@ -59,22 +59,28 @@ function cookieFrom(response) {
 
 // score 12 (todas respostas = 2) -> nível ~1.85 -> "Iniciante Intermediário"
 const MID_LOW_ANSWERS = {
-  tempo_pratica: 2,
-  frequencia_semanal: 2,
-  experiencia_esportes_raquete: 2,
-  autoavaliacao_golpes: 2,
-  experiencia_competicoes: 2,
-  tatica_posicionamento: 2,
+  q1: 2,
+  q2: 2,
+  q3: 2,
+  q4: 2,
+  q5: 2,
+  q6: 2,
+  q7: 2,
 };
 
-// score 24 (todas respostas = 4) -> nível 5.6 -> "Avançado"
+// Sem histórico de torneio o questionário trava em 2,0 (início da 5ª), então
+// chegar em "Avançado" exige q8 com categoria e fase. -> nível 5.89
 const HIGH_ANSWERS = {
-  tempo_pratica: 4,
-  frequencia_semanal: 4,
-  experiencia_esportes_raquete: 4,
-  autoavaliacao_golpes: 4,
-  experiencia_competicoes: 4,
-  tatica_posicionamento: 4,
+  q1: 4,
+  q2: 4,
+  q3: 4,
+  q4: 4,
+  q5: 4,
+  q6: 4,
+  q7: 4,
+  q8: true,
+  cat: "3",
+  stage: "final",
 };
 
 async function registerPlayer(api, suffix, { answers = MID_LOW_ANSWERS } = {}) {

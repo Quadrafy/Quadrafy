@@ -56,6 +56,7 @@ test("player registration creates a secure session and protects dashboards", asy
     method: "POST",
     body: {
       role: "player",
+      gender: "male",
       firstName: "Ana",
       lastName: "Silva",
       email: "ANA@example.com",
