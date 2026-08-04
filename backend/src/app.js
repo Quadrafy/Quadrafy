@@ -3338,13 +3338,16 @@ export async function createApp(overrides = {}) {
           difference: breakdown.difference,
           favorite: breakdown.favorite,
           upset: breakdown.upset,
-          potBase: breakdown.potBase,
+          baseK: breakdown.baseK,
           margin: breakdown.margin,
-          // Individuais: cada jogador tem o próprio multiplicador e pote,
-          // calculados a partir da sua própria fiabilidade.
+          // Individuais: expectativa, surpresa e multiplicador saem do próprio
+          // jogador, porque a fiabilidade é individual.
+          expected: me.expected,
+          surprise: me.surprise,
           multiplier: me.multiplier,
-          pot: me.pot,
           reliabilityUsed: me.reliabilityUsed,
+          pairShare: me.pairShare,
+          capped: me.capped,
           weight: me.weight,
           delta: me.delta,
           previousLevel: me.previousLevel,

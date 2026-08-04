@@ -15,9 +15,32 @@ export const LEVEL_CEILING = 7;
 export const INITIAL_LEVEL_CAP = 7.0;
 export const INITIAL_RELIABILITY = 35; // % (TASK-26/27)
 
-// Pote Base (TASK-28): igual para as duas duplas na mesma partida.
-export const POT_BASE_FAVORITE_WIN = 0.06;
-export const POT_BASE_UNDERDOG_WIN = 0.34;
+// Amplitude máxima de um jogo: o quanto o nível anda quando o resultado é
+// uma surpresa total (venceu quem não tinha nenhuma chance). Numa partida
+// equilibrada a surpresa é 0,5, então o movimento típico é BASE_K/2 = 0,10 —
+// o alvo de referência para um jogo entre iguais com nível já consolidado.
+export const BASE_K = 0.2;
+
+// Escala da curva de expectativa (níveis). Define quanta vantagem uma
+// diferença de nível representa:
+//   0,5 de diferença → 58% de chance para a dupla mais forte
+//   1,0             → 65%
+//   2,0             → 78%
+//   3,0             → 87%
+// Calibrada para que uma vitória esperada contra adversário ~2 níveis abaixo
+// renda ~0,045, sem achatar a ponto de vitórias normais valerem quase nada.
+export const EXPECTATION_SCALE = 3.7;
+
+// Teto de segurança por partida. Os fatores (surpresa, fiabilidade, margem,
+// desequilíbrio da dupla) são multiplicativos e no pior caso se acumulavam
+// perto de 0,9 — mais de uma categoria inteira num jogo só.
+export const MAX_DELTA_PER_MATCH = 0.4;
+
+// Probabilidade de vitória da dupla A dada a diferença de nível (A − B).
+export function expectedWinRate(levelDifference) {
+  const difference = Number(levelDifference) || 0;
+  return 1 / (1 + 10 ** (-difference / EXPECTATION_SCALE));
+}
 
 // Tabela oficial de faixas.
 export const LEVEL_BANDS = [
@@ -350,7 +373,14 @@ export function computeMatchOutcome({ players, winningTeam, sets = null }) {
         ? "team1"
         : "team2";
   const upset = winningTeam !== favorite;
-  const potBase = upset ? POT_BASE_UNDERDOG_WIN : POT_BASE_FAVORITE_WIN;
+  // Expectativa por dupla a partir da diferença de nível. Substitui o pote
+  // binário (0,06 favorito / 0,34 zebra), que ignorava o TAMANHO da vantagem:
+  // bater alguém 0,1 acima pagava o mesmo que bater alguém 3,0 acima, e por
+  // isso toda partida convergia para o mesmo valor minúsculo.
+  const expected = {
+    team1: expectedWinRate(averages.team1 - averages.team2),
+    team2: expectedWinRate(averages.team2 - averages.team1),
+  };
   const margin = marginFactor(sets, winningTeam);
   const updates = {};
   for (const team of ["team1", "team2"]) {
@@ -358,6 +388,9 @@ export function computeMatchOutcome({ players, winningTeam, sets = null }) {
     const weights = inverseWeights(pair);
     const won = team === winningTeam;
     const strong = pair[0].level >= pair[1].level ? pair[0] : pair[1];
+    // Quanto o resultado surpreendeu: +(1 − E) para quem venceu, −E para quem
+    // perdeu. Vitória esperada rende pouco; vitória improvável rende muito.
+    const surprise = (won ? 1 : 0) - expected[team];
     for (const player of pair) {
       const ownWeight = weights.get(player.id);
       const partner = pair.find((candidate) => candidate.id !== player.id);
@@ -366,15 +399,18 @@ export function computeMatchOutcome({ players, winningTeam, sets = null }) {
       // Derrota: pesos cruzados (fraco perde com o peso do forte → menor
       // impacto; forte perde com o peso do fraco → maior prejuízo).
       const weight = won ? ownWeight : partnerWeight;
-      // O pote é individual: cada jogador usa a própria fiabilidade, não a
-      // média da dupla. Dois parceiros com históricos diferentes movem
-      // quantidades diferentes na mesma partida — quem tem o nível menos
-      // consolidado se ajusta mais rápido, que é justamente o que a
-      // fiabilidade representa.
+      // Normalizado para 1,0 numa dupla equilibrada, para que BASE_K continue
+      // legível como "o quanto um jogador anda", e não "o quanto a dupla anda".
+      const pairShare = 2 * weight;
+      // A fiabilidade é individual: cada jogador usa a própria, não a média da
+      // dupla. Quem tem o nível menos consolidado se ajusta mais rápido.
       const reliabilityUsed = normalizeReliability(player.reliability);
       const multiplier = reliabilityMultiplier(reliabilityUsed);
-      const pot = potBase * multiplier * margin;
-      const delta = (won ? 1 : -1) * pot * weight;
+      const raw = BASE_K * surprise * multiplier * margin * pairShare;
+      // Teto de segurança: os quatro fatores são multiplicativos e sem limite
+      // chegavam perto de 0,9 num único jogo.
+      const delta =
+        Math.sign(raw) * Math.min(Math.abs(raw), MAX_DELTA_PER_MATCH);
       const previousLevel = clampDynamicLevel(player.level) ?? 3.5;
       const level = clampDynamicLevel(previousLevel + delta);
       const matchesPlayed = Math.max(0, Number(player.matchesPlayed) || 0) + 1;
@@ -384,9 +420,12 @@ export function computeMatchOutcome({ players, winningTeam, sets = null }) {
         level,
         won,
         weight: Math.round(weight * 1000) / 1000,
+        pairShare: Math.round(pairShare * 1000) / 1000,
         reliabilityUsed,
         multiplier,
-        pot: Math.round(pot * 1000) / 1000,
+        expected: Math.round(expected[team] * 1000) / 1000,
+        surprise: Math.round(surprise * 1000) / 1000,
+        capped: Math.abs(raw) > MAX_DELTA_PER_MATCH,
         isStrong: player === strong && pair[0].level !== pair[1].level,
         matchesPlayed,
         reliability: reliabilityForMatchesPlayed(matchesPlayed),
@@ -402,11 +441,11 @@ export function computeMatchOutcome({ players, winningTeam, sets = null }) {
       difference: Math.round(difference * 100) / 100,
       favorite,
       upset,
-      potBase,
+      baseK: BASE_K,
+      expected,
       margin,
-      // Multiplicador e pote agora são por jogador (updates[id].multiplier /
-      // .pot), porque cada um usa a própria fiabilidade. Aqui ficam só as
-      // médias da dupla, para contexto na explicação.
+      // Multiplicador, expectativa e surpresa também vão por jogador em
+      // updates[id], porque a fiabilidade é individual.
       winningTeam,
     },
   };

@@ -4044,14 +4044,14 @@
       container.innerHTML = `
         <ol class="level-explainer-steps">
           <li><strong>Médias das duplas:</strong> ${myTeamLabel} ${fmt(explanation.averages[explanation.myTeam])} × ${fmt(explanation.averages[opponentTeam])} ${teamLabel(opponentTeam)} (diferença ${fmt(explanation.difference)}). A ${teamLabel(explanation.favorite)} era a favorita.</li>
-          <li><strong>Pote base:</strong> ${fmt(explanation.potBase)} — ${explanation.upset ? "vitória da zebra (surpresa), pote cheio" : "vitória da favorita, pote reduzido"}.</li>
+          <li><strong>Chance esperada da sua dupla:</strong> ${fmt((explanation.expected ?? 0) * 100, 0)}% — ${explanation.won ? "vocês venceram" : "vocês perderam"}, então a surpresa foi ${fmt(Math.abs(explanation.surprise ?? 0), 2)}. Quanto mais improvável o resultado, mais o nível anda.</li>
           ${
             explanation.margin !== undefined && explanation.margin !== 1
-              ? `<li><strong>Margem de vitória:</strong> ×${fmt(explanation.margin, 3)} — ${explanation.margin > 1 ? "placar folgado, pote aumentado" : "placar apertado, pote reduzido"}.</li>`
+              ? `<li><strong>Margem de vitória:</strong> ×${fmt(explanation.margin, 3)} — ${explanation.margin > 1 ? "placar folgado, movimento aumentado" : "placar apertado, movimento reduzido"}.</li>`
               : ""
           }
-          <li><strong>Seu multiplicador de fiabilidade:</strong> ×${fmt(explanation.multiplier)} (sua fiabilidade ${fmt(explanation.reliabilityUsed ?? explanation.reliabilities[explanation.myTeam], 0)}%) → seu pote ${fmt(explanation.pot, 3)}.</li>
-          <li><strong>Sua fatia (distribuição inversa):</strong> peso ${fmt(explanation.weight, 3)} → ${explanation.won ? "ganho" : "perda"} de ${signedDelta} no seu nível (${fmt(explanation.previousLevel)} → ${fmt(explanation.newLevel)}).</li>
+          <li><strong>Seu multiplicador de fiabilidade:</strong> ×${fmt(explanation.multiplier)} (sua fiabilidade ${fmt(explanation.reliabilityUsed ?? 0, 0)}%) — nível menos consolidado se ajusta mais rápido.</li>
+          <li><strong>Sua fatia na dupla (distribuição inversa):</strong> ×${fmt(explanation.pairShare ?? 1, 2)} → ${explanation.won ? "ganho" : "perda"} de ${signedDelta} no seu nível (${fmt(explanation.previousLevel)} → ${fmt(explanation.newLevel)})${explanation.capped ? ", limitado pelo teto de 0,40 por partida" : ""}.</li>
         </ol>
         <p class="level-explainer-summary">${escapeHTML(explanation.summary)}</p>`;
     } catch (error) {
