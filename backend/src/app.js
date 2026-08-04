@@ -3172,7 +3172,20 @@ export async function createApp(overrides = {}) {
       const entry = await matchResults.confirm(matchId, user.id);
 
       const _confirmBooking = bookings.findById(matchId);
-      const isFriendly = _confirmBooking?.matchType === "friendly";
+      // Jogo misto não vale nível: homens e mulheres são avaliados em escalas
+      // diferentes (level x levelFemale), então o confronto não é comparável.
+      // A categoria "mixed" já nasce amigável na validação, mas um jogo "all"
+      // só revela a composição real quando as quatro vagas são preenchidas —
+      // por isso a checagem final é feita sobre o gênero dos participantes.
+      const _confirmGenders = new Set(
+        ["team1", "team2"]
+          .flatMap((team) => entry.teams[team])
+          .map((playerId) => users.findById(playerId)?.profile?.gender)
+          .filter((gender) => gender === "male" || gender === "female"),
+      );
+      const isMixedGame = _confirmGenders.size > 1;
+      const isFriendly =
+        _confirmBooking?.matchType === "friendly" || isMixedGame;
 
       // TASKS-07 / TASK-28 — dispara o motor "Playtomic Engine" (pote de
       // pontos + distribuição inversa) para os 4 jogadores, usando níveis e

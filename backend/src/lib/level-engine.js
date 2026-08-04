@@ -223,6 +223,26 @@ export function reliabilityMultiplier(averageReliability) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Amortecimento das primeiras partidas                                 */
+/* ------------------------------------------------------------------ */
+
+// O multiplicador de fiabilidade chega a ~5,9× quando o jogador ainda está
+// nos 35% iniciais, o que fazia uma única zebra mover o nível quase 1,0
+// ponto. Este fator segura a variação nas primeiras partidas e sobe
+// linearmente até liberar o delta cheio a partir da 10ª partida confirmada.
+export const NOVICE_DAMPING_MATCHES = 10;
+export const NOVICE_DAMPING_FLOOR = 0.35;
+
+export function noviceDamping(matchesPlayed) {
+  const matches = Math.max(0, Number(matchesPlayed) || 0);
+  if (matches >= NOVICE_DAMPING_MATCHES) return 1;
+  const factor =
+    NOVICE_DAMPING_FLOOR +
+    (1 - NOVICE_DAMPING_FLOOR) * (matches / NOVICE_DAMPING_MATCHES);
+  return Math.round(factor * 1000) / 1000;
+}
+
+/* ------------------------------------------------------------------ */
 /* TASK-28 — Pote de Pontos + Distribuição Inversa                      */
 /* ------------------------------------------------------------------ */
 
@@ -299,7 +319,10 @@ export function computeMatchOutcome({ players, winningTeam }) {
       // Derrota: pesos cruzados (fraco perde com o peso do forte → menor
       // impacto; forte perde com o peso do fraco → maior prejuízo).
       const weight = won ? ownWeight : partnerWeight;
-      const delta = (won ? 1 : -1) * pots[team] * weight;
+      // Amortecimento individual: cada jogador usa o próprio histórico, então
+      // um veterano jogando com um estreante mantém o delta cheio.
+      const damping = noviceDamping(player.matchesPlayed);
+      const delta = (won ? 1 : -1) * pots[team] * weight * damping;
       const previousLevel = clampDynamicLevel(player.level) ?? 3.5;
       const level = clampDynamicLevel(previousLevel + delta);
       const matchesPlayed = Math.max(0, Number(player.matchesPlayed) || 0) + 1;
@@ -309,6 +332,7 @@ export function computeMatchOutcome({ players, winningTeam }) {
         level,
         won,
         weight: Math.round(weight * 1000) / 1000,
+        damping,
         isStrong: player === strong && pair[0].level !== pair[1].level,
         matchesPlayed,
         reliability: reliabilityForMatchesPlayed(matchesPlayed),

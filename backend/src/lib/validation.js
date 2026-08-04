@@ -942,6 +942,10 @@ export function validateBooking(body) {
     }
     matchType = mt;
   }
+  // Jogo com homens e mulheres na mesma quadra é sempre amigável: o motor de
+  // nível compara escalas diferentes (level x levelFemale), então esse
+  // confronto não pode valer pontuação.
+  if (genderCategory === "mixed") matchType = "friendly";
 
   return {
     clubId: identifier(body.clubId, "clubId"),
@@ -1059,6 +1063,9 @@ export function validateBookingUpdate(body) {
     }
     matchType = mt;
   }
+  // Mesmo motivo da criação — e aqui o override é obrigatório mesmo quando o
+  // dono só troca o gênero para misto sem tocar no tipo.
+  if (genderCategory === "mixed") matchType = "friendly";
 
   return {
     levelCategories: parseLevelCategories(body.levelCategories),

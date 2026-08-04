@@ -841,6 +841,7 @@
     applyGenderSelect($("[data-edit-gender-category]"), match.genderCategory ?? null);
     const matchTypeEl = $("[data-edit-match-type]");
     if (matchTypeEl) matchTypeEl.value = match.matchType ?? "competitive";
+    syncMatchTypeWithGender($("[data-edit-gender-category]"), matchTypeEl);
     const { min, max } = levelCategoriesToRange(match.levelCategories);
     const minInput = $("[data-edit-level-range-min]");
     const maxInput = $("[data-edit-level-range-max]");
@@ -924,6 +925,10 @@
       resetInvitePlayers();
       resetBookingCategories();
       applyGenderSelect($("[data-booking-gender-category]"), null);
+      syncMatchTypeWithGender(
+        $("[data-booking-gender-category]"),
+        $("[data-booking-match-type]"),
+      );
       openAccessibleModal(
         $("[data-booking-modal]"),
         "[data-level-range-min]",
@@ -931,6 +936,10 @@
     });
     setupInviteSearch();
     setupLevelRangeSlider();
+    bindMatchTypeGenderLock(
+      "[data-booking-gender-category]",
+      "[data-booking-match-type]",
+    );
     $("[data-confirm-booking]")?.addEventListener("click", confirmBooking);
   }
 
@@ -1587,6 +1596,29 @@
       { value: "men_only",   label: "Masculino" },
       { value: "mixed",      label: "Misto" },
     ];
+  }
+
+  // Jogo misto não vale nível, então o tipo fica travado em "Amigável".
+  // O backend força a mesma regra; aqui é só para a UI não oferecer algo que
+  // seria sobrescrito na gravação.
+  function syncMatchTypeWithGender(genderSelect, matchTypeSelect) {
+    if (!genderSelect || !matchTypeSelect) return;
+    const isMixed = genderSelect.value === "mixed";
+    if (isMixed) matchTypeSelect.value = "friendly";
+    matchTypeSelect.disabled = isMixed;
+    matchTypeSelect.title = isMixed
+      ? "Jogos mistos são sempre amigáveis e não alteram o nível."
+      : "";
+  }
+
+  function bindMatchTypeGenderLock(genderSelector, matchTypeSelector) {
+    const genderSelect = $(genderSelector);
+    const matchTypeSelect = $(matchTypeSelector);
+    if (!genderSelect || !matchTypeSelect) return;
+    genderSelect.addEventListener("change", () =>
+      syncMatchTypeWithGender(genderSelect, matchTypeSelect),
+    );
+    syncMatchTypeWithGender(genderSelect, matchTypeSelect);
   }
 
   function applyGenderSelect(select, currentValue) {
@@ -3376,6 +3408,10 @@
     $("[data-match-edit-form]")?.addEventListener("submit", saveMatchEdit);
     $("[data-match-edit-cancel]")?.addEventListener("click", cancelCurrentMatch);
     setupEditLevelRangeSlider();
+    bindMatchTypeGenderLock(
+      "[data-edit-gender-category]",
+      "[data-edit-match-type]",
+    );
     // Close chat popup when the match detail modal closes
     const detailModal = $("[data-match-detail-modal]");
     const chatPopup = $("[data-match-chat-popup]");
