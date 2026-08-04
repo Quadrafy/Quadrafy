@@ -219,47 +219,39 @@ export function normalizeReliability(value) {
 /* TASK-28 — Multiplicador de Fiabilidade por dupla                     */
 /* ------------------------------------------------------------------ */
 
-// M_f a partir da fiabilidade média (%) da dupla:
-//   < 50%:  8.0 em 0% caindo linearmente até 5.0 em 50%  (variação grande)
-//   50–70%: interpolação linear entre 5.0 (50%) e 2.0 (70%)
-//           — o documento de referência não fixa a curva desta faixa;
-//           a interpolação linear é a proposta de implementação, validar
-//           com produto antes de considerar final.
-//   > 70%:  2.0 em 70% caindo linearmente até 1.0 em 100% (nível consolidado)
+// M_f a partir da fiabilidade média (%) da dupla: quanto menos consolidado o
+// nível, maior a variação permitida. Vai linearmente de 2,1× na estreia (35%,
+// a fiabilidade inicial) até 1,0× com o nível totalmente consolidado (100%).
+//
+// A curva anterior (3 trechos, chegando a 8,0× em fiabilidade baixa) fazia uma
+// única zebra mover o nível de um estreante quase 1,0 ponto. O teto foi
+// achatado no lugar de compensar com um fator de amortecimento separado: como
+// a fiabilidade só cresce a cada partida confirmada e este multiplicador é
+// estritamente decrescente nela, a variação de nível de um jogador cai
+// partida após partida, sem pico no meio do caminho. Duas alavancas (um teto
+// alto + um amortecedor crescente) produziam justamente esse pico.
+export const RELIABILITY_MULTIPLIER_MAX = 2.1;
+export const RELIABILITY_MULTIPLIER_MIN = 1;
+
 export function reliabilityMultiplier(averageReliability) {
   const reliability = Math.min(
     100,
     Math.max(0, Number(averageReliability) || 0),
   );
-  let multiplier;
-  if (reliability < 50) {
-    multiplier = 8 - (reliability / 50) * 3;
-  } else if (reliability > 70) {
-    multiplier = 2 - ((reliability - 70) / 30) * 1;
-  } else {
-    multiplier = 5 - ((reliability - 50) / 20) * 3;
-  }
+  // Abaixo da fiabilidade inicial (dados legados) o multiplicador satura no
+  // teto em vez de extrapolar.
+  const progress = Math.min(
+    1,
+    Math.max(
+      0,
+      (reliability - INITIAL_RELIABILITY) /
+        (RELIABILITY_CEILING - INITIAL_RELIABILITY),
+    ),
+  );
+  const multiplier =
+    RELIABILITY_MULTIPLIER_MAX -
+    (RELIABILITY_MULTIPLIER_MAX - RELIABILITY_MULTIPLIER_MIN) * progress;
   return Math.round(multiplier * 1000) / 1000;
-}
-
-/* ------------------------------------------------------------------ */
-/* Amortecimento das primeiras partidas                                 */
-/* ------------------------------------------------------------------ */
-
-// O multiplicador de fiabilidade chega a ~5,9× quando o jogador ainda está
-// nos 35% iniciais, o que fazia uma única zebra mover o nível quase 1,0
-// ponto. Este fator segura a variação nas primeiras partidas e sobe
-// linearmente até liberar o delta cheio a partir da 10ª partida confirmada.
-export const NOVICE_DAMPING_MATCHES = 10;
-export const NOVICE_DAMPING_FLOOR = 0.35;
-
-export function noviceDamping(matchesPlayed) {
-  const matches = Math.max(0, Number(matchesPlayed) || 0);
-  if (matches >= NOVICE_DAMPING_MATCHES) return 1;
-  const factor =
-    NOVICE_DAMPING_FLOOR +
-    (1 - NOVICE_DAMPING_FLOOR) * (matches / NOVICE_DAMPING_MATCHES);
-  return Math.round(factor * 1000) / 1000;
 }
 
 /* ------------------------------------------------------------------ */
@@ -339,10 +331,7 @@ export function computeMatchOutcome({ players, winningTeam }) {
       // Derrota: pesos cruzados (fraco perde com o peso do forte → menor
       // impacto; forte perde com o peso do fraco → maior prejuízo).
       const weight = won ? ownWeight : partnerWeight;
-      // Amortecimento individual: cada jogador usa o próprio histórico, então
-      // um veterano jogando com um estreante mantém o delta cheio.
-      const damping = noviceDamping(player.matchesPlayed);
-      const delta = (won ? 1 : -1) * pots[team] * weight * damping;
+      const delta = (won ? 1 : -1) * pots[team] * weight;
       const previousLevel = clampDynamicLevel(player.level) ?? 3.5;
       const level = clampDynamicLevel(previousLevel + delta);
       const matchesPlayed = Math.max(0, Number(player.matchesPlayed) || 0) + 1;
@@ -352,7 +341,6 @@ export function computeMatchOutcome({ players, winningTeam }) {
         level,
         won,
         weight: Math.round(weight * 1000) / 1000,
-        damping,
         isStrong: player === strong && pair[0].level !== pair[1].level,
         matchesPlayed,
         reliability: reliabilityForMatchesPlayed(matchesPlayed),
