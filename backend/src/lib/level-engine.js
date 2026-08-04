@@ -178,11 +178,31 @@ export function assessQuestionnaire(answers) {
 /* TASK-27 — Fiabilidade em percentual (0–100)                          */
 /* ------------------------------------------------------------------ */
 
-// Cresce a cada partida confirmada com incrementos decrescentes, partindo
-// de 35% e se aproximando de ~95–100% por volta de 50+ partidas.
+export const RELIABILITY_CEILING = 100;
+
+// Alvo de calibração: a fiabilidade sai de 35% na estreia e chega a 75% na
+// 10ª partida confirmada — o mesmo ponto em que o noviceDamping libera o
+// delta cheio. Sem essa ancoragem o multiplicador de fiabilidade ainda
+// estaria alto na 10ª e a variação de nível daria um pico logo depois do
+// amortecimento acabar, em vez de cair de forma contínua.
+const RELIABILITY_TARGET_MATCHES = 10;
+const RELIABILITY_TARGET = 75;
+const RELIABILITY_TAU =
+  -RELIABILITY_TARGET_MATCHES /
+  Math.log(
+    1 -
+      (RELIABILITY_TARGET - INITIAL_RELIABILITY) /
+        (RELIABILITY_CEILING - INITIAL_RELIABILITY),
+  );
+
+// Cresce a cada partida confirmada com incrementos decrescentes: 35% na
+// estreia, 75% na 10ª, ~90% na 20ª e praticamente 100% a partir da 50ª.
 export function reliabilityForMatchesPlayed(matchesPlayed) {
   const matches = Math.max(0, Number(matchesPlayed) || 0);
-  const reliability = 35 + 65 * (1 - Math.exp(-matches / 20));
+  const reliability =
+    INITIAL_RELIABILITY +
+    (RELIABILITY_CEILING - INITIAL_RELIABILITY) *
+      (1 - Math.exp(-matches / RELIABILITY_TAU));
   return Math.min(100, Math.round(reliability));
 }
 
