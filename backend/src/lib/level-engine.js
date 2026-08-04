@@ -351,15 +351,7 @@ export function computeMatchOutcome({ players, winningTeam, sets = null }) {
         : "team2";
   const upset = winningTeam !== favorite;
   const potBase = upset ? POT_BASE_UNDERDOG_WIN : POT_BASE_FAVORITE_WIN;
-  const multipliers = {
-    team1: reliabilityMultiplier(reliabilities.team1),
-    team2: reliabilityMultiplier(reliabilities.team2),
-  };
   const margin = marginFactor(sets, winningTeam);
-  const pots = {
-    team1: potBase * multipliers.team1 * margin,
-    team2: potBase * multipliers.team2 * margin,
-  };
   const updates = {};
   for (const team of ["team1", "team2"]) {
     const pair = byTeam[team];
@@ -374,7 +366,15 @@ export function computeMatchOutcome({ players, winningTeam, sets = null }) {
       // Derrota: pesos cruzados (fraco perde com o peso do forte → menor
       // impacto; forte perde com o peso do fraco → maior prejuízo).
       const weight = won ? ownWeight : partnerWeight;
-      const delta = (won ? 1 : -1) * pots[team] * weight;
+      // O pote é individual: cada jogador usa a própria fiabilidade, não a
+      // média da dupla. Dois parceiros com históricos diferentes movem
+      // quantidades diferentes na mesma partida — quem tem o nível menos
+      // consolidado se ajusta mais rápido, que é justamente o que a
+      // fiabilidade representa.
+      const reliabilityUsed = normalizeReliability(player.reliability);
+      const multiplier = reliabilityMultiplier(reliabilityUsed);
+      const pot = potBase * multiplier * margin;
+      const delta = (won ? 1 : -1) * pot * weight;
       const previousLevel = clampDynamicLevel(player.level) ?? 3.5;
       const level = clampDynamicLevel(previousLevel + delta);
       const matchesPlayed = Math.max(0, Number(player.matchesPlayed) || 0) + 1;
@@ -384,6 +384,9 @@ export function computeMatchOutcome({ players, winningTeam, sets = null }) {
         level,
         won,
         weight: Math.round(weight * 1000) / 1000,
+        reliabilityUsed,
+        multiplier,
+        pot: Math.round(pot * 1000) / 1000,
         isStrong: player === strong && pair[0].level !== pair[1].level,
         matchesPlayed,
         reliability: reliabilityForMatchesPlayed(matchesPlayed),
@@ -401,11 +404,9 @@ export function computeMatchOutcome({ players, winningTeam, sets = null }) {
       upset,
       potBase,
       margin,
-      multipliers,
-      pots: {
-        team1: Math.round(pots.team1 * 1000) / 1000,
-        team2: Math.round(pots.team2 * 1000) / 1000,
-      },
+      // Multiplicador e pote agora são por jogador (updates[id].multiplier /
+      // .pot), porque cada um usa a própria fiabilidade. Aqui ficam só as
+      // médias da dupla, para contexto na explicação.
       winningTeam,
     },
   };

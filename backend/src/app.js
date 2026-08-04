@@ -3340,8 +3340,11 @@ export async function createApp(overrides = {}) {
           upset: breakdown.upset,
           potBase: breakdown.potBase,
           margin: breakdown.margin,
-          multiplier: breakdown.multipliers[myTeam],
-          pot: breakdown.pots[myTeam],
+          // Individuais: cada jogador tem o próprio multiplicador e pote,
+          // calculados a partir da sua própria fiabilidade.
+          multiplier: me.multiplier,
+          pot: me.pot,
+          reliabilityUsed: me.reliabilityUsed,
           weight: me.weight,
           delta: me.delta,
           previousLevel: me.previousLevel,

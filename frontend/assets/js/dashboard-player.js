@@ -4050,7 +4050,7 @@
               ? `<li><strong>Margem de vitória:</strong> ×${fmt(explanation.margin, 3)} — ${explanation.margin > 1 ? "placar folgado, pote aumentado" : "placar apertado, pote reduzido"}.</li>`
               : ""
           }
-          <li><strong>Multiplicador de fiabilidade da sua dupla:</strong> ×${fmt(explanation.multiplier)} (fiabilidade média ${fmt(explanation.reliabilities[explanation.myTeam], 0)}%) → pote total ${fmt(explanation.pot, 3)}.</li>
+          <li><strong>Seu multiplicador de fiabilidade:</strong> ×${fmt(explanation.multiplier)} (sua fiabilidade ${fmt(explanation.reliabilityUsed ?? explanation.reliabilities[explanation.myTeam], 0)}%) → seu pote ${fmt(explanation.pot, 3)}.</li>
           <li><strong>Sua fatia (distribuição inversa):</strong> peso ${fmt(explanation.weight, 3)} → ${explanation.won ? "ganho" : "perda"} de ${signedDelta} no seu nível (${fmt(explanation.previousLevel)} → ${fmt(explanation.newLevel)}).</li>
         </ol>
         <p class="level-explainer-summary">${escapeHTML(explanation.summary)}</p>`;
