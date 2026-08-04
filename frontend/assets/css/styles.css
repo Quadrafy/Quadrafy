@@ -4405,13 +4405,25 @@ em {
   gap: 8px;
   grid-column: 1 / -1;
 }
+.booking-compact-pair {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 0;
+  grid-column: 1 / -1;
+}
 .booking-compact-label {
   font-size: 12px;
   color: var(--ink-soft);
   white-space: nowrap;
 }
+.booking-compact-pair .booking-compact-label:last-of-type {
+  padding-left: 6px;
+  border-left: 1px solid var(--line);
+}
 .booking-compact-select {
-  flex: 1;
+  min-width: 0;
   height: 34px;
   padding: 0 8px;
   border: 1px solid var(--line);
@@ -4420,6 +4432,9 @@ em {
   color: var(--ink);
   font-size: 13px;
   cursor: pointer;
+}
+.booking-compact-row .booking-compact-select {
+  flex: 1;
 }
 .level-range-field {
   grid-column: 1 / -1;
@@ -4461,6 +4476,24 @@ em {
   border-radius: 2px;
   left: 0;
   right: 0;
+}
+.level-range-ticks {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 0;
+  pointer-events: none;
+}
+.level-range-ticks span {
+  position: absolute;
+  top: -7px;
+  width: 1.5px;
+  height: 14px;
+  background: var(--paper);
+  border-radius: 1px;
+  transform: translateX(-50%);
+  opacity: 0.8;
 }
 .level-range-input {
   position: absolute;

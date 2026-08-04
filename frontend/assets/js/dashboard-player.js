@@ -765,12 +765,12 @@
     if (!minInput || !maxInput) return;
     minInput.addEventListener("input", () => {
       if (parseFloat(minInput.value) >= parseFloat(maxInput.value))
-        minInput.value = parseFloat(maxInput.value) - 0.5;
+        minInput.value = parseFloat(maxInput.value) - 0.1;
       updateLevelRangeFill();
     });
     maxInput.addEventListener("input", () => {
       if (parseFloat(maxInput.value) <= parseFloat(minInput.value))
-        maxInput.value = parseFloat(minInput.value) + 0.5;
+        maxInput.value = parseFloat(minInput.value) + 0.1;
       updateLevelRangeFill();
     });
     updateLevelRangeFill();
@@ -800,12 +800,12 @@
     if (!minInput || !maxInput) return;
     minInput.addEventListener("input", () => {
       if (parseFloat(minInput.value) >= parseFloat(maxInput.value))
-        minInput.value = parseFloat(maxInput.value) - 0.5;
+        minInput.value = parseFloat(maxInput.value) - 0.1;
       updateEditLevelRangeFill();
     });
     maxInput.addEventListener("input", () => {
       if (parseFloat(maxInput.value) <= parseFloat(minInput.value))
-        maxInput.value = parseFloat(minInput.value) + 0.5;
+        maxInput.value = parseFloat(minInput.value) + 0.1;
       updateEditLevelRangeFill();
     });
     updateEditLevelRangeFill();
