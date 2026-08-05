@@ -168,6 +168,40 @@
     "Elite": "Open",
   };
 
+  // Faixa numérica de cada categoria (mesma tabela do motor de nível). O clube
+  // pensa em categoria ("5ª"), o jogador pensa em nível ("2–3,5"), então os
+  // cards mostram os dois.
+  const LEVEL_BAND_MAP = {
+    "Iniciante":               { min: 0,   max: 1   },
+    "Iniciante Intermediário": { min: 1,   max: 2   },
+    "Intermediário":           { min: 2,   max: 3.5 },
+    "Intermediário Avançado":  { min: 3.5, max: 5.2 },
+    "Avançado":                { min: 5.2, max: 6.2 },
+    "Avançado Elevado":        { min: 6.2, max: 6.8 },
+    "Elite":                   { min: 6.8, max: 7   },
+  };
+
+  function formatLevelNumber(value) {
+    return value % 1 === 0 ? String(value) : String(value).replace(".", ",");
+  }
+
+  // Faixa contínua que cobre todas as categorias permitidas. Sem restrição
+  // equivale a 0–7, que é o intervalo inteiro.
+  function formatLevelRange(levelCategories) {
+    if (!levelCategories?.length) return "0–7";
+    let min = Infinity;
+    let max = -Infinity;
+    for (const category of levelCategories) {
+      const band = LEVEL_BAND_MAP[category];
+      if (band) {
+        min = Math.min(min, band.min);
+        max = Math.max(max, band.max);
+      }
+    }
+    if (!Number.isFinite(min)) return "0–7";
+    return `${formatLevelNumber(min)}–${formatLevelNumber(max)}`;
+  }
+
   function super8DateTimeLabel(tournament) {
     const parts = [];
     if (tournament.date) {
@@ -206,6 +240,7 @@
       ? tournament.levelCategories.map((c) => LEVEL_CATEGORY_SHORT[c] ?? c).join(", ")
       : "Todas";
     const levelChip = `<span class="super8-level-chip">Cat. ${escapeHTML(levelShort)}</span>`;
+    const levelRangeChip = `<span class="super8-level-chip super8-range-chip">Nível ${escapeHTML(formatLevelRange(tournament.levelCategories))}</span>`;
     const genderLabel = SUPER8_GENDER_CHIP_LABELS[tournament.genderCategory];
     const genderChip = genderLabel
       ? `<span class="super8-level-chip gender-chip gender-${escapeHTML(tournament.genderCategory)}">${escapeHTML(genderLabel)}</span>`
@@ -230,7 +265,7 @@
       <p class="super8-card-format">Super ${tournament.size} · ${escapeHTML(modeLabel)}</p>
       <h3>${escapeHTML(tournament.name)}</h3>
       <div class="super8-card-meta">
-        <div class="super8-level-chips">${levelChip}${genderChip}</div>
+        <div class="super8-level-chips">${levelChip}${levelRangeChip}${genderChip}</div>
         <div class="super8-card-players">${playerBubbles}${overflowBubble}<span class="super8-players-count">${players.length}/${tournament.size}</span></div>
       </div>
       <div class="super8-card-footer">
@@ -860,7 +895,7 @@
 
     $("[data-super8-detail-content]").innerHTML = `
       <div class="super8-datetime-highlight"><div><small>Data</small><strong>${dateLabel}</strong></div><div><small>Horário de início</small><strong>${tournament.startTime ? escapeHTML(tournament.startTime) : "A definir"}</strong></div></div>
-      <div class="match-detail super8-meta"><div><small>Status</small><strong>${escapeHTML(statusLabel)}</strong></div><div><small>Formato</small><strong>Super ${tournament.size}</strong></div><div><small>Modalidade</small><strong>${escapeHTML(modeLabel)}</strong></div><div><small>Gênero</small><strong>${escapeHTML(genderLabel)}</strong></div><div><small>Jogadores</small><strong>${tournament.players.length}/${tournament.size}</strong></div><div><small>Categorias</small><strong>${escapeHTML(categoriesLabel)}</strong></div><div><small>Quadras</small><strong>${courtsLabel}</strong></div></div>
+      <div class="match-detail super8-meta"><div><small>Status</small><strong>${escapeHTML(statusLabel)}</strong></div><div><small>Formato</small><strong>Super ${tournament.size}</strong></div><div><small>Modalidade</small><strong>${escapeHTML(modeLabel)}</strong></div><div><small>Gênero</small><strong>${escapeHTML(genderLabel)}</strong></div><div><small>Jogadores</small><strong>${tournament.players.length}/${tournament.size}</strong></div><div><small>Categorias</small><strong>${escapeHTML(categoriesLabel)}</strong></div><div><small>Nível</small><strong>${escapeHTML(formatLevelRange(tournament.levelCategories))}</strong></div><div><small>Quadras</small><strong>${courtsLabel}</strong></div></div>
       ${rosterPanel}
       ${pairsPanel}
       ${games.length ? `<div class="super8-progress"><div class="super8-progress-head"><span>${finished.length} de ${games.length} jogos finalizados</span><strong>${progressPercent}%</strong></div><div class="confidence-bar" aria-hidden="true"><span style="width:${progressPercent}%"></span></div></div>` : ""}

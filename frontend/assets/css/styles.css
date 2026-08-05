@@ -2053,7 +2053,9 @@ em {
 .club-cover-photo {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  /* Mesmo enquadramento do upload e do preview no painel do clube: o dono
+     precisa ver exatamente o que o jogador vai ver. */
+  object-fit: cover;
 }
 .club-cover-art::before {
   position: absolute;
@@ -2227,7 +2229,7 @@ em {
 .court-detail-photo {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
 }
 .detail-info {
   display: flex;
@@ -6982,6 +6984,13 @@ button.match-player-row:focus-visible strong {
   background: rgba(20, 23, 31, 0.07);
   font: 600 11px/1 var(--mono);
   color: var(--ink);
+}
+/* Faixa numérica ao lado da categoria: contorno em vez de fundo cheio, para
+   ler como complemento do chip de categoria e não como um terceiro filtro. */
+.super8-range-chip {
+  background: transparent;
+  border: 1px solid rgba(20, 23, 31, 0.16);
+  color: var(--ink-soft);
 }
 .super8-card-players {
   display: flex;
