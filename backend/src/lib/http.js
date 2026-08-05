@@ -145,8 +145,12 @@ export function assertSameOrigin(request, allowedOrigins = []) {
     }
   }
 
-  // Neither header present — non-browser server-to-server client, skip check
-  if (!effectiveOrigin) return;
+  // Nenhum dos dois presente: navegadores SEMPRE enviam Origin em escrita
+  // cross-origin, então a ausência é tratada como origem inválida (fail-closed)
+  // em vez de liberar a requisição.
+  if (!effectiveOrigin) {
+    throw new ApiError(403, "invalid_origin", "Origem da requisição ausente.");
+  }
 
   const host = request.headers.host;
   let originHost;

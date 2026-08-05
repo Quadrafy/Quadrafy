@@ -35,7 +35,9 @@ before(async () => {
       async sendClubRejected(p) {
         mails.push(["rejected", p]);
       },
-      async sendEmailVerification() {},
+      async sendEmailVerification(p) {
+        mails.push(["verify", p]);
+      },
     },
   });
   server = createServer(app.handler);
@@ -103,6 +105,18 @@ test("club is created pending, admin approves, and it becomes active", async () 
     },
   });
   const adminCookie = cookieOf(adminReg);
+
+  // Admin só ganha poderes com e-mail verificado (prova de posse). Antes disso
+  // não é admin; após confirmar o e-mail, sim.
+  const beforeVerify = await api("/api/v1/auth/me", { cookie: adminCookie });
+  assert.equal((await beforeVerify.json()).data.isAdmin, false);
+  const verifyMail = mails.filter(([type]) => type === "verify").pop();
+  const verifyToken = new URL(verifyMail[1].verifyUrl).searchParams.get("token");
+  await api("/api/v1/auth/verify-email", {
+    method: "POST",
+    body: { token: verifyToken },
+  });
+
   const me = await api("/api/v1/auth/me", { cookie: adminCookie });
   assert.equal((await me.json()).data.isAdmin, true);
 

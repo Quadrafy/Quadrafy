@@ -129,6 +129,13 @@ export function loadConfig(overrides = {}) {
     // testes de integração o clube é aprovado automaticamente para não exigir
     // um passo de aprovação em cada cenário; o teste de aprovação desliga isso.
     autoApproveClubs: overrides.autoApproveClubs ?? environment === "test",
+    // Confiar no X-Forwarded-For para o IP do cliente (rate-limit). Ligar SÓ
+    // quando o backend está atrás de um proxy confiável (Vercel/nginx).
+    trustProxy:
+      overrides.trustProxy ??
+      ["1", "true", "yes"].includes(
+        String(process.env.TRUST_PROXY ?? "").toLowerCase(),
+      ),
     // Admins master: validam solicitações de clube. E-mails separados por vírgula.
     adminEmails: [
       ...new Set(

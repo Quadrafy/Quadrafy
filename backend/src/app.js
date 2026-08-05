@@ -190,7 +190,18 @@ function dashboardPath(role) {
   return role === "club" ? "/dashboard-club.html" : "/dashboard-player.html";
 }
 
-function clientAddress(request) {
+function clientAddress(request, trustProxy = false) {
+  // Atrás de um proxy confiável (Vercel/nginx), o IP real do cliente vem no
+  // X-Forwarded-For; sem isso, todos os clientes colapsam no IP do proxy e os
+  // rate-limits por IP viram um teto global. Só confiamos no header quando
+  // TRUST_PROXY está ligado (senão o valor seria falsificável).
+  if (trustProxy) {
+    const forwarded = request.headers["x-forwarded-for"];
+    if (forwarded) {
+      const first = String(forwarded).split(",")[0].trim();
+      if (first) return first;
+    }
+  }
   return request.socket.remoteAddress ?? "unknown";
 }
 
@@ -498,9 +509,15 @@ export async function createApp(overrides = {}) {
   }
 
   function isAdmin(user) {
-    return Boolean(
-      user?.email && config.adminEmails.includes(normalizeEmail(user.email)),
-    );
+    if (
+      !user?.email ||
+      !config.adminEmails.includes(normalizeEmail(user.email))
+    ) {
+      return false;
+    }
+    // Só concede admin com prova de posse do e-mail (verificado ou login Google).
+    // Impede que alguém registre um e-mail de admin e ganhe acesso sem provar.
+    return Boolean(user.profile?.emailVerified || user.profile?.googleId);
   }
 
   function requireAdmin(request) {
@@ -1084,7 +1101,7 @@ export async function createApp(overrides = {}) {
 
     if (request.method === "POST" && pathname === "/api/v1/auth/register") {
       assertSameOrigin(request);
-      const rateKey = clientAddress(request);
+      const rateKey = clientAddress(request, config.trustProxy);
       registerLimiter.consume(rateKey);
       const input = validateRegistration(await readJson(request));
       const user = await users.create({
@@ -1158,7 +1175,7 @@ export async function createApp(overrides = {}) {
     if (request.method === "POST" && pathname === "/api/v1/auth/login") {
       assertSameOrigin(request);
       const input = validateLogin(await readJson(request));
-      const ipKey = clientAddress(request);
+      const ipKey = clientAddress(request, config.trustProxy);
       const accountKey = normalizeEmail(input.email);
       loginIpLimiter.consume(ipKey);
       loginAccountLimiter.consume(accountKey);
@@ -1259,7 +1276,7 @@ export async function createApp(overrides = {}) {
       pathname === "/api/v1/auth/forgot-password"
     ) {
       assertSameOrigin(request);
-      const ipKey = clientAddress(request);
+      const ipKey = clientAddress(request, config.trustProxy);
       forgotPasswordIpLimiter.consume(ipKey);
       const input = validateForgotPassword(await readJson(request));
       forgotPasswordAccountLimiter.consume(input.email);
@@ -1315,7 +1332,7 @@ export async function createApp(overrides = {}) {
       pathname === "/api/v1/auth/reset-password"
     ) {
       assertSameOrigin(request);
-      forgotPasswordIpLimiter.consume(clientAddress(request));
+      forgotPasswordIpLimiter.consume(clientAddress(request, config.trustProxy));
       const input = validateResetPassword(await readJson(request));
       const tokenHash = digestToken(input.token);
       const entry = passwordResets.findByTokenHash(tokenHash);
@@ -1331,6 +1348,9 @@ export async function createApp(overrides = {}) {
       }
       await users.updatePassword(user.id, await hashPassword(input.password));
       await passwordResets.consume(tokenHash);
+      // Expulsa qualquer sessão anterior (ex.: sessão de um atacante) — a nova
+      // senha só vale a partir de agora e todos precisam logar de novo.
+      await sessions.revokeAllForUser(user.id);
       await auditLog.record({
         actorId: user.id,
         action: "auth.password_reset",
@@ -1350,7 +1370,7 @@ export async function createApp(overrides = {}) {
       pathname === "/api/v1/auth/verify-email"
     ) {
       assertSameOrigin(request);
-      emailVerificationLimiter.consume(clientAddress(request));
+      emailVerificationLimiter.consume(clientAddress(request, config.trustProxy));
       const input = validateVerifyEmail(await readJson(request));
       const tokenHash = digestToken(input.token);
       const entry = emailVerifications.findByTokenHash(tokenHash);
@@ -1415,7 +1435,7 @@ export async function createApp(overrides = {}) {
     }
 
     if (request.method === "GET" && pathname === "/api/v1/auth/google/start") {
-      googleAuthLimiter.consume(clientAddress(request));
+      googleAuthLimiter.consume(clientAddress(request, config.trustProxy));
       if (!googleOAuth.enabled) {
         return redirectTo(response, "/login.html?error=google_unavailable");
       }
@@ -1429,7 +1449,7 @@ export async function createApp(overrides = {}) {
       request.method === "GET" &&
       pathname === "/api/v1/auth/google/callback"
     ) {
-      googleAuthLimiter.consume(clientAddress(request));
+      googleAuthLimiter.consume(clientAddress(request, config.trustProxy));
       const clearState = oauthStateCookie("", 0);
       if (!googleOAuth.enabled) {
         return redirectTo(response, "/login.html?error=google_unavailable");
@@ -1453,7 +1473,7 @@ export async function createApp(overrides = {}) {
         const tokens = await googleOAuth.exchangeCode(code);
         const info = await googleOAuth.fetchUserInfo(tokens.access_token);
         const email = normalizeEmail(info.email);
-        if (!email || info.email_verified === false) {
+        if (!email || info.email_verified !== true) {
           return redirectTo(response, "/login.html?error=google_email", {
             "Set-Cookie": clearState,
           });
@@ -1482,9 +1502,33 @@ export async function createApp(overrides = {}) {
             after: { role: user.role },
             requestId: request.requestId,
           });
-        } else if (!user.profile?.googleId || !user.profile?.emailVerified) {
+        } else if (!user.profile?.googleId) {
+          // Primeiro vínculo do Google a uma conta que já existia. Se essa conta
+          // NÃO tinha e-mail verificado, ela pode ter sido pré-registrada por um
+          // atacante (senha/sessão conhecidas por ele). O Google prova a posse do
+          // e-mail, então invalidamos senha e sessões antigas antes de vincular.
+          if (!user.profile?.emailVerified) {
+            await users.updatePassword(
+              user.id,
+              await hashPassword(createSessionToken()),
+            );
+            await sessions.revokeAllForUser(user.id);
+          }
           await users.updateProfile(user.id, {
             googleId: info.sub,
+            emailVerified: true,
+            emailVerifiedAt:
+              user.profile?.emailVerifiedAt ?? new Date().toISOString(),
+          });
+          await auditLog.record({
+            actorId: user.id,
+            action: "auth.google_linked",
+            resourceType: "auth",
+            resourceId: user.id,
+            requestId: request.requestId,
+          });
+        } else if (!user.profile?.emailVerified) {
+          await users.updateProfile(user.id, {
             emailVerified: true,
             emailVerifiedAt:
               user.profile?.emailVerifiedAt ?? new Date().toISOString(),

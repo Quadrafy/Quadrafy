@@ -57,6 +57,17 @@ export class SessionStore {
     this.sessions.delete(tokenHash);
   }
 
+  // Revoga TODAS as sessões de um usuário (troca/reset de senha, vínculo de
+  // conta) — expulsa qualquer sessão anterior, inclusive de um atacante.
+  async revokeAllForUser(userId) {
+    for (const [key, session] of this.sessions) {
+      if (session.userId === userId) this.sessions.delete(key);
+    }
+    if (this.authenticationRepository?.revokeSessionsForUser) {
+      await this.authenticationRepository.revokeSessionsForUser(userId);
+    }
+  }
+
   removeExpired() {
     const now = Date.now();
     for (const [key, session] of this.sessions) {

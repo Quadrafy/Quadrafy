@@ -133,6 +133,14 @@ export class SupabaseAuthenticationRepository {
     throwDatabaseError("revoke session", error);
   }
 
+  async revokeSessionsForUser(userId) {
+    const { error } = await this.client
+      .from("app_sessions")
+      .delete()
+      .eq("user_id", userId);
+    throwDatabaseError("revoke user sessions", error);
+  }
+
   async removeExpiredSessions(now) {
     const { error } = await this.client
       .from("app_sessions")
