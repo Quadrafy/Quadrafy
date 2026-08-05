@@ -617,6 +617,16 @@
             method: "POST",
             body,
           });
+          // Clube em análise/recusado: não há painel para abrir — só a mensagem.
+          if (data?.pending || data?.rejected) {
+            setFormFeedback(
+              form,
+              data.message || "Sua solicitação foi enviada e está em análise.",
+              Boolean(data.pending),
+            );
+            form.reset();
+            return;
+          }
           if (action === "forgot-password") {
             setFormFeedback(
               form,

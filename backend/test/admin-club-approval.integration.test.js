@@ -76,12 +76,16 @@ test("club is created pending, admin approves, and it becomes active", async () 
     },
   });
   assert.equal(clubReg.status, 201);
-  const clubCookie = cookieOf(clubReg);
-
-  // Clube começa pendente e admins foram notificados.
-  const dash = await api("/api/v1/club/dashboard", { cookie: clubCookie });
-  assert.equal((await dash.json()).data.clubStatus, "pending");
+  // Clube NÃO entra no sistema: vira solicitação pendente e avisa os admins.
+  assert.equal((await clubReg.json()).data.pending, true);
   assert.ok(mails.some(([type]) => type === "application"));
+
+  // Clube pendente não consegue logar.
+  const earlyLogin = await api("/api/v1/auth/login", {
+    method: "POST",
+    body: { email: "arena@example.com", password: "SenhaSegura123" },
+  });
+  assert.equal((await earlyLogin.json()).data.pending, true);
 
   // Admin (e-mail na lista) enxerga isAdmin e a solicitação pendente.
   const adminReg = await api("/api/v1/auth/register", {
@@ -118,7 +122,13 @@ test("club is created pending, admin approves, and it becomes active", async () 
   assert.equal(approve.status, 200);
   assert.ok(mails.some(([type]) => type === "approved"));
 
-  // Clube agora ativo.
+  // Agora o clube consegue logar (ativo) e acessar o painel.
+  const clubLogin = await api("/api/v1/auth/login", {
+    method: "POST",
+    body: { email: "arena@example.com", password: "SenhaSegura123" },
+  });
+  assert.equal(clubLogin.status, 200);
+  const clubCookie = cookieOf(clubLogin);
   const dash2 = await api("/api/v1/club/dashboard", { cookie: clubCookie });
   assert.equal((await dash2.json()).data.clubStatus, "active");
 });

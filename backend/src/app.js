@@ -1101,29 +1101,39 @@ export async function createApp(overrides = {}) {
         after: { role: user.role },
         requestId: request.requestId,
       });
-      await issueEmailVerification(user, request);
       if (user.role === "club") {
-        // Clube já nasce pendente; avisa os admins para validarem o acesso.
+        // Clube é uma SOLICITAÇÃO: cria o registro pendente, avisa os admins e
+        // NÃO entra no sistema até um admin aprovar (salvo auto-aprovação/teste).
         const club = await clubs.ensureForUser(user);
-        try {
-          if (config.adminEmails.length) {
-            await mailer.sendClubApplication({
-              to: config.adminEmails,
-              club,
-              ownerEmail: user.email,
+        if (club.status !== "active") {
+          try {
+            if (config.adminEmails.length) {
+              await mailer.sendClubApplication({
+                to: config.adminEmails,
+                club,
+                ownerEmail: user.email,
+              });
+            }
+          } catch (error) {
+            await auditLog.record({
+              actorId: user.id,
+              action: "club.application_email_failed",
+              resourceType: "club",
+              resourceId: club?.id ?? null,
+              after: { message: String(error.message).slice(0, 200) },
+              requestId: request.requestId,
             });
           }
-        } catch (error) {
-          await auditLog.record({
-            actorId: user.id,
-            action: "club.application_email_failed",
-            resourceType: "club",
-            resourceId: club?.id ?? null,
-            after: { message: String(error.message).slice(0, 200) },
-            requestId: request.requestId,
+          await sessions.revoke(parseCookies(request).padelfy_session);
+          sendData(response, 201, {
+            pending: true,
+            message:
+              "Solicitação enviada! Sua arena está em análise — assim que um administrador aprovar, você receberá um e-mail e poderá acessar o painel.",
           });
+          return true;
         }
       }
+      await issueEmailVerification(user, request);
       await sessions.revoke(parseCookies(request).padelfy_session);
       const token = await sessions.create(user.id);
       sendData(
@@ -1173,6 +1183,27 @@ export async function createApp(overrides = {}) {
         );
       }
       loginAccountLimiter.clear(accountKey);
+      if (user.role === "club") {
+        // Clube pendente/recusado não acessa o painel enquanto não for aprovado.
+        const club = clubs.findByOwnerId(user.id);
+        if (club && club.status === "pending") {
+          sendData(response, 200, {
+            pending: true,
+            message:
+              "Sua arena está em análise. Assim que um administrador aprovar, você poderá acessar o painel.",
+          });
+          return true;
+        }
+        if (club && club.status === "rejected") {
+          sendData(response, 200, {
+            rejected: true,
+            message: `Sua solicitação de arena não foi aprovada.${
+              club.rejectionReason ? " Motivo: " + club.rejectionReason : ""
+            }`,
+          });
+          return true;
+        }
+      }
       await sessions.revoke(parseCookies(request).padelfy_session);
       const token = await sessions.create(user.id);
       await auditLog.record({
